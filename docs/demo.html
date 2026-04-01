@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Demo - Agentic Post-Training Framework</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --bg2: #111128;
+            --card: rgba(255,255,255,0.04);
+            --card-border: rgba(255,255,255,0.08);
+            --text: #e0e0f0;
+            --text-dim: #8888aa;
+            --accent1: #7c3aed;
+            --accent2: #3b82f6;
+            --accent3: #06b6d4;
+            --gradient: linear-gradient(135deg, #7c3aed, #3b82f6, #06b6d4);
+            --glow: 0 0 40px rgba(124,58,237,0.15);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+        /* Nav */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(10,10,26,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 16px 0;
+        }
+        nav .container { display: flex; justify-content: space-between; align-items: center; }
+        nav .logo { font-weight: 700; font-size: 1.1rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; }
+        nav .links { display: flex; gap: 28px; }
+        nav .links a { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+        nav .links a:hover { color: var(--text); }
+
+        /* Tabs */
+        .tabs {
+            display: flex; gap: 4px; margin-bottom: 32px;
+            background: var(--bg2); border-radius: 12px; padding: 4px;
+            border: 1px solid var(--card-border);
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            flex: 1; min-width: 160px;
+            padding: 12px 20px; border: none; border-radius: 10px;
+            background: transparent; color: var(--text-dim);
+            font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            background: var(--gradient); color: white;
+            box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Shared card style */
+        .panel-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .panel-card:hover { border-color: rgba(124,58,237,0.2); }
+
+        /* Technique selector */
+        .tech-selector {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+        }
+        .tech-pill {
+            padding: 8px 16px; border-radius: 20px;
+            border: 1px solid var(--card-border); background: transparent;
+            color: var(--text-dim); font-family: 'Inter', sans-serif;
+            font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: all 0.25s;
+        }
+        .tech-pill:hover { border-color: var(--accent2); color: var(--text); }
+        .tech-pill.active { border-color: var(--accent1); color: white; background: rgba(124,58,237,0.25); }
+        .tech-pill.compare-active { border-color: var(--accent3); color: white; background: rgba(6,182,212,0.25); }
+
+        /* Layout grids */
+        .explorer-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .explorer-grid { grid-template-columns: 1fr; }
+            nav .links { display: none; }
+        }
+
+        /* Canvas chart container */
+        .chart-container {
+            position: relative; width: 100%; padding-bottom: 0;
+        }
+        .chart-container canvas {
+            width: 100%; height: 300px; border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+        }
+
+        /* Metrics row */
+        .metrics-row {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px; margin-top: 16px;
+        }
+        .metric-box {
+            background: rgba(0,0,0,0.3); border-radius: 10px; padding: 14px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.04);
+        }
+        .metric-box .label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .metric-box .value { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* Slider params */
+        .param-sliders { margin-top: 16px; }
+        .param-row {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+        }
+        .param-row label {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            color: var(--text-dim); min-width: 120px;
+        }
+        .param-row input[type="range"] {
+            flex: 1; -webkit-appearance: none; height: 4px;
+            background: rgba(255,255,255,0.1); border-radius: 2px; outline: none;
+        }
+        .param-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px;
+            border-radius: 50%; background: var(--accent2); cursor: pointer;
+            border: 2px solid var(--bg);
+        }
+        .param-row .param-val {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            color: var(--accent3); min-width: 50px; text-align: right;
+        }
+
+        /* Terminal */
+        .terminal {
+            background: #0d1117; border: 1px solid #30363d;
+            border-radius: 12px; overflow: hidden;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+        }
+        .terminal-header {
+            background: #161b22; padding: 12px 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f57; }
+        .dot-yellow { background: #febc2e; }
+        .dot-green { background: #28c840; }
+        .terminal-title { color: #8b949e; font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 16px; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem; line-height: 1.8; height: 340px;
+            overflow-y: auto;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+        .terminal-body .time { color: #484f58; }
+        .terminal-body .coordinator { color: #d2a8ff; font-weight: 500; }
+        .terminal-body .trainer { color: #79c0ff; font-weight: 500; }
+        .terminal-body .optimizer { color: #e3b341; font-weight: 500; }
+        .terminal-body .evaluator { color: #56d364; font-weight: 500; }
+        .terminal-body .msg { color: #c9d1d9; }
+        .terminal-body .highlight { color: #7ee787; }
+        .terminal-body .line {
+            opacity: 0; animation: termFadeIn 0.3s forwards;
+        }
+        @keyframes termFadeIn { to { opacity: 1; } }
+
+        /* Comparison table */
+        .compare-table {
+            width: 100%; border-collapse: collapse; margin-top: 16px;
+            font-size: 0.85rem;
+        }
+        .compare-table th {
+            text-align: left; padding: 10px 14px;
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-dim); font-weight: 600; font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .compare-table td {
+            padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+        }
+        .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* Pipeline simulator */
+        .pipeline-sim-stages {
+            display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+        .pipeline-stage-btn {
+            padding: 12px 18px; border-radius: 12px;
+            border: 1px solid var(--card-border); background: var(--card);
+            color: var(--text-dim); font-family: 'Inter', sans-serif;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.3s;
+            text-align: center; min-width: 130px;
+        }
+        .pipeline-stage-btn .stage-num {
+            font-size: 1.6rem; font-weight: 800;
+            background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: block; margin-bottom: 2px;
+        }
+        .pipeline-stage-btn:hover { border-color: var(--accent2); }
+        .pipeline-stage-btn.active { border-color: var(--accent1); background: rgba(124,58,237,0.12); color: var(--text); }
+        .pipeline-stage-btn.completed { border-color: #34d399; }
+        .pipeline-stage-btn.completed .stage-num { background: linear-gradient(135deg, #34d399, #06b6d4); -webkit-background-clip: text; }
+        .pipeline-arrow-sm { display: flex; align-items: center; color: var(--accent2); font-size: 1.2rem; opacity: 0.4; }
+
+        .pipeline-controls {
+            display: flex; gap: 12px; justify-content: center; margin-bottom: 24px;
+        }
+        .sim-btn {
+            padding: 10px 24px; border-radius: 10px; border: none;
+            font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .sim-btn-primary { background: var(--gradient); color: white; box-shadow: 0 4px 20px rgba(124,58,237,0.3); }
+        .sim-btn-primary:hover { transform: translateY(-2px); }
+        .sim-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .sim-btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--card-border); }
+
+        .stage-description {
+            text-align: center; color: var(--text-dim); font-size: 0.9rem;
+            margin-bottom: 20px; min-height: 24px;
+        }
+
+        /* Hero */
+        .page-hero {
+            padding: 120px 0 40px; text-align: center;
+        }
+        .page-hero h1 {
+            font-size: 2.8rem; font-weight: 800;
+            background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .page-hero p { color: var(--text-dim); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+
+        /* Footer */
+        footer {
+            padding: 40px 0; border-top: 1px solid var(--card-border);
+            text-align: center; color: var(--text-dim); font-size: 0.85rem;
+            margin-top: 60px;
+        }
+        footer a { color: var(--accent2); text-decoration: none; }
+
+        /* Section spacing */
+        .demo-section { padding: 20px 0 60px; }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .page-hero h1 { font-size: 1.8rem; }
+            .pipeline-arrow-sm { display: none; }
+            .pipeline-sim-stages { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="container">
+        <a href="index.html" class="logo">Agentic Post-Training</a>
+        <div class="links">
+            <a href="index.html">Home</a>
+            <a href="#explorer">Explorer</a>
+            <a href="#comparison">Comparison</a>
+            <a href="#pipeline-sim">Pipeline</a>
+        </div>
+    </div>
+</nav>
+
+<section class="page-hero">
+    <div class="container">
+        <h1>Interactive Demo</h1>
+        <p>Explore training techniques, compare convergence curves, and step through the agent pipeline -- all simulated live in your browser.</p>
+    </div>
+</section>
+
+<section class="demo-section">
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="explorer">Technique Explorer</button>
+            <button class="tab-btn" data-tab="comparison">Comparison Mode</button>
+            <button class="tab-btn" data-tab="pipeline">Pipeline Simulator</button>
+        </div>
+
+        <!-- ============ TAB 1: TECHNIQUE EXPLORER ============ -->
+        <div class="tab-panel active" id="tab-explorer">
+            <div class="tech-selector" id="explorerSelector"></div>
+            <div class="explorer-grid">
+                <div>
+                    <div class="panel-card">
+                        <h3 style="margin-bottom:12px; font-size:1rem;">Training Curve</h3>
+                        <div class="chart-container">
+                            <canvas id="explorerChart" width="600" height="300"></canvas>
+                        </div>
+                        <div class="metrics-row" id="explorerMetrics"></div>
+                    </div>
+                    <div class="panel-card param-sliders" id="explorerParams"></div>
+                </div>
+                <div>
+                    <div class="terminal" id="explorerTerminal">
+                        <div class="terminal-header">
+                            <div class="terminal-dot dot-red"></div>
+                            <div class="terminal-dot dot-yellow"></div>
+                            <div class="terminal-dot dot-green"></div>
+                            <span class="terminal-title" id="explorerTermTitle">agent_training.py -- PPO</span>
+                        </div>
+                        <div class="terminal-body" id="explorerTermBody"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ TAB 2: COMPARISON MODE ============ -->
+        <div class="tab-panel" id="tab-comparison">
+            <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:12px;">Select 2-3 techniques to compare:</p>
+            <div class="tech-selector" id="compareSelector"></div>
+            <div class="explorer-grid">
+                <div class="panel-card">
+                    <h3 style="margin-bottom:12px; font-size:1rem;">Overlaid Training Curves</h3>
+                    <div class="chart-container">
+                        <canvas id="compareChart" width="600" height="300"></canvas>
+                    </div>
+                </div>
+                <div class="panel-card">
+                    <h3 style="margin-bottom:12px; font-size:1rem;">Final Metrics Comparison</h3>
+                    <table class="compare-table" id="compareTable">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ TAB 3: PIPELINE SIMULATOR ============ -->
+        <div class="tab-panel" id="tab-pipeline">
+            <div class="pipeline-sim-stages" id="pipelineStages"></div>
+            <div class="stage-description" id="stageDesc"></div>
+            <div class="pipeline-controls">
+                <button class="sim-btn sim-btn-primary" id="pipelineNextBtn">Start Pipeline</button>
+                <button class="sim-btn sim-btn-secondary" id="pipelineResetBtn">Reset</button>
+            </div>
+            <div class="terminal" id="pipelineTerminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot dot-red"></div>
+                    <div class="terminal-dot dot-yellow"></div>
+                    <div class="terminal-dot dot-green"></div>
+                    <span class="terminal-title">agentic-pipeline -- simulator</span>
+                </div>
+                <div class="terminal-body" id="pipelineTermBody"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p><a href="index.html">&larr; Back to main site</a></p>
+        <p style="margin-top:8px;">Agentic Post-Training Framework &mdash; Apache 2.0 License</p>
+    </div>
+</footer>
+
+<script>
+// =====================================================
+// TECHNIQUE DATA
+// =====================================================
+const TECHNIQUES = {
+    PPO: {
+        name: 'PPO', color: '#c084fc', fullName: 'Proximal Policy Optimization',
+        lossStart: 2.5, lossEnd: 0.40, convergenceSpeed: 0.035,
+        noise: 0.08, category: 'RL-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 2.5, end: 0.40 },
+            { key: 'reward', label: 'Reward', start: 0.12, end: 0.88 },
+            { key: 'kl_div', label: 'KL Div', start: 0.0, end: 0.032 },
+            { key: 'clip_frac', label: 'Clip Frac', start: 0.35, end: 0.08 },
+        ],
+        params: [
+            { key: 'clip_ratio', label: 'clip_ratio', min: 0.05, max: 0.5, step: 0.01, default: 0.2 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 1.5e-5 },
+            { key: 'kl_coeff', label: 'kl_coeff', min: 0.0, max: 0.2, step: 0.01, default: 0.05 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 starting -- dispatching PPO batch` },
+            { agent: 'trainer', text: `Forward pass complete. Generating advantages...` },
+            { agent: 'trainer', text: `PPO update: loss=<span class="highlight">${metrics.loss}</span> reward=<span class="highlight">${metrics.reward}</span>` },
+            { agent: 'trainer', text: `KL divergence: <span class="highlight">${metrics.kl_div}</span> | Clip fraction: <span class="highlight">${metrics.clip_frac}</span>` },
+            { agent: 'optimizer', text: `Gradient norm: ${(1.2 - epoch*0.008).toFixed(3)} -- within bounds` },
+        ],
+    },
+    GRPO: {
+        name: 'GRPO', color: '#60a5fa', fullName: 'Group Relative Policy Optimization',
+        lossStart: 2.0, lossEnd: 0.35, convergenceSpeed: 0.04,
+        noise: 0.06, category: 'RL-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 2.0, end: 0.35 },
+            { key: 'reward', label: 'Group Reward', start: 0.22, end: 0.91 },
+            { key: 'kl_div', label: 'KL Div', start: 0.0, end: 0.025 },
+            { key: 'group_std', label: 'Group Std', start: 0.45, end: 0.12 },
+        ],
+        params: [
+            { key: 'group_size', label: 'group_size', min: 2, max: 32, step: 1, default: 8 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 2e-5 },
+            { key: 'kl_coeff', label: 'kl_coeff', min: 0.0, max: 0.2, step: 0.01, default: 0.04 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- GRPO group sampling` },
+            { agent: 'trainer', text: `Generated ${8} responses per prompt. Computing group advantages...` },
+            { agent: 'trainer', text: `GRPO update: loss=<span class="highlight">${metrics.loss}</span> reward=<span class="highlight">${metrics.reward}</span>` },
+            { agent: 'trainer', text: `Group std: <span class="highlight">${metrics.group_std}</span> | KL: <span class="highlight">${metrics.kl_div}</span>` },
+            { agent: 'evaluator', text: `Sample quality check: pass (reward above threshold)` },
+        ],
+    },
+    DPO: {
+        name: 'DPO', color: '#34d399', fullName: 'Direct Preference Optimization',
+        lossStart: 1.5, lossEnd: 0.25, convergenceSpeed: 0.045,
+        noise: 0.05, category: 'Preference-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.5, end: 0.25 },
+            { key: 'reward_margin', label: 'Reward Margin', start: 0.05, end: 0.72 },
+            { key: 'accuracy', label: 'Accuracy', start: 0.52, end: 0.89 },
+            { key: 'beta', label: 'Eff. Beta', start: 0.1, end: 0.1 },
+        ],
+        params: [
+            { key: 'beta', label: 'beta', min: 0.01, max: 0.5, step: 0.01, default: 0.1 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 5e-6 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- DPO preference batch` },
+            { agent: 'trainer', text: `Computing log-ratios for chosen/rejected pairs...` },
+            { agent: 'trainer', text: `DPO loss=<span class="highlight">${metrics.loss}</span> margin=<span class="highlight">${metrics.reward_margin}</span>` },
+            { agent: 'trainer', text: `Preference accuracy: <span class="highlight">${metrics.accuracy}</span>` },
+        ],
+    },
+    SPO: {
+        name: 'SPO', color: '#f472b6', fullName: 'Self-Play Optimization',
+        lossStart: 1.8, lossEnd: 0.55, convergenceSpeed: 0.03,
+        noise: 0.09, category: 'Self-play',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.8, end: 0.55 },
+            { key: 'elo', label: 'ELO Rating', start: 1000, end: 1200 },
+            { key: 'win_rate', label: 'Win Rate', start: 0.50, end: 0.68 },
+            { key: 'games', label: 'Games', start: 0, end: 100 },
+        ],
+        params: [
+            { key: 'num_rounds', label: 'num_rounds', min: 1, max: 20, step: 1, default: 10 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 1e-5 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Round ${epoch}/100 -- Self-play match` },
+            { agent: 'trainer', text: `Current model vs. previous iteration...` },
+            { agent: 'trainer', text: `ELO: <span class="highlight">${metrics.elo}</span> | Win rate: <span class="highlight">${metrics.win_rate}</span>` },
+            { agent: 'evaluator', text: `Match quality verified. Updating opponent model.` },
+        ],
+    },
+    RLHF: {
+        name: 'RLHF', color: '#fb923c', fullName: 'RL from Human Feedback',
+        lossStart: 2.8, lossEnd: 0.45, convergenceSpeed: 0.03,
+        noise: 0.1, category: 'RL-based',
+        metrics: [
+            { key: 'loss', label: 'Policy Loss', start: 2.8, end: 0.45 },
+            { key: 'reward', label: 'Reward', start: 0.08, end: 0.82 },
+            { key: 'kl_div', label: 'KL Div', start: 0.0, end: 0.04 },
+            { key: 'rm_score', label: 'RM Score', start: 0.3, end: 0.85 },
+        ],
+        params: [
+            { key: 'clip_ratio', label: 'clip_ratio', min: 0.05, max: 0.5, step: 0.01, default: 0.2 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 1e-5 },
+            { key: 'kl_coeff', label: 'kl_coeff', min: 0.0, max: 0.3, step: 0.01, default: 0.06 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- RLHF PPO step` },
+            { agent: 'trainer', text: `Reward model scoring batch... RM score: <span class="highlight">${metrics.rm_score}</span>` },
+            { agent: 'trainer', text: `Policy loss=<span class="highlight">${metrics.loss}</span> reward=<span class="highlight">${metrics.reward}</span>` },
+            { agent: 'optimizer', text: `KL divergence: <span class="highlight">${metrics.kl_div}</span> -- constraint satisfied` },
+        ],
+    },
+    KTO: {
+        name: 'KTO', color: '#e879f9', fullName: 'Kahneman-Tversky Optimization',
+        lossStart: 1.6, lossEnd: 0.38, convergenceSpeed: 0.038,
+        noise: 0.06, category: 'Preference-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.6, end: 0.38 },
+            { key: 'reward', label: 'Utility', start: 0.15, end: 0.78 },
+            { key: 'kl_div', label: 'KL Div', start: 0.0, end: 0.028 },
+            { key: 'pos_ratio', label: 'Pos Ratio', start: 0.5, end: 0.74 },
+        ],
+        params: [
+            { key: 'beta', label: 'beta', min: 0.01, max: 0.5, step: 0.01, default: 0.1 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 1e-5 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- KTO binary feedback step` },
+            { agent: 'trainer', text: `Asymmetric loss (prospect theory): loss=<span class="highlight">${metrics.loss}</span>` },
+            { agent: 'trainer', text: `Utility=<span class="highlight">${metrics.reward}</span> KL=<span class="highlight">${metrics.kl_div}</span>` },
+        ],
+    },
+    ORPO: {
+        name: 'ORPO', color: '#22d3ee', fullName: 'Odds Ratio Preference Optimization',
+        lossStart: 1.4, lossEnd: 0.30, convergenceSpeed: 0.042,
+        noise: 0.05, category: 'Preference-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.4, end: 0.30 },
+            { key: 'odds_ratio', label: 'Odds Ratio', start: 1.0, end: 3.8 },
+            { key: 'accuracy', label: 'Accuracy', start: 0.50, end: 0.87 },
+            { key: 'sft_loss', label: 'SFT Loss', start: 1.2, end: 0.22 },
+        ],
+        params: [
+            { key: 'lambda', label: 'lambda', min: 0.1, max: 2.0, step: 0.1, default: 1.0 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 8e-6 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- ORPO combined SFT+preference` },
+            { agent: 'trainer', text: `Odds ratio: <span class="highlight">${metrics.odds_ratio}</span> | SFT loss: <span class="highlight">${metrics.sft_loss}</span>` },
+            { agent: 'trainer', text: `Combined loss=<span class="highlight">${metrics.loss}</span> accuracy=<span class="highlight">${metrics.accuracy}</span>` },
+        ],
+    },
+    RLAIF: {
+        name: 'RLAIF', color: '#a78bfa', fullName: 'RL from AI Feedback',
+        lossStart: 2.3, lossEnd: 0.42, convergenceSpeed: 0.032,
+        noise: 0.08, category: 'RL-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 2.3, end: 0.42 },
+            { key: 'reward', label: 'AI Reward', start: 0.18, end: 0.84 },
+            { key: 'kl_div', label: 'KL Div', start: 0.0, end: 0.035 },
+            { key: 'constitutional', label: 'Const. Score', start: 0.45, end: 0.92 },
+        ],
+        params: [
+            { key: 'num_principles', label: 'principles', min: 1, max: 16, step: 1, default: 8 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 1.5e-5 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- RLAIF constitutional step` },
+            { agent: 'trainer', text: `AI judge scoring... Constitutional: <span class="highlight">${metrics.constitutional}</span>` },
+            { agent: 'trainer', text: `Loss=<span class="highlight">${metrics.loss}</span> AI reward=<span class="highlight">${metrics.reward}</span>` },
+        ],
+    },
+    SPIN: {
+        name: 'SPIN', color: '#f59e0b', fullName: 'Self-Play Fine-Tuning',
+        lossStart: 1.7, lossEnd: 0.48, convergenceSpeed: 0.033,
+        noise: 0.07, category: 'Self-play',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.7, end: 0.48 },
+            { key: 'disc_acc', label: 'Disc. Accuracy', start: 0.52, end: 0.82 },
+            { key: 'gen_quality', label: 'Gen. Quality', start: 0.35, end: 0.79 },
+            { key: 'iteration', label: 'Iteration', start: 0, end: 100 },
+        ],
+        params: [
+            { key: 'lambda', label: 'lambda', min: 0.1, max: 2.0, step: 0.1, default: 0.5 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 5e-6 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Iteration ${epoch}/100 -- SPIN self-play` },
+            { agent: 'trainer', text: `Discriminating LLM vs human text... Accuracy: <span class="highlight">${metrics.disc_acc}</span>` },
+            { agent: 'trainer', text: `Loss=<span class="highlight">${metrics.loss}</span> generation quality=<span class="highlight">${metrics.gen_quality}</span>` },
+        ],
+    },
+    SimPO: {
+        name: 'SimPO', color: '#4ade80', fullName: 'Simple Preference Optimization',
+        lossStart: 1.3, lossEnd: 0.28, convergenceSpeed: 0.044,
+        noise: 0.04, category: 'Preference-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.3, end: 0.28 },
+            { key: 'reward_margin', label: 'Margin', start: 0.08, end: 0.68 },
+            { key: 'accuracy', label: 'Accuracy', start: 0.53, end: 0.90 },
+            { key: 'len_norm', label: 'Len Norm', start: 1.0, end: 1.0 },
+        ],
+        params: [
+            { key: 'gamma', label: 'gamma', min: 0.1, max: 2.0, step: 0.1, default: 0.5 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 5e-6 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- SimPO reference-free step` },
+            { agent: 'trainer', text: `Length-normalized log-probs computed. No reference model needed.` },
+            { agent: 'trainer', text: `Loss=<span class="highlight">${metrics.loss}</span> margin=<span class="highlight">${metrics.reward_margin}</span> acc=<span class="highlight">${metrics.accuracy}</span>` },
+        ],
+    },
+    IPO: {
+        name: 'IPO', color: '#f87171', fullName: 'Identity Preference Optimization',
+        lossStart: 1.45, lossEnd: 0.32, convergenceSpeed: 0.04,
+        noise: 0.05, category: 'Preference-based',
+        metrics: [
+            { key: 'loss', label: 'Loss', start: 1.45, end: 0.32 },
+            { key: 'reward_margin', label: 'Margin', start: 0.06, end: 0.65 },
+            { key: 'accuracy', label: 'Accuracy', start: 0.51, end: 0.86 },
+            { key: 'reg_loss', label: 'Reg Loss', start: 0.1, end: 0.02 },
+        ],
+        params: [
+            { key: 'tau', label: 'tau', min: 0.01, max: 1.0, step: 0.01, default: 0.1 },
+            { key: 'lr', label: 'learning_rate', min: 1e-6, max: 1e-4, step: 1e-6, default: 5e-6 },
+        ],
+        messages: (epoch, metrics) => [
+            { agent: 'coordinator', text: `Epoch ${epoch}/100 -- IPO regularized preference` },
+            { agent: 'trainer', text: `IPO loss=<span class="highlight">${metrics.loss}</span> reg=<span class="highlight">${metrics.reg_loss}</span>` },
+            { agent: 'trainer', text: `Margin=<span class="highlight">${metrics.reward_margin}</span> accuracy=<span class="highlight">${metrics.accuracy}</span>` },
+        ],
+    },
+};
+
+const TECH_KEYS = Object.keys(TECHNIQUES);
+
+// =====================================================
+// UTILITY FUNCTIONS
+// =====================================================
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function computeProgress(epoch, maxEpochs, speed) {
+    // Exponential convergence curve
+    return 1 - Math.exp(-speed * epoch);
+}
+
+function computeMetricValue(m, progress) {
+    return lerp(m.start, m.end, progress);
+}
+
+function formatMetric(val) {
+    if (Math.abs(val) >= 100) return val.toFixed(0);
+    if (Math.abs(val) >= 10) return val.toFixed(1);
+    return val.toFixed(val < 0.01 ? 4 : val < 1 ? 3 : 2);
+}
+
+function getTimestamp(epoch) {
+    const base = 14 * 3600 + 23 * 60;
+    const secs = base + epoch * 3;
+    const h = Math.floor(secs / 3600) % 24;
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function addTermLine(container, agent, text, timestamp) {
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.innerHTML = `<span class="time">[${timestamp}]</span> <span class="${agent}">${agent.charAt(0).toUpperCase()+agent.slice(1)}</span> &rarr; <span class="msg">${text}</span>`;
+    container.appendChild(line);
+    container.scrollTop = container.scrollHeight;
+}
+
+// =====================================================
+// CHART DRAWING
+// =====================================================
+function drawChart(canvas, curves, currentEpoch, maxEpochs) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+
+    ctx.clearRect(0, 0, W, H);
+
+    const padL = 50, padR = 20, padT = 20, padB = 35;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    // Find y range
+    let yMin = Infinity, yMax = -Infinity;
+    curves.forEach(c => {
+        yMin = Math.min(yMin, c.lossEnd * 0.8);
+        yMax = Math.max(yMax, c.lossStart * 1.1);
+    });
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    const numGridY = 5;
+    for (let i = 0; i <= numGridY; i++) {
+        const y = padT + (plotH / numGridY) * i;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+        const val = lerp(yMax, yMin, i / numGridY);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '11px JetBrains Mono';
+        ctx.textAlign = 'right';
+        ctx.fillText(val.toFixed(1), padL - 8, y + 4);
+    }
+    const numGridX = 5;
+    for (let i = 0; i <= numGridX; i++) {
+        const x = padL + (plotW / numGridX) * i;
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + plotH); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.round((maxEpochs / numGridX) * i), x, padT + plotH + 20);
+    }
+
+    // Axis labels
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('Epoch', padL + plotW / 2, H - 2);
+
+    // Draw curves
+    curves.forEach(c => {
+        ctx.beginPath();
+        ctx.strokeStyle = c.color;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = c.color;
+        ctx.shadowBlur = 8;
+
+        const epochsToDraw = Math.min(currentEpoch, maxEpochs);
+        for (let e = 0; e <= epochsToDraw; e++) {
+            const progress = computeProgress(e, maxEpochs, c.convergenceSpeed);
+            const val = lerp(c.lossStart, c.lossEnd, progress);
+            // Deterministic noise based on epoch and technique
+            const noise = Math.sin(e * 7.3 + c.lossStart * 13.7) * c.noise * (1 - progress * 0.7);
+            const finalVal = val + noise;
+            const x = padL + (e / maxEpochs) * plotW;
+            const y = padT + plotH - ((finalVal - yMin) / (yMax - yMin)) * plotH;
+            if (e === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Draw dot at current position
+        if (epochsToDraw > 0) {
+            const progress = computeProgress(epochsToDraw, maxEpochs, c.convergenceSpeed);
+            const val = lerp(c.lossStart, c.lossEnd, progress) + Math.sin(epochsToDraw * 7.3 + c.lossStart * 13.7) * c.noise * (1 - progress * 0.7);
+            const x = padL + (epochsToDraw / maxEpochs) * plotW;
+            const y = padT + plotH - ((val - yMin) / (yMax - yMin)) * plotH;
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = c.color;
+            ctx.fill();
+            // Label
+            if (curves.length > 1) {
+                ctx.fillStyle = c.color;
+                ctx.font = 'bold 11px Inter';
+                ctx.textAlign = 'left';
+                ctx.fillText(c.name, x + 8, y + 4);
+            }
+        }
+    });
+}
+
+// =====================================================
+// TAB 1: TECHNIQUE EXPLORER
+// =====================================================
+let explorerTech = 'PPO';
+let explorerEpoch = 0;
+let explorerAnimId = null;
+let explorerTermBody = null;
+let explorerLastMsgEpoch = -1;
+
+function buildExplorerSelector() {
+    const container = document.getElementById('explorerSelector');
+    container.innerHTML = '';
+    TECH_KEYS.forEach(key => {
+        const btn = document.createElement('button');
+        btn.className = 'tech-pill' + (key === explorerTech ? ' active' : '');
+        btn.textContent = key;
+        btn.style.borderColor = key === explorerTech ? TECHNIQUES[key].color : '';
+        btn.onclick = () => selectExplorerTech(key);
+        container.appendChild(btn);
+    });
+}
+
+function buildExplorerParams() {
+    const container = document.getElementById('explorerParams');
+    const tech = TECHNIQUES[explorerTech];
+    container.innerHTML = '<h3 style="margin-bottom:12px;font-size:1rem;">Parameters</h3>';
+    tech.params.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'param-row';
+        const displayVal = p.default < 0.001 ? p.default.toExponential(1) : p.default;
+        row.innerHTML = `<label>${p.label}</label><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.default}"><span class="param-val">${displayVal}</span>`;
+        const slider = row.querySelector('input');
+        const valSpan = row.querySelector('.param-val');
+        slider.addEventListener('input', () => {
+            const v = parseFloat(slider.value);
+            valSpan.textContent = v < 0.001 ? v.toExponential(1) : (v < 1 ? v.toFixed(Math.max(2, -Math.floor(Math.log10(p.step)))) : v);
+        });
+        container.appendChild(row);
+    });
+    container.innerHTML += `<p style="color:var(--text-dim);font-size:0.75rem;margin-top:8px;">Category: ${tech.category} | ${tech.fullName}</p>`;
+}
+
+function buildExplorerMetrics() {
+    const container = document.getElementById('explorerMetrics');
+    const tech = TECHNIQUES[explorerTech];
+    container.innerHTML = '';
+    tech.metrics.forEach(m => {
+        const box = document.createElement('div');
+        box.className = 'metric-box';
+        box.innerHTML = `<div class="label">${m.label}</div><div class="value" id="metric-${m.key}">${formatMetric(m.start)}</div>`;
+        container.appendChild(box);
+    });
+}
+
+function updateExplorerMetrics(progress) {
+    const tech = TECHNIQUES[explorerTech];
+    tech.metrics.forEach(m => {
+        const el = document.getElementById('metric-' + m.key);
+        if (el) el.textContent = formatMetric(computeMetricValue(m, progress));
+    });
+}
+
+function selectExplorerTech(key) {
+    explorerTech = key;
+    explorerEpoch = 0;
+    explorerLastMsgEpoch = -1;
+    document.getElementById('explorerTermBody').innerHTML = '';
+    document.getElementById('explorerTermTitle').textContent = `agent_training.py -- ${key}`;
+    buildExplorerSelector();
+    buildExplorerParams();
+    buildExplorerMetrics();
+    if (explorerAnimId) cancelAnimationFrame(explorerAnimId);
+    runExplorerAnimation();
+}
+
+function runExplorerAnimation() {
+    const maxEpochs = 100;
+    const tech = TECHNIQUES[explorerTech];
+    const canvas = document.getElementById('explorerChart');
+    const termBody = document.getElementById('explorerTermBody');
+
+    function frame() {
+        if (explorerEpoch <= maxEpochs) {
+            const progress = computeProgress(explorerEpoch, maxEpochs, tech.convergenceSpeed);
+            drawChart(canvas, [tech], explorerEpoch, maxEpochs);
+            updateExplorerMetrics(progress);
+
+            // Add terminal messages every 5 epochs
+            if (explorerEpoch % 5 === 0 && explorerEpoch !== explorerLastMsgEpoch && explorerEpoch > 0) {
+                explorerLastMsgEpoch = explorerEpoch;
+                const metricsObj = {};
+                tech.metrics.forEach(m => {
+                    metricsObj[m.key] = formatMetric(computeMetricValue(m, progress));
+                });
+                const msgs = tech.messages(explorerEpoch, metricsObj);
+                msgs.forEach((msg, i) => {
+                    setTimeout(() => addTermLine(termBody, msg.agent, msg.text, getTimestamp(explorerEpoch)), i * 120);
+                });
+            }
+
+            explorerEpoch++;
+            explorerAnimId = requestAnimationFrame(frame);
+        } else {
+            // Finished
+            addTermLine(termBody, 'coordinator', `Training complete! Final metrics logged.`, getTimestamp(maxEpochs));
+            addTermLine(termBody, 'evaluator', `Starting evaluation suite...`, getTimestamp(maxEpochs + 1));
+        }
+    }
+
+    // Initial message
+    addTermLine(termBody, 'coordinator', `Initiating <span class="highlight">${tech.name}</span> training pipeline...`, getTimestamp(0));
+    addTermLine(termBody, 'trainer', `Loading model. Technique: ${tech.fullName}`, getTimestamp(0));
+
+    let lastFrameTime = 0;
+    const frameInterval = 60; // ms per epoch
+
+    function throttledFrame(timestamp) {
+        if (timestamp - lastFrameTime >= frameInterval) {
+            lastFrameTime = timestamp;
+            frame();
+        } else if (explorerEpoch <= maxEpochs) {
+            explorerAnimId = requestAnimationFrame(throttledFrame);
+        }
+    }
+    explorerAnimId = requestAnimationFrame(throttledFrame);
+}
+
+// =====================================================
+// TAB 2: COMPARISON MODE
+// =====================================================
+let compareSelections = ['PPO', 'GRPO'];
+let compareEpoch = 0;
+let compareAnimId = null;
+
+function buildCompareSelector() {
+    const container = document.getElementById('compareSelector');
+    container.innerHTML = '';
+    TECH_KEYS.forEach(key => {
+        const btn = document.createElement('button');
+        const isActive = compareSelections.includes(key);
+        btn.className = 'tech-pill' + (isActive ? ' compare-active' : '');
+        btn.textContent = key;
+        if (isActive) btn.style.borderColor = TECHNIQUES[key].color;
+        btn.onclick = () => toggleCompareTech(key);
+        container.appendChild(btn);
+    });
+}
+
+function toggleCompareTech(key) {
+    const idx = compareSelections.indexOf(key);
+    if (idx >= 0) {
+        if (compareSelections.length <= 1) return; // keep at least 1
+        compareSelections.splice(idx, 1);
+    } else {
+        if (compareSelections.length >= 3) compareSelections.shift();
+        compareSelections.push(key);
+    }
+    compareEpoch = 0;
+    buildCompareSelector();
+    buildCompareTable();
+    if (compareAnimId) cancelAnimationFrame(compareAnimId);
+    runCompareAnimation();
+}
+
+function buildCompareTable() {
+    const table = document.getElementById('compareTable');
+    const thead = table.querySelector('thead tr');
+    const tbody = table.querySelector('tbody');
+    thead.innerHTML = '<th>Metric</th>';
+    compareSelections.forEach(key => {
+        const th = document.createElement('th');
+        th.textContent = key;
+        th.style.color = TECHNIQUES[key].color;
+        thead.appendChild(th);
+    });
+    // Build rows for common metrics
+    const rows = ['Final Loss', 'Convergence Speed', 'Category', 'Noise Level'];
+    tbody.innerHTML = '';
+    rows.forEach(label => {
+        const tr = document.createElement('tr');
+        let td = document.createElement('td');
+        td.textContent = label;
+        td.style.color = 'var(--text-dim)';
+        tr.appendChild(td);
+        compareSelections.forEach(key => {
+            const tech = TECHNIQUES[key];
+            td = document.createElement('td');
+            if (label === 'Final Loss') td.textContent = tech.lossEnd.toFixed(2);
+            else if (label === 'Convergence Speed') td.textContent = (tech.convergenceSpeed * 1000).toFixed(1) + 'x';
+            else if (label === 'Category') td.textContent = tech.category;
+            else if (label === 'Noise Level') td.textContent = tech.noise.toFixed(2);
+            td.style.color = TECHNIQUES[key].color;
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    // Add technique-specific final metrics
+    compareSelections.forEach(key => {
+        const tech = TECHNIQUES[key];
+        tech.metrics.forEach(m => {
+            if (m.key === 'loss') return;
+            // Check if row already exists
+            let existingRow = null;
+            tbody.querySelectorAll('tr').forEach(r => {
+                if (r.children[0] && r.children[0].textContent === m.label) existingRow = r;
+            });
+            if (!existingRow) {
+                const tr = document.createElement('tr');
+                let td = document.createElement('td');
+                td.textContent = m.label;
+                td.style.color = 'var(--text-dim)';
+                tr.appendChild(td);
+                compareSelections.forEach(k2 => {
+                    td = document.createElement('td');
+                    const t2 = TECHNIQUES[k2];
+                    const metric = t2.metrics.find(mm => mm.label === m.label);
+                    td.textContent = metric ? formatMetric(metric.end) : '--';
+                    td.style.color = TECHNIQUES[k2].color;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            }
+        });
+    });
+}
+
+function runCompareAnimation() {
+    const maxEpochs = 100;
+    const canvas = document.getElementById('compareChart');
+    const curves = compareSelections.map(key => TECHNIQUES[key]);
+
+    let lastFrameTime = 0;
+    const frameInterval = 50;
+
+    function frame(timestamp) {
+        if (timestamp - lastFrameTime >= frameInterval && compareEpoch <= maxEpochs) {
+            lastFrameTime = timestamp;
+            drawChart(canvas, curves, compareEpoch, maxEpochs);
+            compareEpoch++;
+        }
+        if (compareEpoch <= maxEpochs) {
+            compareAnimId = requestAnimationFrame(frame);
+        }
+    }
+    compareAnimId = requestAnimationFrame(frame);
+}
+
+// =====================================================
+// TAB 3: PIPELINE SIMULATOR
+// =====================================================
+const PIPELINE_STAGES = [
+    {
+        name: 'Data Prep', num: 1,
+        desc: 'Validate and preprocess training data, check format integrity.',
+        messages: [
+            { agent: 'coordinator', text: 'Pipeline initiated. Starting Stage 1: Data Preparation.' },
+            { agent: 'coordinator', text: 'Assigning data validation task to Trainer agent.' },
+            { agent: 'trainer', text: 'Scanning dataset: <span class="highlight">52,000</span> preference pairs found.' },
+            { agent: 'trainer', text: 'Validating format... chosen/rejected pairs OK.' },
+            { agent: 'trainer', text: 'Tokenizing dataset with max_length=2048...' },
+            { agent: 'trainer', text: 'Data integrity check: <span class="highlight">PASSED</span>. 0 corrupt entries.' },
+            { agent: 'coordinator', text: 'Stage 1 complete. Data ready for technique selection.' },
+        ]
+    },
+    {
+        name: 'Selection', num: 2,
+        desc: 'Choose the optimal training technique based on data and objectives.',
+        messages: [
+            { agent: 'coordinator', text: 'Starting Stage 2: Technique Selection.' },
+            { agent: 'coordinator', text: 'Analyzing dataset characteristics...' },
+            { agent: 'trainer', text: 'Preference pairs detected -- preference-based methods applicable.' },
+            { agent: 'trainer', text: 'Memory budget: 24GB. Evaluating options...' },
+            { agent: 'evaluator', text: 'Recommending <span class="highlight">GRPO</span>: no value model, fits memory.' },
+            { agent: 'coordinator', text: 'Technique selected: <span class="highlight">GRPO</span> (group_size=8).' },
+        ]
+    },
+    {
+        name: 'Training', num: 3,
+        desc: 'Execute the selected post-training technique on the model.',
+        messages: [
+            { agent: 'coordinator', text: 'Starting Stage 3: Training with GRPO.' },
+            { agent: 'trainer', text: 'Loading base model: <span class="highlight">meta-llama/Llama-3.1-8B</span>' },
+            { agent: 'trainer', text: 'Model loaded. Initializing GRPO optimizer...' },
+            { agent: 'trainer', text: 'Epoch 1/3 | Loss: <span class="highlight">1.843</span> | Reward: <span class="highlight">0.570</span>' },
+            { agent: 'optimizer', text: 'Gradient norm stable at 1.12. LR schedule on track.' },
+            { agent: 'trainer', text: 'Epoch 2/3 | Loss: <span class="highlight">0.982</span> | Reward: <span class="highlight">0.790</span>' },
+            { agent: 'trainer', text: 'Epoch 3/3 | Loss: <span class="highlight">0.551</span> | Reward: <span class="highlight">0.880</span>' },
+            { agent: 'trainer', text: 'Training complete. Saving checkpoint...' },
+            { agent: 'coordinator', text: 'Stage 3 complete. Model checkpoint saved.' },
+        ]
+    },
+    {
+        name: 'Optimization', num: 4,
+        desc: 'Quantize, prune, and distill the trained model for deployment.',
+        messages: [
+            { agent: 'coordinator', text: 'Starting Stage 4: Model Optimization.' },
+            { agent: 'optimizer', text: 'Initializing GPTQ quantization (4-bit, group_size=128).' },
+            { agent: 'optimizer', text: 'Running calibration on 512 samples...' },
+            { agent: 'optimizer', text: 'Quantization complete: <span class="highlight">8.0x</span> compression.' },
+            { agent: 'optimizer', text: 'Perplexity delta: <span class="highlight">+0.15</span> (within tolerance).' },
+            { agent: 'coordinator', text: 'Stage 4 complete. Optimized model ready.' },
+        ]
+    },
+    {
+        name: 'Evaluation', num: 5,
+        desc: 'Benchmark the trained model on standard evaluation suites.',
+        messages: [
+            { agent: 'coordinator', text: 'Starting Stage 5: Evaluation.' },
+            { agent: 'evaluator', text: 'Loading evaluation suite: MMLU, MT-Bench, HumanEval.' },
+            { agent: 'evaluator', text: 'MMLU: <span class="highlight">72.3</span>/100 (+8.2% from baseline)' },
+            { agent: 'evaluator', text: 'MT-Bench: <span class="highlight">8.4</span>/10 (+12.0% from baseline)' },
+            { agent: 'evaluator', text: 'HumanEval: <span class="highlight">51.2</span>/100 (+15.3% from baseline)' },
+            { agent: 'evaluator', text: 'Overall improvement: <span class="highlight">+11.8%</span> across benchmarks.' },
+            { agent: 'coordinator', text: 'Pipeline complete! 5/5 stages finished successfully.' },
+        ]
+    },
+];
+
+let pipelineStage = -1; // -1 means not started
+let pipelineMsgIndex = 0;
+let pipelineMsgTimer = null;
+
+function buildPipelineStages() {
+    const container = document.getElementById('pipelineStages');
+    container.innerHTML = '';
+    PIPELINE_STAGES.forEach((stage, i) => {
+        if (i > 0) {
+            const arrow = document.createElement('div');
+            arrow.className = 'pipeline-arrow-sm';
+            arrow.innerHTML = '&rarr;';
+            container.appendChild(arrow);
+        }
+        const btn = document.createElement('button');
+        btn.className = 'pipeline-stage-btn';
+        if (i < pipelineStage) btn.classList.add('completed');
+        if (i === pipelineStage) btn.classList.add('active');
+        btn.innerHTML = `<span class="stage-num">${stage.num}</span>${stage.name}`;
+        container.appendChild(btn);
+    });
+}
+
+function updatePipelineUI() {
+    buildPipelineStages();
+    const nextBtn = document.getElementById('pipelineNextBtn');
+    const descEl = document.getElementById('stageDesc');
+    if (pipelineStage < 0) {
+        nextBtn.textContent = 'Start Pipeline';
+        nextBtn.disabled = false;
+        descEl.textContent = 'Click Start to begin the 5-stage agentic pipeline simulation.';
+    } else if (pipelineStage < PIPELINE_STAGES.length) {
+        nextBtn.textContent = 'Next Stage';
+        nextBtn.disabled = true; // re-enabled after messages finish
+        descEl.textContent = PIPELINE_STAGES[pipelineStage].desc;
+    } else {
+        nextBtn.textContent = 'Complete!';
+        nextBtn.disabled = true;
+        descEl.textContent = 'All stages complete. The pipeline has finished successfully.';
+    }
+}
+
+function runPipelineStage() {
+    if (pipelineStage >= PIPELINE_STAGES.length) return;
+    const stage = PIPELINE_STAGES[pipelineStage];
+    const termBody = document.getElementById('pipelineTermBody');
+    pipelineMsgIndex = 0;
+
+    function showNextMsg() {
+        if (pipelineMsgIndex >= stage.messages.length) {
+            // Stage done
+            if (pipelineStage < PIPELINE_STAGES.length - 1) {
+                document.getElementById('pipelineNextBtn').disabled = false;
+            } else {
+                pipelineStage++;
+                updatePipelineUI();
+            }
+            return;
+        }
+        const msg = stage.messages[pipelineMsgIndex];
+        addTermLine(termBody, msg.agent, msg.text, getTimestamp(pipelineStage * 20 + pipelineMsgIndex));
+        pipelineMsgIndex++;
+        pipelineMsgTimer = setTimeout(showNextMsg, 500 + Math.random() * 400);
+    }
+    showNextMsg();
+}
+
+document.getElementById('pipelineNextBtn').addEventListener('click', () => {
+    pipelineStage++;
+    updatePipelineUI();
+    runPipelineStage();
+});
+
+document.getElementById('pipelineResetBtn').addEventListener('click', () => {
+    pipelineStage = -1;
+    if (pipelineMsgTimer) clearTimeout(pipelineMsgTimer);
+    document.getElementById('pipelineTermBody').innerHTML = '';
+    updatePipelineUI();
+});
+
+// =====================================================
+// TAB SWITCHING
+// =====================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+        // Start animations for the active tab
+        if (btn.dataset.tab === 'comparison') {
+            compareEpoch = 0;
+            if (compareAnimId) cancelAnimationFrame(compareAnimId);
+            runCompareAnimation();
+        }
+    });
+});
+
+// =====================================================
+// INIT
+// =====================================================
+function init() {
+    buildExplorerSelector();
+    buildExplorerParams();
+    buildExplorerMetrics();
+    runExplorerAnimation();
+
+    buildCompareSelector();
+    buildCompareTable();
+
+    buildPipelineStages();
+    updatePipelineUI();
+}
+
+// Handle resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        const tech = TECHNIQUES[explorerTech];
+        const canvas1 = document.getElementById('explorerChart');
+        drawChart(canvas1, [tech], Math.min(explorerEpoch, 100), 100);
+        const canvas2 = document.getElementById('compareChart');
+        drawChart(canvas2, compareSelections.map(k => TECHNIQUES[k]), Math.min(compareEpoch, 100), 100);
+    }, 100);
+});
+
+init();
+</script>
+
+</body>
+</html>

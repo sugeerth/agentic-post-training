@@ -2,6 +2,8 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_colab.ipynb)
+[![GitHub Pages](https://img.shields.io/badge/Demo-GitHub%20Pages-blue)](https://sugeerth.github.io/agentic-post-training/)
 
 **Orchestrating LLM alignment through autonomous agent collaboration.**
 
@@ -41,6 +43,14 @@ A modular framework where specialized AI agents coordinate to execute post-train
 | 2 | **SPIN** | Self-Play Fine-Tuning | Only needs SFT data |
 | 2 | **SimPO** | Simple Preference Opt. | Reference-free, length-normalized |
 | 3 | **IPO** | Identity Preference Opt. | Regularized DPO variant |
+
+## Demos
+
+| Demo | Platform | Link |
+|------|----------|------|
+| **Interactive Browser Demo** | GitHub Pages | [Launch Demo](https://sugeerth.github.io/agentic-post-training/demo.html) |
+| **Full Training on A100** | Google Colab | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_colab.ipynb) |
+| **Agent Communication** | Local terminal | `python3 examples/agent_demo.py` |
 
 ## Quick Start
 
