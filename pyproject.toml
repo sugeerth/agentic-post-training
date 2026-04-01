@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "agentic-post-training"
+version = "0.1.0"
+description = "Agentic framework for LLM post-training with autonomous agent coordination"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [{name = "Agentic Post-Training Contributors"}]
+keywords = ["llm", "post-training", "rlhf", "alignment", "agents", "grpo", "dpo", "ppo"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.0",
+    "transformers>=4.40",
+    "datasets>=2.18",
+    "accelerate>=0.28",
+    "peft>=0.10",
+    "trl>=0.8",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+quantization = ["auto-gptq>=0.7", "autoawq>=0.2"]
+eval = ["lm-eval>=0.4"]
+all = ["agentic-post-training[quantization,eval]"]
+dev = ["pytest>=8.0", "ruff>=0.3"]
+
+[project.scripts]
+agentic-train = "pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agents*", "techniques*", "optimization*", "pipeline*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100

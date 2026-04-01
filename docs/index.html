@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Post-Training Framework</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --bg2: #111128;
+            --card: rgba(255,255,255,0.04);
+            --card-border: rgba(255,255,255,0.08);
+            --text: #e0e0f0;
+            --text-dim: #8888aa;
+            --accent1: #7c3aed;
+            --accent2: #3b82f6;
+            --accent3: #06b6d4;
+            --gradient: linear-gradient(135deg, #7c3aed, #3b82f6, #06b6d4);
+            --glow: 0 0 40px rgba(124,58,237,0.15);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* Grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+        /* Nav */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(10,10,26,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 16px 0;
+        }
+        nav .container { display: flex; justify-content: space-between; align-items: center; }
+        nav .logo { font-weight: 700; font-size: 1.1rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        nav .links { display: flex; gap: 28px; }
+        nav .links a { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+        nav .links a:hover { color: var(--text); }
+
+        /* Hero */
+        .hero {
+            padding: 160px 0 100px;
+            text-align: center;
+            position: relative;
+        }
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+        .hero .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .hero .buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+            box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(124,58,237,0.4); }
+        .btn-secondary {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--card-border);
+        }
+        .btn-secondary:hover { border-color: var(--accent2); }
+
+        /* Code block */
+        .code-block {
+            background: var(--bg2);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            max-width: 600px;
+            margin: 40px auto 0;
+            text-align: left;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+        }
+        .code-block .comment { color: #6b7280; }
+        .code-block .keyword { color: #c084fc; }
+        .code-block .string { color: #34d399; }
+        .code-block .func { color: #60a5fa; }
+
+        /* Section */
+        section { padding: 100px 0; }
+        .section-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .section-subtitle {
+            color: var(--text-dim);
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 60px;
+        }
+
+        /* Architecture diagram */
+        .arch-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            margin: 40px 0;
+        }
+        .agent-node {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px 32px;
+            text-align: center;
+            position: relative;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        .agent-node:hover { border-color: var(--accent2); box-shadow: var(--glow); transform: translateY(-4px); }
+        .agent-node.coordinator {
+            background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(59,130,246,0.15));
+            border-color: rgba(124,58,237,0.3);
+        }
+        .agent-node h3 { font-size: 1.1rem; margin-bottom: 8px; }
+        .agent-node p { font-size: 0.85rem; color: var(--text-dim); }
+        .agent-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+        .conn-line {
+            width: 2px; height: 40px;
+            background: linear-gradient(to bottom, var(--accent1), var(--accent2));
+            position: relative;
+        }
+        .conn-line::after {
+            content: '';
+            position: absolute;
+            bottom: -4px; left: -3px;
+            width: 8px; height: 8px;
+            background: var(--accent2);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+        /* Technique cards */
+        .tech-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .tech-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .tech-card:hover { border-color: var(--accent2); box-shadow: var(--glow); transform: translateY(-2px); }
+        .tech-card.priority-1::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: var(--gradient);
+        }
+        .tech-card.priority-2::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+        }
+        .tech-card .badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+        }
+        .badge-core { background: rgba(124,58,237,0.2); color: #c084fc; }
+        .badge-advanced { background: rgba(59,130,246,0.2); color: #60a5fa; }
+        .badge-experimental { background: rgba(6,182,212,0.2); color: #22d3ee; }
+        .tech-card h3 { font-size: 1.2rem; margin-bottom: 8px; }
+        .tech-card .desc { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 16px; }
+        .tech-card .advantage { font-size: 0.85rem; color: #34d399; font-weight: 500; }
+        .tech-card .paper { font-size: 0.75rem; color: var(--text-dim); margin-top: 8px; font-style: italic; }
+        .tech-card .details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+        .tech-card.expanded .details { max-height: 500px; }
+        .tech-card .details-content {
+            padding-top: 16px;
+            margin-top: 16px;
+            border-top: 1px solid var(--card-border);
+            font-size: 0.85rem;
+        }
+        .tech-card .details-content ul { padding-left: 20px; margin: 8px 0; }
+        .tech-card .details-content li { margin: 4px 0; }
+        .pro { color: #34d399; }
+        .con { color: #f87171; }
+        .learn-more {
+            color: var(--accent2);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 12px;
+        }
+        .learn-more .arrow { transition: transform 0.3s; }
+        .tech-card.expanded .learn-more .arrow { transform: rotate(90deg); }
+
+        /* Filter buttons */
+        .filters {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            border-color: var(--accent2);
+            color: var(--text);
+            background: rgba(59,130,246,0.1);
+        }
+
+        /* Pipeline */
+        .pipeline-steps {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 40px 0;
+        }
+        .pipeline-step {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            text-align: center;
+            flex: 1;
+            min-width: 180px;
+            max-width: 220px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .pipeline-step:hover { border-color: var(--accent2); transform: translateY(-4px); }
+        .pipeline-step .step-num {
+            font-size: 2rem;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .pipeline-step h4 { margin: 8px 0 4px; font-size: 0.95rem; }
+        .pipeline-step p { font-size: 0.8rem; color: var(--text-dim); }
+        .pipeline-arrow {
+            display: flex;
+            align-items: center;
+            color: var(--accent2);
+            font-size: 1.5rem;
+            animation: arrowPulse 1.5s infinite;
+        }
+        @keyframes arrowPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+        /* Terminal demo */
+        .terminal {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            overflow: hidden;
+            max-width: 800px;
+            margin: 40px auto;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+        }
+        .terminal-header {
+            background: #161b22;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f57; }
+        .dot-yellow { background: #febc2e; }
+        .dot-green { background: #28c840; }
+        .terminal-title { color: #8b949e; font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.8;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .terminal-body .line { opacity: 0; animation: fadeIn 0.3s forwards; }
+        .terminal-body .time { color: #484f58; }
+        .terminal-body .coordinator { color: #d2a8ff; font-weight: 500; }
+        .terminal-body .trainer { color: #79c0ff; font-weight: 500; }
+        .terminal-body .optimizer { color: #e3b341; font-weight: 500; }
+        .terminal-body .evaluator { color: #56d364; font-weight: 500; }
+        .terminal-body .icon { margin-right: 4px; }
+        .terminal-body .msg { color: #c9d1d9; }
+        .terminal-body .metric { color: #7ee787; }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        /* Optimization section */
+        .opt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .opt-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s;
+        }
+        .opt-card:hover { border-color: var(--accent3); }
+        .opt-card h3 { margin-bottom: 16px; }
+        .opt-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+        .opt-bar .bar-bg {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .opt-bar .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1s ease;
+        }
+
+        /* Install */
+        .install-section { background: var(--bg2); border-radius: 20px; padding: 60px 40px; margin: 0 auto; max-width: 900px; }
+        .install-cmd {
+            background: var(--bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .install-cmd .dollar { color: var(--accent3); margin-right: 8px; }
+
+        /* Footer */
+        footer {
+            padding: 60px 0;
+            border-top: 1px solid var(--card-border);
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+        footer a { color: var(--accent2); text-decoration: none; }
+
+        /* Animations */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s, transform 0.6s;
+        }
+        .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.2rem; }
+            .tech-grid { grid-template-columns: 1fr; }
+            .pipeline-arrow { display: none; }
+            .pipeline-steps { flex-direction: column; align-items: center; }
+            nav .links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+    <div class="container">
+        <div class="logo">Agentic Post-Training</div>
+        <div class="links">
+            <a href="#architecture">Architecture</a>
+            <a href="#techniques">Techniques</a>
+            <a href="#pipeline">Pipeline</a>
+            <a href="#agents-demo">Agent Demo</a>
+            <a href="#optimization">Optimization</a>
+            <a href="#install">Install</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <h1>Agentic Post-Training<br>Framework</h1>
+        <p class="subtitle">Orchestrating LLM alignment through autonomous agent collaboration. 11 techniques, modular pipeline, beautiful agent communication.</p>
+        <div class="buttons">
+            <a href="#install" class="btn btn-primary">Get Started</a>
+            <a href="#techniques" class="btn btn-secondary">View Techniques</a>
+        </div>
+        <div class="code-block">
+            <span class="keyword">from</span> pipeline <span class="keyword">import</span> AgenticPipeline, PipelineConfig<br><br>
+            config = PipelineConfig(<span class="string">technique</span>=<span class="string">"grpo"</span>, <span class="string">model_name</span>=<span class="string">"gpt2"</span>)<br>
+            pipeline = AgenticPipeline(config)<br>
+            results = asyncio.<span class="func">run</span>(pipeline.<span class="func">run</span>()) <span class="comment"># Agents coordinate automatically</span>
+        </div>
+    </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture">
+    <div class="container">
+        <h2 class="section-title fade-up">Architecture</h2>
+        <p class="section-subtitle fade-up">Specialized agents coordinate via a structured message bus</p>
+
+        <div class="arch-diagram fade-up">
+            <div class="agent-node coordinator">
+                <h3>Coordinator Agent</h3>
+                <p>Orchestrates pipeline, assigns tasks, monitors health</p>
+            </div>
+            <div class="conn-line"></div>
+            <div style="color: var(--text-dim); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">Message Bus (pub/sub)</div>
+            <div class="conn-line"></div>
+            <div class="agent-row">
+                <div class="agent-node">
+                    <h3>Training Agent</h3>
+                    <p>PPO, GRPO, DPO, SPO, RLHF<br>KTO, ORPO, RLAIF, SPIN, SimPO, IPO</p>
+                </div>
+                <div class="agent-node">
+                    <h3>Optimization Agent</h3>
+                    <p>Quantization (GPTQ, AWQ, GGUF)<br>Pruning, Distillation</p>
+                </div>
+                <div class="agent-node">
+                    <h3>Evaluation Agent</h3>
+                    <p>MMLU, HumanEval, MT-Bench<br>GSM8K, TruthfulQA, ARC</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Techniques -->
+<section id="techniques">
+    <div class="container">
+        <h2 class="section-title fade-up">Post-Training Techniques</h2>
+        <p class="section-subtitle fade-up">11 techniques organized by priority. Core techniques shown first.</p>
+
+        <div class="filters fade-up">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="rl">RL-based</button>
+            <button class="filter-btn" data-filter="preference">Preference-based</button>
+            <button class="filter-btn" data-filter="self-play">Self-play</button>
+            <button class="filter-btn" data-filter="experimental">Advanced</button>
+        </div>
+
+        <div class="tech-grid" id="techGrid">
+            <!-- Priority 1 -->
+            <div class="tech-card priority-1 fade-up" data-tags="rl preference">
+                <span class="badge badge-core">Core</span>
+                <h3>PPO</h3>
+                <p class="desc">Proximal Policy Optimization — the backbone of RLHF alignment</p>
+                <p class="advantage">Stable RL with clipped surrogate objectives</p>
+                <p class="paper">Schulman et al., 2017</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
+                    Learn more <span class="arrow">&#9654;</span>
+                </div>
+                <div class="details"><div class="details-content">
+                    <p>PPO optimizes a clipped surrogate objective to prevent destructive policy updates. Used by OpenAI for ChatGPT alignment.</p>
+                    <p><strong>Pros:</strong></p>
+                    <ul><li class="pro">Well-understood, extensively validated</li><li class="pro">Stable training dynamics</li><li class="pro">Works with any reward signal</li></ul>
+                    <p><strong>Cons:</strong></p>
+                    <ul><li class="con">Requires separate reward model</li><li class="con">Memory intensive (4 models in memory)</li><li class="con">Sensitive to hyperparameters</li></ul>
+                </div></div>
+            </div>
+
+            <div class="tech-card priority-1 fade-up" data-tags="rl">
+                <span class="badge badge-core">Core</span>
+                <h3>GRPO</h3>
+                <p class="desc">Group Relative Policy Optimization — DeepSeek-R1's secret weapon</p>
+                <p class="advantage">No value model needed — 50% less memory than PPO</p>
+                <p class="paper">Shao et al., 2024 (DeepSeekMath / DeepSeek-R1)</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
+                    Learn more <span class="arrow">&#9654;</span>
+                </div>
+                <div class="details"><div class="details-content">
+                    <p>GRPO generates a group of responses per prompt, ranks them relative to each other, and uses group statistics as advantages. Eliminates the value model entirely.</p>
+                    <p><strong>Pros:</strong></p>
+                    <ul><li class="pro">No value model (massive memory savings)</li><li class="pro">Excellent for reasoning tasks</li><li class="pro">Scales well</li></ul>
+                    <p><strong>Cons:</strong></p>
+                    <ul><li class="con">Multiple samples per prompt needed</li><li class="con">Group size is sensitive</li></ul>
+                </div></div>
+            </div>
+
+            <div class="tech-card priority-1 fade-up" data-tags="preference">
+                <span class="badge badge-core">Core</span>
+                <h3>DPO</h3>
+                <p class="desc">Direct Preference Optimization — alignment without RL</p>
+                <p class="advantage">Simple classification loss, no reward model needed</p>
+                <p class="paper">Rafailov et al., 2023</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
+                    Learn more <span class="arrow">&#9654;</span>
+                </div>
+                <div class="details"><div class="details-content">
+                    <p>DPO reparameterizes the RLHF objective into a simple binary cross-entropy loss on preference pairs. The language model IS the reward model.</p>
+                    <p><strong>Pros:</strong></p>
+                    <ul><li class="pro">No reward model needed</li><li class="pro">Simple single-stage training</li><li class="pro">Very stable</li></ul>
+                    <p><strong>Cons:</strong></p>
+                    <ul><li class="con">Needs paired preference data</li><li class="con">Reference model still needed</li></ul>
+                </div></div>
+            </div>
+
+            <div class="tech-card priority-1 fade-up" data-tags="self-play">
+                <span class="badge badge-core">Core</span>
+                <h3>SPO</h3>
+                <p class="desc">Self-Play Optimization — iterative self-improvement</p>
+                <p class="advantage">Model improves by competing against itself</p>
+                <p class="paper">Wu et al., 2024</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
+                    Learn more <span class="arrow">&#9654;</span>
+                </div>
+                <div class="details"><div class="details-content">
+                    <p>SPO creates a competitive dynamic: the model acts as both generator and discriminator, continuously improving through self-play with ELO tracking.</p>
+                    <p><strong>Pros:</strong></p>
+                    <ul><li class="pro">Self-improving without external data</li><li class="pro">No reward model needed</li></ul>
+                    <p><strong>Cons:</strong></p>
+                    <ul><li class="con">Can overfit to self</li><li class="con">Computationally expensive</li></ul>
+                </div></div>
+            </div>
+
+            <div class="tech-card priority-1 fade-up" data-tags="rl preference">
+                <span class="badge badge-core">Core</span>
+                <h3>RLHF</h3>
+                <p class="desc">Classic RLHF — the full reward model + PPO pipeline</p>
+                <p class="advantage">Proven at scale (InstructGPT, ChatGPT)</p>
+                <p class="paper">Ouyang et al., 2022</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
+                    Learn more <span class="arrow">&#9654;</span>
+                </div>
+                <div class="details"><div class="details-content">
+                    <p>The original: train a reward model on human preferences, then optimize the policy with PPO. Maximum control, maximum complexity.</p>
+                    <p><strong>Pros:</strong></p>
+                    <ul><li class="pro">Proven at scale by OpenAI/Anthropic</li><li class="pro">Maximum flexibility</li></ul>
+                    <p><strong>Cons:</strong></p>
+                    <ul><li class="con">Complex multi-stage pipeline</li><li class="con">Very memory intensive</li></ul>
+                </div></div>
+            </div>
+
+            <!-- Priority 2 -->
+            <div class="tech-card priority-2 fade-up" data-tags="preference experimental">
+                <span class="badge badge-advanced">Advanced</span>
+                <h3>KTO</h3>
+                <p class="desc">Kahneman-Tversky Optimization — alignment from thumbs up/down</p>
+                <p class="advantage">Works with unpaired binary feedback</p>
+                <p class="paper">Ethayarajh et al., 2024</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
+                <div class="details"><div class="details-content"><p>Uses asymmetric loss inspired by prospect theory. Only needs binary good/bad signals, not paired preferences.</p></div></div>
+            </div>
+
+            <div class="tech-card priority-2 fade-up" data-tags="preference experimental">
+                <span class="badge badge-advanced">Advanced</span>
+                <h3>ORPO</h3>
+                <p class="desc">Odds Ratio Preference Optimization — SFT + alignment in one</p>
+                <p class="advantage">No reference model, combined training</p>
+                <p class="paper">Hong et al., 2024</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
+                <div class="details"><div class="details-content"><p>Combines SFT and preference alignment in a single stage using odds ratio penalty. Very memory efficient.</p></div></div>
+            </div>
+
+            <div class="tech-card priority-2 fade-up" data-tags="rl experimental">
+                <span class="badge badge-advanced">Advanced</span>
+                <h3>RLAIF</h3>
+                <p class="desc">RL from AI Feedback — Constitutional AI approach</p>
+                <p class="advantage">No human labelers needed</p>
+                <p class="paper">Bai et al., 2022</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
+                <div class="details"><div class="details-content"><p>Uses AI-generated feedback based on constitutional principles. Scalable oversight without human labelers.</p></div></div>
+            </div>
+
+            <div class="tech-card priority-2 fade-up" data-tags="self-play experimental">
+                <span class="badge badge-advanced">Advanced</span>
+                <h3>SPIN</h3>
+                <p class="desc">Self-Play Fine-Tuning — distinguish human from LLM text</p>
+                <p class="advantage">Only needs SFT data</p>
+                <p class="paper">Chen et al., 2024</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
+                <div class="details"><div class="details-content"><p>Trains the model to discriminate its own outputs from human text, iteratively improving until convergence.</p></div></div>
+            </div>
+
+            <div class="tech-card priority-2 fade-up" data-tags="preference experimental">
+                <span class="badge badge-advanced">Advanced</span>
+                <h3>SimPO</h3>
+                <p class="desc">Simple Preference Optimization — reference-free + length-normalized</p>
+                <p class="advantage">No reference model, fair length comparison</p>
+                <p class="paper">Meng et al., 2024</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
+                <div class="details"><div class="details-content"><p>Uses length-normalized log probabilities as implicit reward. No reference model needed at all.</p></div></div>
+            </div>
+
+            <div class="tech-card fade-up" data-tags="preference experimental">
+                <span class="badge badge-experimental">Experimental</span>
+                <h3>IPO</h3>
+                <p class="desc">Identity Preference Optimization — regularized DPO</p>
+                <p class="advantage">Better regularization than standard DPO</p>
+                <p class="paper">Azar et al., 2023</p>
+                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
+                <div class="details"><div class="details-content"><p>Adds regularization to address DPO's potential overfitting issues. Theoretically grounded improvement.</p></div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pipeline -->
+<section id="pipeline">
+    <div class="container">
+        <h2 class="section-title fade-up">Pipeline Stages</h2>
+        <p class="section-subtitle fade-up">Each stage is orchestrated by the coordinator agent</p>
+
+        <div class="pipeline-steps fade-up">
+            <div class="pipeline-step">
+                <div class="step-num">1</div>
+                <h4>Data Prep</h4>
+                <p>Validate & preprocess training data</p>
+            </div>
+            <div class="pipeline-arrow">&rarr;</div>
+            <div class="pipeline-step">
+                <div class="step-num">2</div>
+                <h4>Technique Selection</h4>
+                <p>Choose optimal alignment method</p>
+            </div>
+            <div class="pipeline-arrow">&rarr;</div>
+            <div class="pipeline-step">
+                <div class="step-num">3</div>
+                <h4>Training</h4>
+                <p>Execute post-training technique</p>
+            </div>
+            <div class="pipeline-arrow">&rarr;</div>
+            <div class="pipeline-step">
+                <div class="step-num">4</div>
+                <h4>Optimization</h4>
+                <p>Quantize, prune, distill</p>
+            </div>
+            <div class="pipeline-arrow">&rarr;</div>
+            <div class="pipeline-step">
+                <div class="step-num">5</div>
+                <h4>Evaluation</h4>
+                <p>Benchmark on MMLU, MT-Bench, etc.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Agent Communication Demo -->
+<section id="agents-demo">
+    <div class="container">
+        <h2 class="section-title fade-up">Agent Communication</h2>
+        <p class="section-subtitle fade-up">Watch agents coordinate a GRPO training pipeline in real-time</p>
+
+        <div class="terminal fade-up">
+            <div class="terminal-header">
+                <div class="terminal-dot dot-red"></div>
+                <div class="terminal-dot dot-yellow"></div>
+                <div class="terminal-dot dot-green"></div>
+                <span class="terminal-title">agentic-post-training &mdash; agent_demo.py</span>
+            </div>
+            <div class="terminal-body" id="terminalBody"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Optimization -->
+<section id="optimization">
+    <div class="container">
+        <h2 class="section-title fade-up">Optimization</h2>
+        <p class="section-subtitle fade-up">Compress and optimize trained models for deployment</p>
+
+        <div class="opt-grid fade-up">
+            <div class="opt-card">
+                <h3>Quantization</h3>
+                <div class="opt-bar">
+                    <span style="width:60px">GPTQ</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:99%;background:var(--gradient)"></div></div>
+                    <span>8x &bull; 99%</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:60px">AWQ</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:99.5%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div></div>
+                    <span>8x &bull; 99.5%</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:60px">GGUF</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:98%;background:linear-gradient(90deg,#06b6d4,#34d399)"></div></div>
+                    <span>8x &bull; 98%</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:60px">INT8</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:99.9%;background:linear-gradient(90deg,#7c3aed,#c084fc)"></div></div>
+                    <span>4x &bull; 99.9%</span>
+                </div>
+            </div>
+            <div class="opt-card">
+                <h3>Pruning</h3>
+                <div class="opt-bar">
+                    <span style="width:80px">Magnitude</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:95%;background:var(--gradient)"></div></div>
+                    <span>~95%</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:80px">Structured</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:92%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div></div>
+                    <span>~92%</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:80px">Movement</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:96%;background:linear-gradient(90deg,#06b6d4,#34d399)"></div></div>
+                    <span>~96%</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:80px">Wanda</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:94%;background:linear-gradient(90deg,#7c3aed,#c084fc)"></div></div>
+                    <span>~94%</span>
+                </div>
+            </div>
+            <div class="opt-card">
+                <h3>Knowledge Distillation</h3>
+                <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:16px;">Transfer knowledge from large teacher to smaller student model.</p>
+                <div class="opt-bar">
+                    <span style="width:80px">70B → 8B</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:92%;background:var(--gradient)"></div></div>
+                    <span>92% quality</span>
+                </div>
+                <div class="opt-bar">
+                    <span style="width:80px">8B → 1B</span>
+                    <div class="bar-bg"><div class="bar-fill" style="width:85%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div></div>
+                    <span>85% quality</span>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-dim);margin-top:12px;">Methods: Logit-level, Feature-level, Progressive</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Install -->
+<section id="install">
+    <div class="container">
+        <div class="install-section fade-up">
+            <h2 class="section-title">Quick Start</h2>
+            <p class="section-subtitle" style="margin-bottom:30px">Get running in under a minute</p>
+
+            <div class="install-cmd">
+                <span><span class="dollar">$</span> pip install -e .</span>
+            </div>
+
+            <div class="install-cmd">
+                <span><span class="dollar">$</span> python3 examples/agent_demo.py</span>
+            </div>
+
+            <div class="install-cmd">
+                <span><span class="dollar">$</span> python3 examples/run_pipeline.py --technique grpo --model gpt2</span>
+            </div>
+
+            <div class="code-block" style="max-width:100%;margin-top:24px;">
+                <span class="comment"># Or use presets</span><br>
+                <span class="keyword">from</span> pipeline.config <span class="keyword">import</span> PipelineConfig<br><br>
+                <span class="comment"># Quick DPO, Full RLHF, Efficient GRPO, Production</span><br>
+                config = PipelineConfig.<span class="func">preset</span>(<span class="string">"production"</span>)<br>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p>Built for the agentic AI era &mdash; Apache 2.0 License</p>
+        <p style="margin-top:8px;">
+            <a href="https://github.com">GitHub</a> &bull;
+            <a href="#techniques">Techniques</a> &bull;
+            <a href="#install">Install</a>
+        </p>
+    </div>
+</footer>
+
+<script>
+// Intersection Observer for fade-up animations
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+        document.querySelectorAll('.tech-card').forEach(card => {
+            if (filter === 'all') {
+                card.style.display = '';
+            } else {
+                const tags = card.dataset.tags || '';
+                card.style.display = tags.includes(filter) ? '' : 'none';
+            }
+        });
+    });
+});
+
+// Terminal demo animation
+const messages = [
+    { time: '14:23:01', icon: '🔗', agent: 'coordinator', name: 'Coordinator', msg: 'Initiating GRPO post-training pipeline...' },
+    { time: '14:23:01', icon: '📊', agent: 'coordinator', name: 'Coordinator', msg: 'Registered agents: Trainer, Optimizer, Evaluator' },
+    { time: '14:23:02', icon: '📋', agent: 'coordinator', name: 'Coordinator', msg: 'Starting stage: data_prep' },
+    { time: '14:23:02', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Validating training data... ✓' },
+    { time: '14:23:03', icon: '🔗', agent: 'coordinator', name: 'Coordinator', msg: 'Selected technique: <span class="metric">GRPO</span> (group_size=8, no value model)' },
+    { time: '14:23:03', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Loading model: <span class="metric">meta-llama/Llama-3.1-8B</span>' },
+    { time: '14:23:04', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Model loaded. Starting GRPO training...' },
+    { time: '14:23:05', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Epoch 1/3 | Loss: <span class="metric">1.8432</span> | Reward: <span class="metric">0.5700</span> | Group σ: 0.42' },
+    { time: '14:23:12', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Epoch 2/3 | Loss: <span class="metric">0.9821</span> | Reward: <span class="metric">0.7900</span> | Group σ: 0.31' },
+    { time: '14:23:19', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Epoch 3/3 | Loss: <span class="metric">0.5513</span> | Reward: <span class="metric">0.8800</span> | Group σ: 0.18' },
+    { time: '14:23:20', icon: '✅', agent: 'trainer', name: 'Trainer', msg: 'Training complete! Final loss: <span class="metric">0.5513</span>' },
+    { time: '14:23:20', icon: '⚡', agent: 'optimizer', name: 'Optimizer', msg: 'Starting GPTQ quantization (4-bit, group_size=128)' },
+    { time: '14:23:21', icon: '⚡', agent: 'optimizer', name: 'Optimizer', msg: 'Running calibration dataset...' },
+    { time: '14:23:22', icon: '✅', agent: 'optimizer', name: 'Optimizer', msg: 'Quantization complete: <span class="metric">8.0x</span> compression, +0.15 perplexity' },
+    { time: '14:23:23', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'Starting evaluation suite: MMLU, MT-Bench, HumanEval' },
+    { time: '14:23:24', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'MMLU: <span class="metric">72.3</span>/100 (+8.2% from baseline)' },
+    { time: '14:23:25', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'MT-Bench: <span class="metric">8.4</span>/10 (+12.0% from baseline)' },
+    { time: '14:23:26', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'HumanEval: <span class="metric">51.2</span>/100 (+15.3% from baseline)' },
+    { time: '14:23:27', icon: '✅', agent: 'evaluator', name: 'Evaluator', msg: 'Overall improvement: <span class="metric">+11.8%</span>' },
+    { time: '14:23:27', icon: '🔗', agent: 'coordinator', name: 'Coordinator', msg: '🎉 Pipeline complete! 5/5 stages finished. 19 messages exchanged.' },
+];
+
+const terminalBody = document.getElementById('terminalBody');
+let msgIndex = 0;
+let terminalStarted = false;
+
+function addTerminalLine() {
+    if (msgIndex >= messages.length) {
+        // Loop after pause
+        setTimeout(() => {
+            terminalBody.innerHTML = '';
+            msgIndex = 0;
+            addTerminalLine();
+        }, 4000);
+        return;
+    }
+
+    const m = messages[msgIndex];
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.style.animationDelay = '0s';
+    line.innerHTML = `<span class="time">[${m.time}]</span> <span class="icon">${m.icon}</span> <span class="${m.agent}">${m.name}</span> → <span class="msg">${m.msg}</span>`;
+    terminalBody.appendChild(line);
+    terminalBody.scrollTop = terminalBody.scrollHeight;
+
+    msgIndex++;
+    setTimeout(addTerminalLine, 600 + Math.random() * 400);
+}
+
+// Start terminal when visible
+const termObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !terminalStarted) {
+        terminalStarted = true;
+        setTimeout(addTerminalLine, 500);
+    }
+}, { threshold: 0.3 });
+termObserver.observe(document.querySelector('.terminal'));
+</script>
+
+</body>
+</html>
