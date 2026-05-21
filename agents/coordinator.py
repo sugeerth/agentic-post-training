@@ -1,47 +1,37 @@
-"""Coordinator agent that orchestrates the full post-training pipeline."""
+"""Coordinator agent — composes Planner + Workers + Dashboard.
+
+Phase 2 refactor: the original `CoordinatorAgent` was 190 LOC mixing
+planning, execution, and dashboard printing. Each concern now lives in its
+own module:
+
+  - `agents.planner`     — pure stage construction from config
+  - `agents.dashboard`   — pure dashboard rendering
+  - `agents.coordinator` — asyncio dispatch + result aggregation (this file)
+
+Public surface preserved: `CoordinatorAgent`, `PipelineStage`,
+`create_pipeline`, `register_worker`, `setup_bus`, `print_dashboard`,
+`run_stage`, `run`, `step` all keep their signatures so the existing
+`tests/test_agents.py` and notebooks don't break.
+"""
 
 from __future__ import annotations
 
-import asyncio
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
-from agents.base_agent import BaseAgent, AgentStatus, BOLD, RESET, DIM
-from agents.communication import MessageBus, Message, MessageType
+from agents.base_agent import AgentStatus, BaseAgent
+from agents.communication import MessageBus
+from agents.dashboard import print_dashboard as _print_dashboard
+from agents.planner import PipelineStage, plan
 
-
-@dataclass
-class PipelineStage:
-    name: str
-    description: str
-    agent_role: str
-    config: dict[str, Any] = field(default_factory=dict)
-    status: str = "pending"
-    result: dict[str, Any] = field(default_factory=dict)
-    duration: float = 0.0
+# Re-export so `from agents.coordinator import PipelineStage` (legacy import) still works.
+__all__ = ["CoordinatorAgent", "PipelineStage"]
 
 
 class CoordinatorAgent(BaseAgent):
-    """The master orchestrator that manages the full post-training pipeline.
+    """The master orchestrator. Dispatch only — planning + rendering are split out."""
 
-    Responsibilities:
-    - Register and manage worker agents
-    - Create and execute pipeline plans
-    - Assign tasks to appropriate agents
-    - Monitor progress and handle failures
-    - Provide beautiful status dashboards
-    """
-
-    DEFAULT_STAGES = [
-        PipelineStage("data_prep", "Prepare and validate training data", "trainer"),
-        PipelineStage("technique_selection", "Select optimal training technique", "coordinator"),
-        PipelineStage("training", "Execute post-training with selected technique", "trainer"),
-        PipelineStage("optimization", "Quantize, prune, or distill the model", "optimizer"),
-        PipelineStage("evaluation", "Benchmark and evaluate the trained model", "evaluator"),
-    ]
-
-    def __init__(self, name: str = "Coordinator"):
+    def __init__(self, name: str = "Coordinator") -> None:
         super().__init__(name, role="coordinator")
         self.workers: dict[str, BaseAgent] = {}
         self.stages: list[PipelineStage] = []
@@ -50,26 +40,17 @@ class CoordinatorAgent(BaseAgent):
         self.register_capability("orchestration", "Coordinate multi-agent pipelines")
         self.register_capability("scheduling", "Schedule and assign tasks to agents")
 
+    # ---- bus / worker registration --------------------------------------- #
+
     def setup_bus(self, bus: MessageBus) -> None:
         self.bus = bus
         bus.register_agent(self)
 
     def register_worker(self, agent: BaseAgent) -> None:
         self.workers[agent.name] = agent
-        if self.bus:
+        if self.bus is not None:
             self.bus.register_agent(agent)
         self.log(f"Registered worker: {agent.name} (role: {agent.role})")
-
-    def create_pipeline(self, config: dict[str, Any] | None = None) -> list[PipelineStage]:
-        self.pipeline_config = config or {}
-        self.stages = [
-            PipelineStage(s.name, s.description, s.agent_role, dict(s.config))
-            for s in self.DEFAULT_STAGES
-        ]
-        # Merge config into stages
-        for stage in self.stages:
-            stage.config.update(self.pipeline_config.get(stage.name, {}))
-        return self.stages
 
     def get_worker_for_role(self, role: str) -> BaseAgent | None:
         for worker in self.workers.values():
@@ -77,34 +58,20 @@ class CoordinatorAgent(BaseAgent):
                 return worker
         return None
 
+    # ---- planning (delegates to agents.planner) -------------------------- #
+
+    def create_pipeline(self, config: dict[str, Any] | None = None) -> list[PipelineStage]:
+        self.pipeline_config = config or {}
+        self.stages = plan(self.pipeline_config)
+        return self.stages
+
+    # ---- presentation (delegates to agents.dashboard) -------------------- #
+
     def print_dashboard(self) -> None:
-        print(f"\n{BOLD}{'═' * 70}")
-        print(f"  📊 Pipeline Dashboard")
-        print(f"{'═' * 70}{RESET}")
+        all_agents: dict[str, BaseAgent] = {"Coordinator": self, **self.workers}
+        _print_dashboard(all_agents, self.stages)
 
-        # Agent status
-        print(f"\n  {BOLD}Agents:{RESET}")
-        all_agents = {"Coordinator": self, **self.workers}
-        for name, agent in all_agents.items():
-            status_icon = {
-                AgentStatus.IDLE: "⚪",
-                AgentStatus.RUNNING: "🔵",
-                AgentStatus.WAITING: "🟡",
-                AgentStatus.COMPLETED: "🟢",
-                AgentStatus.FAILED: "🔴",
-            }.get(agent.status, "⚪")
-            caps = ", ".join(c.name for c in agent.capabilities[:3])
-            print(f"    {status_icon} {agent._color}{name}{RESET} [{agent.role}] - {caps}")
-
-        # Pipeline stages
-        if self.stages:
-            print(f"\n  {BOLD}Pipeline Stages:{RESET}")
-            for i, stage in enumerate(self.stages):
-                icon = {"pending": "⬜", "running": "🔄", "completed": "✅", "failed": "❌"}.get(stage.status, "⬜")
-                dur = f" ({stage.duration:.1f}s)" if stage.duration > 0 else ""
-                print(f"    {icon} {i+1}. {stage.name}: {stage.description}{dur}")
-
-        print(f"\n{BOLD}{'═' * 70}{RESET}\n")
+    # ---- execution ------------------------------------------------------- #
 
     async def run_stage(self, stage: PipelineStage) -> dict[str, Any]:
         stage.status = "running"
@@ -114,18 +81,17 @@ class CoordinatorAgent(BaseAgent):
             "coordination",
             {"message": f"Starting stage: {stage.name} - {stage.description}",
              "stage": stage.name},
-            target="broadcast"
+            target="broadcast",
         )
 
         if stage.agent_role == "coordinator":
             result = await self._handle_coordinator_stage(stage)
         else:
             worker = self.get_worker_for_role(stage.agent_role)
-            if not worker:
+            if worker is None:
                 stage.status = "failed"
                 self.log(f"No available worker for role: {stage.agent_role}")
                 return {"error": f"No worker for role {stage.agent_role}"}
-
             result = await worker.execute(**stage.config)
 
         stage.duration = time.time() - start
@@ -136,7 +102,7 @@ class CoordinatorAgent(BaseAgent):
             "task_result",
             {"message": f"Stage {stage.name} completed in {stage.duration:.1f}s",
              "stage": stage.name, "result_keys": list(result.keys())},
-            target="broadcast"
+            target="broadcast",
         )
         return result
 
@@ -144,44 +110,41 @@ class CoordinatorAgent(BaseAgent):
         if stage.name == "technique_selection":
             technique = self.pipeline_config.get("technique", "grpo")
             self.log(f"Selected technique: {technique}")
-            # Store in shared memory
             self.memory.set("selected_technique", technique)
             for worker in self.workers.values():
                 worker.memory.set("selected_technique", technique)
             return {"technique": technique}
         return {}
 
-    async def run(self, **kwargs) -> dict[str, Any]:
-        self.log(f"🚀 Initiating post-training pipeline")
-        config = kwargs.get("config", {})
-        self.create_pipeline(config)
+    async def run(self, **kwargs: Any) -> dict[str, Any]:
+        self.log("🚀 Initiating post-training pipeline")
+        self.create_pipeline(kwargs.get("config", {}))
         self.print_dashboard()
 
-        results = {}
+        results: dict[str, Any] = {}
         for stage in self.stages:
             self.log(f"Executing stage: {stage.name}")
             try:
                 result = await self.run_stage(stage)
                 results[stage.name] = result
                 self.memory.set(f"stage_{stage.name}", result)
-            except Exception as e:
+            except Exception as e:  # broad: surface any worker failure
                 self.log(f"Stage {stage.name} failed: {e}", level="error")
                 stage.status = "failed"
                 results[stage.name] = {"error": str(e)}
                 break
 
         self.print_dashboard()
-
         await self.send_message(
             "coordination",
             {"message": "Pipeline complete! All stages finished.",
              "stages_completed": sum(1 for s in self.stages if s.status == "completed"),
              "total_stages": len(self.stages)},
-            target="broadcast"
+            target="broadcast",
         )
         return results
 
-    async def step(self, **kwargs) -> dict[str, Any]:
+    async def step(self, **kwargs: Any) -> dict[str, Any]:
         if not self.stages:
             return {"status": "no_pipeline"}
         for stage in self.stages:

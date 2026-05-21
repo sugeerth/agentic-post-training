@@ -1,11 +1,17 @@
-"""Pipeline configuration with presets and validation."""
+"""Pipeline configuration with presets and validation.
+
+Phase 3 adds YAML round-trip (`from_yaml` / `to_yaml`) so a run is fully
+describable as a single text file. JSON `load` / `save` stay for back-compat.
+"""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 
 @dataclass
@@ -53,6 +59,31 @@ class PipelineConfig:
     def load(cls, path: str) -> PipelineConfig:
         data = json.loads(Path(path).read_text())
         return cls(**data)
+
+    # ---- YAML round-trip (Phase 3) -------------------------------------- #
+
+    @classmethod
+    def from_yaml(cls, path: str | Path) -> PipelineConfig:
+        """Build a config from a YAML run-spec.
+
+        Unknown keys raise — typos in a run-spec silently degrade long runs,
+        so we fail loud at load time instead.
+        """
+        data = yaml.safe_load(Path(path).read_text()) or {}
+        cls_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        extras = set(data) - cls_fields
+        if extras:
+            raise ValueError(
+                f"Unknown keys in run-spec {path}: {sorted(extras)}. "
+                f"Allowed: {sorted(cls_fields)}"
+            )
+        return cls(**data)
+
+    def to_yaml(self, path: str | Path | None = None) -> str:
+        text = yaml.safe_dump(self.to_dict(), default_flow_style=False, sort_keys=False)
+        if path is not None:
+            Path(path).write_text(text)
+        return text
 
     @classmethod
     def preset(cls, name: str) -> PipelineConfig:

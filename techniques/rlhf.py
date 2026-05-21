@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from techniques.base_technique import BaseTechnique, TechniqueConfig
 
 try:
-    import torch
+    import torch  # noqa: F401  (availability probe; reward-model path imports torch directly when used)
     import torch.nn.functional as F
+
     HAS_TORCH = True
 except ImportError:
     HAS_TORCH = False
@@ -54,9 +55,9 @@ class RLHF(BaseTechnique):
     description = "Classic RLHF — reward model + PPO policy optimization (InstructGPT)"
     paper_reference = "Ouyang et al., 2022 — Training language models to follow instructions"
     priority = 1
-    recommended_for = ["full alignment pipeline", "high-quality data", "production systems"]
-    pros = ["Proven at scale", "Maximum control", "Flexible reward modeling"]
-    cons = ["Complex pipeline", "Very memory intensive", "Reward hacking risk"]
+    recommended_for: ClassVar[list[str]] = ["full alignment pipeline", "high-quality data", "production systems"]
+    pros: ClassVar[list[str]] = ["Proven at scale", "Maximum control", "Flexible reward modeling"]
+    cons: ClassVar[list[str]] = ["Complex pipeline", "Very memory intensive", "Reward hacking risk"]
 
     def __init__(self, config: RLHFConfig | None = None):
         super().__init__(config or RLHFConfig())

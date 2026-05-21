@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentic-post-training"
@@ -29,20 +29,50 @@ dependencies = [
     "peft>=0.10",
     "trl>=0.8",
     "pyyaml>=6.0",
+    "pydantic>=2.5",
 ]
 
 [project.optional-dependencies]
 quantization = ["auto-gptq>=0.7", "autoawq>=0.2"]
 eval = ["lm-eval>=0.4"]
 all = ["agentic-post-training[quantization,eval]"]
-dev = ["pytest>=8.0", "ruff>=0.3"]
+dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.3", "mypy>=1.8", "pre-commit>=3.6"]
 
 [project.scripts]
 agentic-train = "pipeline.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "techniques*", "optimization*", "pipeline*"]
+include = ["core*", "agents*", "techniques*", "optimization*", "pipeline*", "backends*"]
+
+[project.entry-points."agentic_post_training.techniques"]
+# Built-in techniques register themselves via `@register_technique` on import.
+# Third-party plug-ins can register here without forking the repo.
 
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+extend-exclude = [
+    "notebooks",
+    "docs",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "RUF"]
+ignore = [
+    "E501",   # let the formatter own line length
+    "RUF001", # Greek/math glyphs are intentional in technique docstrings (β, σ, ε, …)
+    "RUF002",
+    "RUF003",
+]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["core", "techniques/_base"]
+# The rest of the codebase migrates to strict typing incrementally in Phase 3.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"

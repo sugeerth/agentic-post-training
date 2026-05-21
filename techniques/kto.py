@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from techniques.base_technique import BaseTechnique, TechniqueConfig
 
@@ -40,9 +40,9 @@ class KTO(BaseTechnique):
     description = "Kahneman-Tversky Optimization — alignment from binary (unpaired) feedback"
     paper_reference = "Ethayarajh et al., 2024 — KTO: Model Alignment as Prospect Theoretic Optimization"
     priority = 2
-    recommended_for = ["binary feedback", "thumbs up/down data", "production logs"]
-    pros = ["No paired data needed", "Works with binary signals", "Grounded in behavioral economics"]
-    cons = ["Less studied than DPO", "Asymmetric loss tuning needed"]
+    recommended_for: ClassVar[list[str]] = ["binary feedback", "thumbs up/down data", "production logs"]
+    pros: ClassVar[list[str]] = ["No paired data needed", "Works with binary signals", "Grounded in behavioral economics"]
+    cons: ClassVar[list[str]] = ["Less studied than DPO", "Asymmetric loss tuning needed"]
 
     def __init__(self, config: KTOConfig | None = None):
         super().__init__(config or KTOConfig())

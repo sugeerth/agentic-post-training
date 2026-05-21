@@ -1,0 +1,40 @@
+# ORPO quickstart run-spec.
+#
+# Post-trains a small base model with ORPO (Odds-Ratio Preference Optimization).
+# ORPO is single-stage (no reference model), so it fits in less than 16 GB VRAM
+# and runs end-to-end on a free Colab T4 in under 90 min.
+#
+# Usage:
+#   agentic-train run examples/orpo_quickstart/run.yaml --backend local --dry-run
+#   agentic-train run examples/orpo_quickstart/run.yaml --backend local
+#
+# To swap to real model + dataset, change `model_name` to
+# "Qwen/Qwen2.5-0.5B-Instruct" and wire a real loader (Phase 5 follow-up).
+
+model_name: sshleifer/tiny-gpt2     # demo-friendly; swap for Qwen2.5-0.5B-Instruct on GPU
+model_revision: main
+
+technique: orpo
+technique_config:
+  lambda_or: 0.1                    # weight on the odds-ratio term
+  beta: 0.1                         # back-compat alias of lambda_or (use one)
+
+epochs: 3
+batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-5
+max_length: 512
+
+quantization: null                  # ORPO is single-stage — skip quantization in v1
+pruning: null
+
+benchmarks:
+  - mmlu
+  - mt_bench
+
+output_dir: ./output/orpo_quickstart
+logging_steps: 10
+save_steps: 100
+seed: 42
+fp16: false
+bf16: true

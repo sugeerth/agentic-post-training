@@ -1,7 +1,13 @@
 """RL from AI Feedback (RLAIF) / Constitutional AI.
 
-Priority: 2 (Advanced)
+Priority: 3 (Experimental — simulation stub only)
 Paper: "Constitutional AI: Harmlessness from AI Feedback" (Bai et al., 2022)
+
+⚠ SIMULATION STUB: This file only produces a plausible-looking decay curve.
+The real RLAIF algorithm — drafting critiques, applying revisions against a
+constitution, scoring with an AI judge — is **not implemented**. Instantiating
+this class emits a `FutureWarning`. Track real-implementation work in the
+issue tracker before depending on the numbers here.
 
 Uses AI-generated feedback instead of human labelers. The model critiques
 and revises its own outputs based on a set of principles (constitution).
@@ -10,8 +16,9 @@ and revises its own outputs based on a set of principles (constitution).
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from techniques.base_technique import BaseTechnique, TechniqueConfig
 
@@ -28,12 +35,20 @@ class RLAIF(BaseTechnique):
     name = "rlaif"
     description = "RL from AI Feedback — constitutional AI with principle-guided self-improvement"
     paper_reference = "Bai et al., 2022 — Constitutional AI: Harmlessness from AI Feedback"
-    priority = 2
-    recommended_for = ["safety alignment", "scalable oversight", "principle-based training"]
-    pros = ["No human labelers needed", "Scalable", "Principle-driven"]
-    cons = ["AI judge quality limits ceiling", "Constitutional principles need careful design"]
+    priority = 3
+    is_experimental = True
+    recommended_for: ClassVar[list[str]] = ["safety alignment", "scalable oversight", "principle-based training"]
+    pros: ClassVar[list[str]] = ["No human labelers needed", "Scalable", "Principle-driven"]
+    cons: ClassVar[list[str]] = ["AI judge quality limits ceiling", "Constitutional principles need careful design"]
 
     def __init__(self, config: RLAIFConfig | None = None):
+        warnings.warn(
+            "RLAIF is a simulation stub — the real Constitutional AI loop "
+            "(critique drafting, revision, AI-judge scoring) is not implemented. "
+            "Numbers from compute_loss() are a deterministic decay curve, not "
+            "a trained model. See techniques/rlaif.py docstring.",
+            FutureWarning, stacklevel=2,
+        )
         super().__init__(config or RLAIFConfig())
 
     def compute_loss(self, **kwargs) -> Any:

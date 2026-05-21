@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import random
-from typing import Any
+from typing import Any, ClassVar
 
 from agents.base_agent import BaseAgent
 
@@ -16,7 +16,7 @@ class EvaluationAgent(BaseAgent):
     and provides recommendations for further training.
     """
 
-    BENCHMARKS = {
+    BENCHMARKS: ClassVar[dict[str, dict[str, Any]]] = {
         "mmlu": {"name": "MMLU", "description": "Massive Multitask Language Understanding", "max_score": 100},
         "humaneval": {"name": "HumanEval", "description": "Code generation benchmark", "max_score": 100},
         "mt_bench": {"name": "MT-Bench", "description": "Multi-turn conversation quality", "max_score": 10},
@@ -101,7 +101,7 @@ class EvaluationAgent(BaseAgent):
 
     def _generate_recommendations(self, results: dict) -> list[str]:
         recs = []
-        for bench_name, data in results.items():
+        for _bench_name, data in results.items():
             ratio = data["score"] / data["max_score"]
             if ratio < 0.5:
                 recs.append(f"Consider additional training focused on {data['name']} (score: {data['score']:.1f})")
@@ -122,12 +122,12 @@ class EvaluationAgent(BaseAgent):
         return f"+{avg:.1f}%"
 
     def _print_report(self, report: dict) -> None:
-        from agents.base_agent import BOLD, RESET, DIM
+        from agents.base_agent import BOLD, RESET
         print(f"\n{BOLD}{'═' * 70}")
         print(f"  📈 Evaluation Report: {report['model']}")
         print(f"{'═' * 70}{RESET}")
 
-        for name, data in report["benchmarks"].items():
+        for _name, data in report["benchmarks"].items():
             bar_len = int(data["score"] / data["max_score"] * 30)
             bar = "█" * bar_len + "░" * (30 - bar_len)
             print(f"  {data['name']:15s} [{bar}] {data['score']:6.1f}/{data['max_score']} ({data['improvement']})")

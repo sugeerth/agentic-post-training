@@ -1,7 +1,7 @@
 """Optimization modules: quantization, pruning, distillation."""
 
-from optimization.quantization import Quantizer, QuantizationConfig
+from optimization.distillation import DistillationConfig, Distiller
 from optimization.pruning import Pruner, PruningConfig
-from optimization.distillation import Distiller, DistillationConfig
+from optimization.quantization import QuantizationConfig, Quantizer
 
-__all__ = ["Quantizer", "QuantizationConfig", "Pruner", "PruningConfig", "Distiller", "DistillationConfig"]
+__all__ = ["DistillationConfig", "Distiller", "Pruner", "PruningConfig", "QuantizationConfig", "Quantizer"]

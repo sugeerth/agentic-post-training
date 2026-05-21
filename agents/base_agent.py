@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import uuid
 import logging
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -125,7 +125,7 @@ class BaseAgent(ABC):
         try:
             result = await self.run(**kwargs)
             self.status = AgentStatus.COMPLETED
-            self.log(f"Completed successfully ✓")
+            self.log("Completed successfully ✓")
             return result
         except Exception as e:
             self.status = AgentStatus.FAILED

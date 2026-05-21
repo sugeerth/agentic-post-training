@@ -1,12 +1,12 @@
 """Tests for post-training techniques."""
 
-import sys
 import os
+import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from techniques import TECHNIQUE_REGISTRY, PRIORITY_1, PRIORITY_2, PRIORITY_3
+from techniques import PRIORITY_1, PRIORITY_2, PRIORITY_3, TECHNIQUE_REGISTRY
 from techniques.base_technique import BaseTechnique
 
 
@@ -35,7 +35,7 @@ class TestTechniqueInstantiation(unittest.TestCase):
             self.assertIsNotNone(instance.description)
 
     def test_info_method(self):
-        for name, cls in TECHNIQUE_REGISTRY.items():
+        for _name, cls in TECHNIQUE_REGISTRY.items():
             instance = cls()
             info = instance.info()
             self.assertIn("name", info)
@@ -58,7 +58,7 @@ class TestTechniqueTraining(unittest.TestCase):
             self.assertIsNotNone(loss, f"{name} compute_loss returned None")
 
     def test_metrics_update(self):
-        for name, cls in TECHNIQUE_REGISTRY.items():
+        for _name, cls in TECHNIQUE_REGISTRY.items():
             instance = cls()
             instance.train_step(epoch=1)
             instance.train_step(epoch=2)

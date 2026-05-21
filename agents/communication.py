@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
-from agents.base_agent import AGENT_COLORS, RESET, DIM, BOLD
+from agents.base_agent import AGENT_COLORS, BOLD, DIM, RESET
 
 
 class MessageType(Enum):

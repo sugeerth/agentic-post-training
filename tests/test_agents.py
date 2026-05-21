@@ -1,18 +1,16 @@
 """Tests for the agent framework."""
 
-import sys
-import os
 import asyncio
+import os
+import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.base_agent import BaseAgent, AgentStatus, AgentCapability
-from agents.communication import MessageBus, Message, MessageType
+from agents.base_agent import AgentStatus, BaseAgent
+from agents.communication import Message, MessageBus, MessageType
 from agents.coordinator import CoordinatorAgent
 from agents.training_agent import TrainingAgent
-from agents.optimization_agent import OptimizationAgent
-from agents.evaluation_agent import EvaluationAgent
 
 
 class ConcreteAgent(BaseAgent):

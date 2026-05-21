@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -43,9 +43,14 @@ class BaseTechnique(ABC):
     description: str = "Base technique"
     paper_reference: str = ""
     priority: int = 1
-    recommended_for: list[str] = []
-    pros: list[str] = []
-    cons: list[str] = []
+    recommended_for: ClassVar[list[str]] = []
+    pros: ClassVar[list[str]] = []
+    cons: ClassVar[list[str]] = []
+    # Subclasses set this to True when they ship only the simulation path —
+    # i.e. the real algorithm is not yet implemented. Instantiating an
+    # experimental technique emits a FutureWarning so users aren't surprised
+    # by numbers that look real but aren't.
+    is_experimental: bool = False
 
     def __init__(self, config: TechniqueConfig | None = None):
         self.config = config or self._default_config()

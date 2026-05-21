@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -23,7 +23,7 @@ class Pruner:
     - Wanda: Pruning by Weights and Activations (no retraining needed)
     """
 
-    METHODS = {
+    METHODS: ClassVar[dict[str, dict[str, Any]]] = {
         "magnitude": {"desc": "Remove smallest weights", "needs_retraining": True, "quality_at_50": "~95%"},
         "structured": {"desc": "Remove entire channels/heads", "needs_retraining": True, "quality_at_50": "~92%"},
         "movement": {"desc": "Learn pruning mask during training", "needs_retraining": True, "quality_at_50": "~96%"},

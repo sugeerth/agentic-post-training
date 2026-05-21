@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import Any
 
 from agents.base_agent import BaseAgent
@@ -141,5 +140,5 @@ class TrainingAgent(BaseAgent):
             from techniques import TECHNIQUE_REGISTRY
             return TECHNIQUE_REGISTRY.get(name)
         except ImportError:
-            self.log(f"Techniques module not available, using simulation mode")
+            self.log("Techniques module not available, using simulation mode")
             return None

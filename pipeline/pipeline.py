@@ -6,12 +6,12 @@ import asyncio
 import time
 from typing import Any
 
-from agents.base_agent import BOLD, RESET, DIM
+from agents.base_agent import BOLD, RESET
 from agents.communication import MessageBus
 from agents.coordinator import CoordinatorAgent
-from agents.training_agent import TrainingAgent
-from agents.optimization_agent import OptimizationAgent
 from agents.evaluation_agent import EvaluationAgent
+from agents.optimization_agent import OptimizationAgent
+from agents.training_agent import TrainingAgent
 from pipeline.config import PipelineConfig
 
 
@@ -126,7 +126,7 @@ class AgenticPipeline:
 
         # Comparison table
         print(f"\n{BOLD}{'═' * 70}")
-        print(f"  📊 Technique Comparison")
+        print("  📊 Technique Comparison")
         print(f"{'═' * 70}{RESET}")
         print(f"  {'Technique':<12s} {'Final Loss':>12s} {'Reward':>10s} {'Epochs':>8s}")
         print(f"  {'─' * 44}")

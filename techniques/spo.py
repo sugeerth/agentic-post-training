@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from techniques.base_technique import BaseTechnique, TechniqueConfig
 
@@ -54,9 +54,9 @@ class SPO(BaseTechnique):
     description = "Self-Play Optimization — iterative self-improvement via competitive self-play"
     paper_reference = "Wu et al., 2024 — Self-Play Preference Optimization"
     priority = 1
-    recommended_for = ["iterative improvement", "limited data", "bootstrapping alignment"]
-    pros = ["Self-improving", "No external reward model needed", "Iterative refinement"]
-    cons = ["Can overfit to self", "Needs careful convergence criteria", "Computationally expensive"]
+    recommended_for: ClassVar[list[str]] = ["iterative improvement", "limited data", "bootstrapping alignment"]
+    pros: ClassVar[list[str]] = ["Self-improving", "No external reward model needed", "Iterative refinement"]
+    cons: ClassVar[list[str]] = ["Can overfit to self", "Needs careful convergence criteria", "Computationally expensive"]
 
     def __init__(self, config: SPOConfig | None = None):
         super().__init__(config or SPOConfig())

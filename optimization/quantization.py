@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -28,7 +28,7 @@ class Quantizer:
     - INT8: LLM.int8() via bitsandbytes
     """
 
-    METHODS = {
+    METHODS: ClassVar[dict[str, dict[str, Any]]] = {
         "gptq": {"bits": 4, "compression": "8x", "quality": "~99%", "library": "auto-gptq"},
         "awq": {"bits": 4, "compression": "8x", "quality": "~99.5%", "library": "autoawq"},
         "gguf": {"bits": 4, "compression": "8x", "quality": "~98%", "library": "llama-cpp-python"},

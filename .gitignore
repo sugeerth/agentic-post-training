@@ -1,27 +1,54 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
-dist/
-build/
-.eggs/
 *.egg
+.eggs/
 .venv/
 venv/
 env/
-.env
-*.log
 .pytest_cache/
 .ruff_cache/
-wandb/
-checkpoints/
-output/
-*.ckpt
-*.pt
-*.bin
-*.safetensors
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+.next/
+
+# Build
+dist/
+build/
+
+# OS
 .DS_Store
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# Logs
+*.log
+
+# ML model artifacts
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.h5
+*.onnx
+*.gguf
+checkpoints/
+wandb/
+output/
+
+# Databases / vector stores
+chroma/
+*.sqlite
+*.db

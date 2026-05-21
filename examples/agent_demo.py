@@ -5,18 +5,18 @@ Run: python3 examples/agent_demo.py
 """
 
 import asyncio
-import sys
 import os
+import sys
 
 # Add parent dir to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.communication import MessageBus, Message, MessageType
-from agents.coordinator import CoordinatorAgent
-from agents.training_agent import TrainingAgent
-from agents.optimization_agent import OptimizationAgent
-from agents.evaluation_agent import EvaluationAgent
 from agents.base_agent import BOLD, RESET
+from agents.communication import MessageBus
+from agents.coordinator import CoordinatorAgent
+from agents.evaluation_agent import EvaluationAgent
+from agents.optimization_agent import OptimizationAgent
+from agents.training_agent import TrainingAgent
 
 
 async def main():
@@ -50,7 +50,7 @@ async def main():
         "evaluation": {"benchmarks": ["mmlu", "mt_bench", "humaneval"], "model": "gpt2"},
     }
 
-    results = await coordinator.execute(config=config)
+    await coordinator.execute(config=config)
 
     # Show full conversation log
     bus.print_conversation()
