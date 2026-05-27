@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pipeline.config import PipelineConfig
+from pipeline.crew_pipeline import CrewPipeline, crewai_available
 from pipeline.pipeline import AgenticPipeline
 
 
@@ -37,6 +38,8 @@ def parse_args():
                         default=["mmlu", "mt_bench", "humaneval"],
                         help="Evaluation benchmarks")
     parser.add_argument("--output-dir", type=str, default="./output")
+    parser.add_argument("--crew", action="store_true",
+                        help="Use CrewAI orchestrator (falls back to native if crewai missing)")
     return parser.parse_args()
 
 
@@ -62,7 +65,12 @@ async def main():
         print(f"Configuration errors: {errors}")
         sys.exit(1)
 
-    pipeline = AgenticPipeline(config)
+    if args.crew:
+        if not crewai_available():
+            print("[run_pipeline] --crew requested, but crewai not installed. Falling back.")
+        pipeline = CrewPipeline(config)
+    else:
+        pipeline = AgenticPipeline(config)
     results = await pipeline.run()
 
     print("Pipeline finished successfully!")

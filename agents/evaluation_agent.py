@@ -32,6 +32,31 @@ class EvaluationAgent(BaseAgent):
         self.register_capability("comparison", "Compare model versions")
         self.register_capability("recommendation", "Suggest further training")
 
+    async def _run_one_benchmark(self, bench_name: str) -> tuple[str, dict[str, Any]] | None:
+        bench = self.BENCHMARKS.get(bench_name)
+        if not bench:
+            return None
+
+        self.log(f"Running {bench['name']}...")
+        await asyncio.sleep(0.3)
+
+        score = self._simulate_score(bench_name, bench["max_score"])
+        baseline = score * random.uniform(0.75, 0.90)
+        improvement_pct = (score - baseline) / baseline * 100
+
+        entry = {
+            "name": bench["name"],
+            "score": round(score, 2),
+            "baseline": round(baseline, 2),
+            "improvement": f"+{improvement_pct:.1f}%",
+            "max_score": bench["max_score"],
+        }
+
+        await self.send_message("status_update", {
+            "message": f"{bench['name']}: {score:.1f}/{bench['max_score']} (baseline: {baseline:.1f}, +{improvement_pct:.1f}%)",
+        }, target="Coordinator")
+        return bench_name, entry
+
     async def run(self, **kwargs) -> dict[str, Any]:
         benchmarks = kwargs.get("benchmarks", ["mmlu", "mt_bench", "humaneval", "gsm8k"])
         model_name = kwargs.get("model", "trained_model")
@@ -41,29 +66,13 @@ class EvaluationAgent(BaseAgent):
             "benchmarks": benchmarks,
         }, target="broadcast")
 
-        results = {}
-        for bench_name in benchmarks:
-            bench = self.BENCHMARKS.get(bench_name)
-            if not bench:
-                continue
-
-            self.log(f"Running {bench['name']}...")
-            await asyncio.sleep(0.3)
-
-            score = self._simulate_score(bench_name, bench["max_score"])
-            baseline = score * random.uniform(0.75, 0.90)
-
-            results[bench_name] = {
-                "name": bench["name"],
-                "score": round(score, 2),
-                "baseline": round(baseline, 2),
-                "improvement": f"+{(score - baseline) / baseline * 100:.1f}%",
-                "max_score": bench["max_score"],
-            }
-
-            await self.send_message("status_update", {
-                "message": f"{bench['name']}: {score:.1f}/{bench['max_score']} (baseline: {baseline:.1f}, +{(score - baseline) / baseline * 100:.1f}%)",
-            }, target="Coordinator")
+        # Fan out: each benchmark runs concurrently. Order of completion no
+        # longer matches input order, so we rebuild the dict in input order.
+        gathered = await asyncio.gather(
+            *(self._run_one_benchmark(b) for b in benchmarks)
+        )
+        by_name = {name: entry for item in gathered if item for name, entry in [item]}
+        results = {b: by_name[b] for b in benchmarks if b in by_name}
 
         # Generate recommendations
         recommendations = self._generate_recommendations(results)

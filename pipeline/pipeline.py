@@ -104,25 +104,26 @@ class AgenticPipeline:
         return results
 
     async def compare_techniques(self, techniques: list[str]) -> dict[str, Any]:
-        """Run multiple techniques and compare results."""
-        print(f"\n{BOLD}Comparing techniques: {', '.join(t.upper() for t in techniques)}{RESET}\n")
+        """Run multiple techniques and compare results (parallel)."""
+        print(f"\n{BOLD}Comparing techniques (parallel): {', '.join(t.upper() for t in techniques)}{RESET}\n")
 
-        all_results = {}
+        trainers: dict[str, TrainingAgent] = {}
         for tech in techniques:
-            print(f"\n{'─' * 50}")
-            print(f"  Running {tech.upper()}...")
-            print(f"{'─' * 50}")
+            t = TrainingAgent(name=f"Trainer-{tech.upper()}")
+            self.coordinator.register_worker(t)
+            trainers[tech] = t
 
-            self.config.technique = tech
-            trainer = TrainingAgent(name=f"Trainer-{tech.upper()}")
-            self.coordinator.register_worker(trainer)
-
-            result = await trainer.execute(
+        async def _run(tech: str) -> tuple[str, dict[str, Any]]:
+            print(f"  Launching {tech.upper()}...")
+            result = await trainers[tech].execute(
                 technique=tech,
                 model=self.config.model_name,
                 epochs=self.config.epochs,
             )
-            all_results[tech] = result
+            return tech, result
+
+        gathered = await asyncio.gather(*(_run(t) for t in techniques))
+        all_results = dict(gathered)
 
         # Comparison table
         print(f"\n{BOLD}{'═' * 70}")
