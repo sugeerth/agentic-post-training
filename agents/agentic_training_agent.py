@@ -108,11 +108,17 @@ class AgenticTrainingAgent(BaseAgent):
 
 
 # Per-technique bake-off spread. Kept as data so it's easy to tune.
+#
+# `sft` and `distill` are training stages upstream of RL — SFT gives a
+# solid cold-start boost, distill compresses a strong policy into a
+# smaller one at a small quality cost.
 _SUCCESS_SCHEDULES: dict[str, dict[str, float]] = {
     "multi_turn_grpo":       {"gain": 0.13, "cap": 0.90},   # strongest on tool use
     "grpo":                  {"gain": 0.11, "cap": 0.85},
     "trajectory_dpo":        {"gain": 0.09, "cap": 0.78},   # cheaper but weaker
     "dpo":                   {"gain": 0.09, "cap": 0.78},
+    "sft":                   {"gain": 0.08, "cap": 0.65},   # cold-start; caps below RL
+    "distill":               {"gain": 0.06, "cap": 0.82},   # loses a bit vs teacher
     "rejection_sampling_ft": {"gain": 0.07, "cap": 0.70},   # KL=0 but limited
     "rft":                   {"gain": 0.07, "cap": 0.70},
     "default":               {"gain": 0.10, "cap": 0.85},
@@ -127,8 +133,8 @@ def _sim_step(technique: str, iteration: int, group_size: int, kl_coef: float) -
     loss = (1.7 - schedule["gain"]) * math.exp(-0.3 * iteration) + 0.28
     reward = min(0.95, 0.30 + schedule["gain"] * 2 * iteration)
     kl = max(0.0, (0.20 - schedule["gain"]) - 0.02 * iteration)
-    if technique in ("rejection_sampling_ft", "rft"):
-        kl = 0.0  # pure SFT — no KL against reference
+    if technique in ("rejection_sampling_ft", "rft", "sft", "distill"):
+        kl = 0.0  # supervised objective — no reference-policy KL
     return {
         "loss": round(loss, 4),
         "reward": round(reward, 4),

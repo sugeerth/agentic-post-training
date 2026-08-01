@@ -83,10 +83,14 @@ class RewardHackingDetector(BaseAgent):
         else:
             gap = (rewards[-1] - rewards[0]) - (evals[-1] - evals[0])
 
+        # High: anti-correlation, or the reward climbed way past the eval.
+        # Medium: weakly correlated OR gap-and-not-fully-aligned. A perfectly
+        # aligned (ρ ≈ 1) monotone run is NOT medium — reward climbing faster
+        # than eval is fine when both are climbing in lockstep.
         if rho < -0.1 or gap > gap_threshold:
             severity = "high"
             verdict = "reward hacking suspected"
-        elif rho < 0.3 or gap > gap_threshold / 2:
+        elif rho < 0.3 or (gap > gap_threshold / 2 and rho < 0.9):
             severity = "medium"
             verdict = "reward/eval drift — watch"
         else:

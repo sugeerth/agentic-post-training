@@ -31,7 +31,7 @@ from agents.reward_hacking_detector import RewardHackingDetector
 from pipeline.run_history import RunHistory
 
 
-# Mapping from a plan's stage name → (agent role, human description, extra config keys)
+# Mapping from a plan's stage name → (agent role, human description).
 STAGE_SPEC: dict[str, tuple[str, str]] = {
     "curate": ("trajectory", "Sample & curate agent trajectories"),
     "trajectory": ("trajectory", "Sample & curate agent trajectories"),
@@ -43,6 +43,19 @@ STAGE_SPEC: dict[str, tuple[str, str]] = {
     "rft": ("agentic_trainer", "Rejection-sampling fine-tuning outer loop"),
     "distill": ("agentic_trainer", "Distill reasoning traces into a smaller policy"),
     "eval": ("evaluator", "Benchmark suite"),
+}
+
+
+# Each *training* stage runs its own technique. Without this, a plan whose
+# config_overrides sets technique=grpo makes sft, grpo, and distill all
+# emit identical metrics — cosmetically wrong, and misleading in reports.
+STAGE_TO_TECHNIQUE: dict[str, str] = {
+    "sft":             "sft",
+    "grpo":            "grpo",
+    "multi_turn_grpo": "multi_turn_grpo",
+    "dpo":             "trajectory_dpo",
+    "rft":             "rejection_sampling_ft",
+    "distill":         "distill",
 }
 
 
@@ -99,7 +112,12 @@ class AgenticPipeline:
         stages: list[PipelineStage] = []
         for name in plan.stages:
             role, desc = STAGE_SPEC.get(name, ("agentic_trainer", name))
-            stage_cfg = {**merged_cfg, "technique": merged_cfg.get("technique", name)}
+            # Training stages: technique defaults to the stage name (via the map).
+            # Non-training stages: don't clobber a caller-provided technique.
+            per_stage_technique = STAGE_TO_TECHNIQUE.get(name)
+            stage_cfg = dict(merged_cfg)
+            if per_stage_technique is not None:
+                stage_cfg["technique"] = per_stage_technique
             stages.append(PipelineStage(name=name, description=desc, agent_role=role, config=stage_cfg))
         self.coordinator.stages = stages
         self.coordinator.pipeline_config = merged_cfg
