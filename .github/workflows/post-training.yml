@@ -1,0 +1,107 @@
+name: agentic-post-training
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "techniques/**"
+      - "pipeline/**"
+      - "examples/**"
+      - ".github/workflows/post-training.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      goal:
+        description: "Goal string — supervisor picks a plan from this"
+        required: false
+        default: "agentic tool use"
+      iterations:
+        description: "Training iterations"
+        required: false
+        default: "3"
+
+jobs:
+  smoke:
+    name: smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: |
+          pip install -e .
+      - name: Existing pytest suite
+        run: python3 -m pytest tests/ -q
+
+  pipeline:
+    name: run agentic pipeline (${{ matrix.plan }})
+    needs: smoke
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plan: agentic-tool-use
+            goal: "agentic tool use"
+          - plan: reasoning-r1
+            goal: "reasoning math"
+          - plan: rejection-sampling-loop
+            goal: "rft"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -e .
+      - name: Run pipeline (${{ matrix.plan }})
+        run: |
+          python3 examples/run_agentic_training.py \
+            --goal "${{ github.event.inputs.goal || matrix.goal }}" \
+            --iterations "${{ github.event.inputs.iterations || 3 }}" \
+            --quiet \
+            --out-dir "./output/${{ matrix.plan }}"
+      - name: Upload TL;DR
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tldr-${{ matrix.plan }}
+          path: output/${{ matrix.plan }}/report.*
+          if-no-files-found: warn
+
+  pr-comment:
+    name: post TL;DR to PR
+    needs: pipeline
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tldr-*
+          merge-multiple: true
+          path: tldrs
+      - name: Compose comment
+        id: body
+        run: |
+          {
+            echo "body<<EOF"
+            for f in tldrs/report.md tldrs/**/report.md; do
+              [ -f "$f" ] || continue
+              cat "$f"
+              echo ""
+              echo "---"
+            done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.body.outputs.body }}
