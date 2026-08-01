@@ -88,20 +88,20 @@ jobs:
           pattern: tldr-*
           merge-multiple: true
           path: tldrs
-      - name: Compose comment
-        id: body
+      - name: Concatenate reports
         run: |
+          mkdir -p out
           {
-            echo "body<<EOF"
             for f in tldrs/report.md tldrs/**/report.md; do
               [ -f "$f" ] || continue
               cat "$f"
-              echo ""
-              echo "---"
+              printf '\n\n---\n\n'
             done
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          } > out/comment.md
+          echo "--- preview ---"
+          head -40 out/comment.md
+      # body-path: reads the file verbatim — no HTML-entity escaping of <details>/`{}`.
       - uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ steps.body.outputs.body }}
+          body-path: out/comment.md

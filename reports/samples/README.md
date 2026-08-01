@@ -12,3 +12,5 @@ lines — the framework's attention-budget rule applies to its own docs.
 | AgenticTrainer | [`agentic_trainer.md`](agentic_trainer.md) | Iter-by-iter loss / reward / success |
 | Evaluator | [`evaluator.md`](evaluator.md) | Benchmark table + recommendation |
 | Reporter | [`reporter.md`](reporter.md) | The TL;DR the reporter emits |
+| Bakeoff | [`bakeoff.md`](bakeoff.md) | Head-to-head recipe comparison + pareto |
+| RewardHacking | [`reward_hacking.md`](reward_hacking.md) | Spearman ρ + gap → severity |

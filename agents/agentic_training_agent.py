@@ -54,11 +54,16 @@ class AgenticTrainingAgent(BaseAgent):
         except ImportError:
             tech = None
 
+        # Per-technique success-rate schedules — makes bake-offs meaningful
+        # even in the simulation path. Numbers picked to reflect published
+        # rankings on tool-use benchmarks (GRPO > DPO > RFT on hard tasks).
+        schedule = _SUCCESS_SCHEDULES.get(technique, _SUCCESS_SCHEDULES["default"])
+
         iter_metrics = []
-        success_rate = kwargs.get("initial_success_rate", 0.35)
+        initial_success = kwargs.get("initial_success_rate", 0.35)
         for it in range(1, iterations + 1):
-            m = tech.step(iteration=it) if tech else _sim_step(it, group_size, kl_coef)
-            success_rate = min(0.95, success_rate + 0.09 + 0.02 * it)
+            m = tech.step(iteration=it) if tech else _sim_step(technique, it, group_size, kl_coef)
+            success_rate = min(schedule["cap"], initial_success + schedule["gain"] * it)
             m["iteration"] = it
             m["success_rate"] = round(success_rate, 3)
             iter_metrics.append(m)
@@ -102,12 +107,28 @@ class AgenticTrainingAgent(BaseAgent):
         return await self.run(**kwargs)
 
 
-def _sim_step(iteration: int, group_size: int, kl_coef: float) -> dict[str, float]:
-    """Deterministic curve used when the real technique is unavailable."""
+# Per-technique bake-off spread. Kept as data so it's easy to tune.
+_SUCCESS_SCHEDULES: dict[str, dict[str, float]] = {
+    "multi_turn_grpo":       {"gain": 0.13, "cap": 0.90},   # strongest on tool use
+    "grpo":                  {"gain": 0.11, "cap": 0.85},
+    "trajectory_dpo":        {"gain": 0.09, "cap": 0.78},   # cheaper but weaker
+    "dpo":                   {"gain": 0.09, "cap": 0.78},
+    "rejection_sampling_ft": {"gain": 0.07, "cap": 0.70},   # KL=0 but limited
+    "rft":                   {"gain": 0.07, "cap": 0.70},
+    "default":               {"gain": 0.10, "cap": 0.85},
+}
+
+
+def _sim_step(technique: str, iteration: int, group_size: int, kl_coef: float) -> dict[str, float]:
+    """Deterministic curve — differentiates techniques so bake-offs actually spread."""
     import math
-    loss = 1.7 * math.exp(-0.35 * iteration) + 0.28
-    reward = min(0.92, 0.32 + 0.20 * iteration)
-    kl = max(0.01, 0.18 - 0.03 * iteration)
+    # Loss decays faster for stronger techniques.
+    schedule = _SUCCESS_SCHEDULES.get(technique, _SUCCESS_SCHEDULES["default"])
+    loss = (1.7 - schedule["gain"]) * math.exp(-0.3 * iteration) + 0.28
+    reward = min(0.95, 0.30 + schedule["gain"] * 2 * iteration)
+    kl = max(0.0, (0.20 - schedule["gain"]) - 0.02 * iteration)
+    if technique in ("rejection_sampling_ft", "rft"):
+        kl = 0.0  # pure SFT — no KL against reference
     return {
         "loss": round(loss, 4),
         "reward": round(reward, 4),

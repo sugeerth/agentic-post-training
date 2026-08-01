@@ -8,6 +8,10 @@ Post-training an *agent* (not a base LLM) hinges on trajectory quality:
 
 This agent owns rollout collection + rejection sampling (STaR / RFT-style)
 so downstream trainers see a curated dataset instead of raw noise.
+
+It rolls out against an actual `ToolEnv` — no more fabricated trajectory
+dicts. A policy-mixing schedule (`p_expert`) lets the agent simulate a
+policy improving from random baseline toward expert play across iterations.
 """
 
 from __future__ import annotations
@@ -17,13 +21,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from agents.base_agent import BaseAgent
+from environments.tool_env import ToolEnv, Task, sample_tasks
+from environments.policies import POLICIES
 
 
 @dataclass
 class Turn:
-    role: str          # "user" | "assistant" | "tool"
-    content: str
-    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    tool: str
+    args: dict[str, Any]
+    obs: str
+    reward: float
 
 
 @dataclass
@@ -33,7 +40,8 @@ class Trajectory:
     outcome_reward: float             # terminal: task succeeded?
     process_rewards: list[float]      # per-turn shaped reward
     success: bool
-    tokens: int
+    tokens: int                       # rough proxy = sum of turn text lengths
+    goal: str = ""
 
 
 class TrajectoryAgent(BaseAgent):
@@ -42,45 +50,58 @@ class TrajectoryAgent(BaseAgent):
     def __init__(self, name: str = "TrajectoryCurator"):
         super().__init__(name, role="trajectory")
         self.pool: list[Trajectory] = []
+        self._env: ToolEnv | None = None
         self.register_capability("rollout", "Sample multi-turn agent trajectories")
         self.register_capability("rejection_sampling", "Keep only high-quality rollouts")
         self.register_capability("curation", "Balance and dedupe the training set")
 
-    def _sample_one(self, task_id: str, target_success_rate: float) -> Trajectory:
-        """Simulate a rollout. Real deployments hand a live agent+env in here."""
-        turn_count = random.randint(2, 8)
-        success = random.random() < target_success_rate
-        turns = []
-        process = []
-        for i in range(turn_count):
-            role = "assistant" if i % 2 == 0 else "tool"
-            turns.append(Turn(role=role, content=f"turn-{i}"))
-            process.append(random.uniform(-0.1, 0.3))
-        outcome = 1.0 if success else 0.0
+    def _rollout(self, task: Task, p_expert: float, rng: random.Random) -> Trajectory:
+        """Roll one trajectory. Policy is a stochastic mix of random ↔ expert."""
+        env = self._env or ToolEnv()
+        goal = env.reset(task)
+        turns: list[Turn] = []
+        process: list[float] = []
+        done = False
+        while not done:
+            policy = POLICIES["expert" if rng.random() < p_expert else "random"]
+            tool, args = policy(goal, [t.__dict__ for t in turns], rng)
+            r = env.step(tool, args)
+            turns.append(Turn(tool=tool, args=dict(args), obs=r.obs, reward=r.reward))
+            process.append(r.reward)
+            done = r.done
+
+        success = any(t.tool == "finish" and t.reward >= 1.0 for t in turns)
+        tokens = sum(len(t.obs) + sum(len(str(v)) for v in t.args.values()) for t in turns)
         return Trajectory(
-            task_id=task_id,
+            task_id=task.task_id,
             turns=turns,
-            outcome_reward=outcome,
+            outcome_reward=1.0 if success else 0.0,
             process_rewards=process,
             success=success,
-            tokens=turn_count * 80,
+            tokens=tokens,
+            goal=goal,
         )
 
     async def run(self, **kwargs) -> dict[str, Any]:
         n = kwargs.get("num_rollouts", 64)
-        target_rate = kwargs.get("initial_success_rate", 0.35)
+        p_expert = kwargs.get("p_expert", 0.35)
         keep_top_frac = kwargs.get("keep_top_frac", 0.5)
+        seed = kwargs.get("seed", 0)
+
+        rng = random.Random(seed)
+        self._env = ToolEnv(sample_tasks(n=max(16, n), seed=seed))
+        tasks = [rng.choice(self._env.tasks) for _ in range(n)]
 
         await self.send_message("status_update", {
-            "message": f"Sampling {n} rollouts (baseline success ≈ {target_rate:.0%})",
+            "message": f"Rolling {n} trajectories against ToolEnv (p_expert={p_expert:.2f})",
         }, target="broadcast")
 
-        self.pool = [self._sample_one(f"task-{i}", target_rate) for i in range(n)]
+        self.pool = [self._rollout(t, p_expert, rng) for t in tasks]
         successes = [t for t in self.pool if t.success]
 
-        # Rejection sampling: keep the successful trajectories, then top-up
-        # with best-effort failed ones (by highest process reward sum) so the
-        # curated set doesn't collapse to zero on early iterations.
+        # Rejection sampling: keep successful rollouts, then top-up with
+        # the best failed ones (highest process-reward sum) so the curated
+        # set doesn't collapse to zero on early iterations.
         keep_n = max(1, int(len(self.pool) * keep_top_frac))
         by_quality = sorted(
             self.pool,
@@ -100,6 +121,7 @@ class TrajectoryAgent(BaseAgent):
             "avg_tokens_per_rollout": round(
                 sum(t.tokens for t in curated) / len(curated), 1
             ),
+            "p_expert": p_expert,
         }
 
         await self.send_message("task_result", {

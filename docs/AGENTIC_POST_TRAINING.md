@@ -103,6 +103,69 @@ checkpoint" line with a specific stage to fix.
 uploads `output/report.md` as a build artifact — the PR reviewer sees
 the TL;DR without pulling logs.
 
+## Environment (real trajectories, not simulated dicts)
+
+`environments/tool_env.py` is a small deterministic tool-use env:
+
+- 4 tools — `search`, `calculate`, `lookup`, `finish(answer)`
+- 4 task kinds — `sum`, `lookup`, `twohop`, `distract`
+- Sparse terminal reward (1 if `finish(answer)` matches truth, else 0)
+  plus small per-turn shaping (+0.05 for useful tool calls, −0.02 for
+  dead-end queries)
+
+Reference policies (`environments/policies.py`) give the trajectory agent
+a knob: `p_expert=0.0` → 0% success, `p_expert=1.0` → 100% success. The
+trainer's "policy improving" arc across iterations is a schedule on that
+knob, not a math trick.
+
+## Reward-hacking detector
+
+New agent: `agents/reward_hacking_detector.py`. Watches for the classic
+failure of agentic RL — the reward-model score climbs monotonically while
+the eval score plateaus or drops. Two signals, deliberately auditable in
+ten lines:
+
+- **Spearman ρ** between per-iteration reward and per-iteration eval
+- **gap** = (Δ reward) − (Δ eval)
+
+ρ < 0 or gap > 0.25 → hacking flagged. The supervisor promotes a flagged
+audit into a real intervention (`adjust` for medium, `rollback` for high),
+which lands in the TL;DR's *Needs attention* section.
+
+## Recipe bake-off
+
+`agents/bakeoff_agent.py` + `pipeline/bakeoff_pipeline.py` + `examples/run_bakeoff.py`.
+
+Bake-offs pick the winner by highest success rate *among plans that stayed
+under a KL ceiling*. This is more honest than raw success rate — a plan
+that hit 90% by drifting off-distribution is not the recipe you want to
+ship. The reporter also prints the pareto frontier so you see the trade
+between "chased reward" and "stayed close to the reference policy".
+
+## Run history + regression detection
+
+Each run persists to `.runs/{plan}-{n:04d}.json`. The reporter reads the
+latest prior run of the same plan and prints a `## vs last run` block
+with per-metric deltas. If task-success regressed by >5%, the reporter's
+next-action becomes *"revert or investigate"* instead of *"ship the
+checkpoint"* — the framework catches its own regressions.
+
+## ASCII sparklines (attention-conscious visuals)
+
+The reporter renders one-line unicode sparklines for reward / loss /
+success / KL across iterations:
+
+```
+## Curves
+- `reward  ` ▁▃▅▇█
+- `loss    ` ▇▅▃▂▁
+- `success ` ▁▂▅▆█
+- `kl      ` ▇▆▄▂▁
+```
+
+No plot library, no browser, no scroll. The shape of the curve tells you
+in one glance what a page of numbers can't.
+
 ## Extension
 
 Add a plan: append a `RunPlan(...)` in `agents/supervisor_agent.py::SupervisorAgent.PLANS`.
@@ -110,6 +173,8 @@ Add a stage: extend `STAGE_SPEC` in `pipeline/agentic_pipeline.py`.
 Add a technique: drop a class in `techniques/agentic/`, register it in
 `AGENTIC_TECHNIQUES`.
 Add an agent role: subclass `BaseAgent`, register with the coordinator.
+Add an environment: subclass `ToolEnv`, or drop a new `env.py` alongside;
+update `TrajectoryAgent` to instantiate it.
 
 Everything else is machinery; those are the only files that need to
 change to support new research.

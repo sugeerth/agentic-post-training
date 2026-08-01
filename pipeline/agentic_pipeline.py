@@ -27,6 +27,8 @@ from agents.reward_model_agent import RewardModelAgent
 from agents.agentic_training_agent import AgenticTrainingAgent
 from agents.evaluation_agent import EvaluationAgent
 from agents.reporter_agent import ReporterAgent
+from agents.reward_hacking_detector import RewardHackingDetector
+from pipeline.run_history import RunHistory
 
 
 # Mapping from a plan's stage name → (agent role, human description, extra config keys)
@@ -51,22 +53,29 @@ class AgenticPipeline:
         results = await pipeline.run(goal="agentic tool use", config={...})
     """
 
-    def __init__(self, verbose: bool = True, out_dir: str = "./output"):
+    def __init__(
+        self,
+        verbose: bool = True,
+        out_dir: str = "./output",
+        history_dir: str = ".runs",
+    ):
         self.bus = MessageBus(verbose=verbose)
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
+        self.history = RunHistory(history_dir)
         self.supervisor = SupervisorAgent()
         self.coordinator = CoordinatorAgent()
         self.trajectory = TrajectoryAgent()
         self.rm = RewardModelAgent()
         self.trainer = AgenticTrainingAgent()
         self.evaluator = EvaluationAgent()
-        self.reporter = ReporterAgent()
+        self.hack_watch = RewardHackingDetector()
+        self.reporter = ReporterAgent(history=self.history)
 
         self.bus.register_agent(self.supervisor)
         self.coordinator.setup_bus(self.bus)
-        for w in (self.trajectory, self.rm, self.trainer, self.evaluator, self.reporter):
+        for w in (self.trajectory, self.rm, self.trainer, self.evaluator, self.hack_watch, self.reporter):
             self.coordinator.register_worker(w)
         self.supervisor.attach_coordinator(self.coordinator)
 
@@ -109,6 +118,20 @@ class AgenticPipeline:
 
         self.coordinator.print_dashboard()
 
+        # Reward-hacking audit: rank-correlate per-iter reward vs a proxy
+        # for eval. We use `iteration_metrics[*].success_rate` as the eval
+        # proxy — it's the closest thing to "did the policy actually get
+        # better on the task" that varies per iteration. If a real eval
+        # tracked per-iter scores those would go here instead.
+        hack_report = _run_hacking_audit(self.hack_watch, results)
+        if hack_report:
+            results["reward_hacking_audit"] = hack_report
+            if hack_report.get("severity") in ("medium", "high"):
+                self.supervisor.interventions.append(
+                    _make_intervention("reward_hacking", hack_report["verdict"],
+                                       "adjust" if hack_report["severity"] == "medium" else "rollback")
+                )
+
         run_summary = {
             "goal": goal,
             "plan": plan.name,
@@ -128,3 +151,23 @@ class AgenticPipeline:
         print(f"{'═' * 70}{RESET}\n")
 
         return run_summary
+
+
+def _run_hacking_audit(detector, results):
+    """Pull (reward, eval-proxy) pairs from the training stage and audit."""
+    for stage in ("multi_turn_grpo", "grpo", "dpo", "rft", "training"):
+        r = results.get(stage)
+        if not isinstance(r, dict):
+            continue
+        iters = r.get("iteration_metrics") or []
+        if len(iters) < 2:
+            continue
+        rewards = [float(it.get("reward", 0.0)) for it in iters]
+        evals = [float(it.get("success_rate", it.get("reward", 0.0))) for it in iters]
+        return detector.audit(rewards, evals)
+    return None
+
+
+def _make_intervention(stage, reason, action):
+    from agents.supervisor_agent import Intervention
+    return Intervention(stage=stage, reason=reason, action=action)
