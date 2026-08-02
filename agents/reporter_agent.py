@@ -148,9 +148,31 @@ class ReporterAgent(BaseAgent):
         print(f"{BOLD}{'═' * 70}{RESET}\n")
 
 
+# Training stages ranked by "how much RL / how strong the objective".
+# All three parts of the reporter (headline / metrics line / next action)
+# use this so they can't disagree — the payload that triggered this fix
+# had a plan running sft AND grpo AND distill, and the metrics line
+# picked sft's 59% while the headline picked grpo's 68%.
+_TRAIN_PRIORITY: tuple[str, ...] = (
+    "multi_turn_grpo", "grpo", "trajectory_dpo", "dpo",
+    "distill", "sft", "rft", "rejection_sampling_ft", "training",
+)
+
+
+def _primary_training_result(results: dict[str, Any]) -> dict[str, Any] | None:
+    for stage in _TRAIN_PRIORITY:
+        r = results.get(stage)
+        if isinstance(r, dict) and ("task_success_rate" in r or "final_reward" in r):
+            return r
+    for r in results.values():
+        if isinstance(r, dict) and ("task_success_rate" in r or "final_reward" in r):
+            return r
+    return None
+
+
 def _headline(results: dict[str, Any]) -> str:
     """One sentence, delta-first."""
-    for name in ("multi_turn_grpo", "grpo", "training", "dpo", "rft"):
+    for name in _TRAIN_PRIORITY:
         r = results.get(name)
         if isinstance(r, dict) and "task_success_rate" in r:
             lift = r.get("success_rate_lift", 0.0)
@@ -165,7 +187,12 @@ def _headline(results: dict[str, Any]) -> str:
 
 
 def _key_metrics_line(results: dict[str, Any]) -> str:
-    """One line of the ~5 most decision-relevant scalars, deduped."""
+    """One line of the ~5 most decision-relevant scalars, deduped.
+
+    Success + reward are always pulled from the *strongest* training stage
+    (per _TRAIN_PRIORITY), never just the first one that iteration order
+    hits. Curated / rm-acc / eval come from whichever stage exposes them.
+    """
     seen: set[str] = set()
     parts: list[str] = []
 
@@ -175,6 +202,15 @@ def _key_metrics_line(results: dict[str, Any]) -> str:
         seen.add(key)
         parts.append(formatted)
 
+    # Prefer the strongest training stage for success + reward.
+    primary = _primary_training_result(results)
+    if primary is not None:
+        if "final_reward" in primary:
+            add("reward", f"reward `{primary['final_reward']:.2f}`")
+        if "task_success_rate" in primary:
+            add("success", f"success `{primary['task_success_rate']:.0%}`")
+
+    # Rest — first-wins is fine because these keys only appear on one stage.
     for _stage, r in results.items():
         if not isinstance(r, dict):
             continue
@@ -182,10 +218,6 @@ def _key_metrics_line(results: dict[str, Any]) -> str:
             add("curated", f"curated `{r['curated']}/{r['sampled']}`")
         if "held_out_accuracy" in r:
             add("rm", f"rm-acc `{r['held_out_accuracy']:.2f}`")
-        if "final_reward" in r:
-            add("reward", f"reward `{r['final_reward']:.2f}`")
-        if "task_success_rate" in r:
-            add("success", f"success `{r['task_success_rate']:.0%}`")
         if "overall_improvement" in r:
             add("eval", f"eval `{r['overall_improvement']}`")
     return " · ".join(parts[:5]) if parts else "_no scalar metrics reported_"
@@ -237,9 +269,11 @@ def _next_action(results: dict[str, Any], anomalies: list[dict], deltas: dict[st
         _, _, d = deltas["task_success_rate"]
         if d < -0.05:
             return f"Success rate regressed by {abs(d):.0%} vs last run — revert or investigate."
-    for _stage, r in results.items():
-        if isinstance(r, dict) and r.get("task_success_rate", 1.0) < 0.6:
-            return "Success rate under 60% — schedule another RL iteration."
+    # Only judge the strongest training stage — a plan's SFT cold-start
+    # legitimately caps below 60%, and shouldn't make grpo's 68% look bad.
+    primary = _primary_training_result(results)
+    if primary is not None and primary.get("task_success_rate", 1.0) < 0.6:
+        return "Success rate under 60% — schedule another RL iteration."
     return "Ship the checkpoint. Nothing else to tune."
 
 

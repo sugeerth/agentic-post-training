@@ -243,6 +243,43 @@ def test_supervisor_intervenes_on_reward_collapse():
 # Reporter — smoke test that the TL;DR renders
 # --------------------------------------------------------------------------- #
 
+def test_reporter_headline_metrics_and_next_action_agree_on_strongest_stage():
+    """After the stage-routing fix, a plan running sft AND grpo AND distill
+    all emit task_success_rate. Headline / metrics / next-action must all
+    read from GRPO (highest priority), not from whichever stage is first
+    in dict order (sft)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        reporter = ReporterAgent(history=RunHistory(Path(tmp) / ".runs"))
+        run = {
+            "plan": "reasoning-r1", "goal": "reasoning math",
+            "results": {
+                # Order matches the pipeline's plan order — sft appears before grpo.
+                "sft":     {"task_success_rate": 0.59, "final_reward": 0.78, "kl_divergence": 0.0,
+                            "success_rate_lift": 0.24,
+                            "iteration_metrics": [{"reward": 0.5, "loss": 1.0, "success_rate": 0.5, "kl_divergence": 0.0}]},
+                "grpo":    {"task_success_rate": 0.68, "final_reward": 0.95, "kl_divergence": 0.03,
+                            "success_rate_lift": 0.33,
+                            "iteration_metrics": [{"reward": 0.5, "loss": 1.0, "success_rate": 0.5, "kl_divergence": 0.05}]},
+                "distill": {"task_success_rate": 0.53, "final_reward": 0.66, "kl_divergence": 0.0,
+                            "success_rate_lift": 0.18,
+                            "iteration_metrics": [{"reward": 0.4, "loss": 1.1, "success_rate": 0.4, "kl_divergence": 0.0}]},
+            },
+            "interventions": [], "elapsed_s": 1.0,
+        }
+        result = asyncio.run(reporter.run(run=run, out_dir=tmp, persist=False))
+        tldr = result["tldr"]
+        # Headline picks grpo's 68% — not sft's 59% or distill's 53%.
+        assert "68%" in tldr
+        # Metrics line: reward = grpo's 0.95, success = grpo's 68%.
+        assert "reward `0.95`" in tldr
+        assert "success `68%`" in tldr
+        assert "reward `0.78`" not in tldr  # sft's reward would leak here
+        # Next-action: grpo passes 60% → "Ship the checkpoint" (not the
+        # "under 60%" branch that sft alone would trigger).
+        assert "Ship the checkpoint" in tldr
+        assert "under 60%" not in tldr
+
+
 def test_reporter_renders_tldr_with_deltas_and_sparklines():
     with tempfile.TemporaryDirectory() as tmp:
         history = RunHistory(Path(tmp) / ".runs")
