@@ -1,0 +1,81 @@
+name: daily-paper-scan
+
+# Runs every day at 09:00 UTC. Also triggerable by hand from the Actions
+# tab (workflow_dispatch) so you can force a scan without waiting for cron.
+#
+# The job:
+#   1. Runs `examples/run_paper_scan.py` — fetches ~12 recent arXiv abstracts
+#      on agent post-training, extracts new technique names, writes mimic
+#      stubs into techniques/mimics/{slug}.py.
+#   2. Uploads the human-friendly digest (Markdown + JSON) as an artifact.
+#   3. If new mimics were written, opens a draft PR against main so a
+#      human can review the stubs before they land.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"          # 09:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      overwrite:
+        description: "Regenerate existing mimics"
+        required: false
+        default: "false"
+      allow_network:
+        description: "Fetch live arXiv (false = canned only, deterministic)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install (dev extras)
+        run: pip install -e ".[dev]"
+      - name: Run paper scan
+        id: scan
+        run: |
+          FLAGS=""
+          if [ "${{ github.event.inputs.overwrite }}" = "true" ]; then FLAGS="$FLAGS --overwrite"; fi
+          if [ "${{ github.event.inputs.allow_network }}" = "false" ]; then FLAGS="$FLAGS --no-network"; fi
+          python3 examples/run_paper_scan.py $FLAGS | tee scan.log
+          # Expose whether the scan wrote new files (used by the PR step below).
+          if git diff --quiet techniques/mimics/; then
+            echo "wrote_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "wrote_files=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper-scan-digest
+          path: |
+            output/paper_scan/digest.md
+            output/paper_scan/digest.json
+            scan.log
+          if-no-files-found: warn
+      - name: Add digest to workflow summary
+        if: always()
+        run: |
+          if [ -f output/paper_scan/digest.md ]; then
+            cat output/paper_scan/digest.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Open draft PR with new mimics
+        if: steps.scan.outputs.wrote_files == 'true' && github.event_name != 'pull_request'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/daily-paper-scan
+          title: "Daily paper scan — new mimic stubs"
+          body-path: output/paper_scan/digest.md
+          commit-message: "Daily paper scan: new mimic stubs"
+          add-paths: techniques/mimics/
+          draft: true
+          delete-branch: true

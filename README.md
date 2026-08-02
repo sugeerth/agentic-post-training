@@ -67,7 +67,35 @@ python3 examples/run_pipeline.py --technique grpo --model gpt2 --epochs 3
 
 # Compare techniques
 python3 examples/compare_techniques.py --techniques ppo dpo grpo
+
+# Agentic post-training (supervisor + specialists, produces a TL;DR)
+python3 examples/run_agentic_training.py --goal "agentic tool use"
+
+# Autonomous closed loop — collect→train→probe until the target is met
+python3 examples/run_autonomous.py --target-success 0.85 --budget 2000
 ```
+
+## Agentic Post-Training (v2)
+
+Post-training an **agent** differs from post-training a base LLM: the unit
+is a trajectory, the reward is sparse, and credit assignment spans many
+turns. This framework adds a supervisor-led pipeline for that problem.
+
+- **SupervisorAgent** picks a recipe (`agentic-tool-use`, `reasoning-r1`,
+  `preference-alignment`, `rejection-sampling-loop`) and intervenes when
+  metrics go sideways.
+- **TrajectoryAgent · RewardModelAgent · AgenticTrainingAgent · ReporterAgent**
+  each own one hard problem in the pipeline.
+- **`techniques/agentic/`** — multi-turn GRPO (Kimi K2 / DeepSeek-R1 style),
+  trajectory DPO, rejection-sampling FT, process reward model.
+- **ReporterAgent** produces a scannable TL;DR (`output/report.md`) — six
+  lines above the fold, anomalies-first.
+- **CI/CD** via `.github/workflows/post-training.yml` — runs the pipeline
+  on push and posts the TL;DR as a PR comment.
+
+See [`docs/AGENTIC_POST_TRAINING.md`](docs/AGENTIC_POST_TRAINING.md) for
+the problem-per-agent breakdown and [`reports/samples/`](reports/samples/)
+for one-page samples per agent.
 
 ### Python API
 
