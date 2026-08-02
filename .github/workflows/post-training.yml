@@ -60,6 +60,17 @@ jobs:
           cache: pip
       - name: Install
         run: pip install -e .
+      # Persist .runs/ across workflow runs so the reporter's "vs last run"
+      # regression section appears in CI, not just locally. restore-keys
+      # falls back to the newest prior cache; the unique key saves a fresh
+      # one after this run.
+      - name: Restore run history
+        uses: actions/cache@v4
+        with:
+          path: .runs
+          key: runs-${{ matrix.plan }}-${{ github.run_id }}
+          restore-keys: |
+            runs-${{ matrix.plan }}-
       - name: Run pipeline (${{ matrix.plan }})
         run: |
           python3 examples/run_agentic_training.py \
@@ -75,24 +86,61 @@ jobs:
           path: output/${{ matrix.plan }}/report.*
           if-no-files-found: warn
 
+  autonomous:
+    name: autonomous closed loop
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -e .
+      - name: Restore run history
+        uses: actions/cache@v4
+        with:
+          path: .runs
+          key: runs-autonomous-${{ github.run_id }}
+          restore-keys: |
+            runs-autonomous-
+      # Exits 1 if the loop can't reach the target — a policy that stops
+      # converging on the seeded env is a real regression and should fail CI.
+      - name: Run autonomous loop (target 85%)
+        run: |
+          python3 examples/run_autonomous.py \
+            --target-success 0.85 --budget 2000 \
+            --out-dir "./output/autonomous"
+      - name: Upload TL;DR
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tldr-autonomous
+          path: output/autonomous/report.*
+          if-no-files-found: warn
+
   pr-comment:
     name: post TL;DR to PR
-    needs: pipeline
+    needs: [pipeline, autonomous]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
+      # NO merge-multiple: upload-artifact flattens each plan's report.md to
+      # the artifact root, so merging would overwrite them and the comment
+      # would contain a single arbitrary plan (this happened — every CI
+      # comment showed exactly one plan). Per-artifact subdirs keep them all.
       - uses: actions/download-artifact@v4
         with:
           pattern: tldr-*
-          merge-multiple: true
           path: tldrs
       - name: Concatenate reports
         run: |
           mkdir -p out
           {
-            for f in tldrs/report.md tldrs/**/report.md; do
+            for f in tldrs/*/report.md; do
               [ -f "$f" ] || continue
               cat "$f"
               printf '\n\n---\n\n'

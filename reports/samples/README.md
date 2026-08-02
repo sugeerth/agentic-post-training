@@ -14,3 +14,4 @@ lines — the framework's attention-budget rule applies to its own docs.
 | Reporter | [`reporter.md`](reporter.md) | The TL;DR the reporter emits |
 | Bakeoff | [`bakeoff.md`](bakeoff.md) | Head-to-head recipe comparison + pareto |
 | RewardHacking | [`reward_hacking.md`](reward_hacking.md) | Spearman ρ + gap → severity |
+| AutonomousLoop | [`autonomous.md`](autonomous.md) | Closed-loop rounds + goal-driven stop |
