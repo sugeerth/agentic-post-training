@@ -103,6 +103,63 @@ checkpoint" line with a specific stage to fix.
 uploads `output/report.md` as a build artifact — the PR reviewer sees
 the TL;DR without pulling logs.
 
+## The autonomous closed loop — the core
+
+`pipeline/autonomous_loop.py` is what everything else stages for. Fixed
+pipelines run stages and stop; this loop closes the feedback that defines
+agent post-training (expert iteration / iterated RFT / R1's multi-round
+recipe):
+
+```
+collect(skill s) ──▶ curate ──▶ train ──▶ s'
+     ▲                                    │
+     └────── next round collects with s' ─┘
+              probe s' on fresh env rollouts
+              audit reward vs measured success
+              supervisor decides — and its patch mutates the next round
+```
+
+Three properties make it agentic rather than a script:
+
+1. **Closed feedback.** The policy that collects round *r+1*'s data is the
+   policy improved in round *r*. Skill is state, not a schedule.
+2. **Goal-driven termination.** `run(target_success=0.85, budget_rollouts=2000)`
+   stops on target met, budget spent (checked *before* each round — never
+   overspends), or genuine convergence. Never "ran out of stages."
+3. **Real interventions.** Every non-continue supervisor decision carries a
+   `config_patch` the loop applies: KL tightening (hard-capped at 0.4),
+   rollback restores the best-known policy, exploration boosts change
+   collection itself. Escalation is bounded — after 2 failed interventions
+   on one no-gain streak the supervisor concludes "converged" and stops
+   instead of thrashing. Measured behavior on a deliberately broken config
+   (`learning_gain=0`): stops at round 11 of 30 with 80% of budget unspent.
+
+```bash
+python3 examples/run_autonomous.py --target-success 0.85 --budget 2000
+# 🎯 target met: 88% ≥ 85% — best success 88% in 5 rounds, 440 rollouts
+```
+
+Ground truth discipline: decisions only ever read the probe (fresh env
+rollouts at the updated skill) — never the training curve.
+
+## Agent registry — swap any specialist without forking
+
+`agents/registry.py` builds on `core.registry.Registry`. Every agent
+self-registers under its role; pipelines construct by role name:
+
+```python
+from agents.registry import register_agent, build
+
+@register_agent("agentic_trainer", replace=True)
+class MyTrainer(BaseAgent): ...
+
+trainer = build("agentic_trainer")   # returns MyTrainer
+```
+
+`AgenticPipeline` and `AutonomousLoop` both build their crews this way —
+replacing the trainer, the reward model, or the supervisor is one
+decorator, zero pipeline edits.
+
 ## Environment (real trajectories, not simulated dicts)
 
 `environments/tool_env.py` is a small deterministic tool-use env:

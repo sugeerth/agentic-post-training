@@ -76,15 +76,18 @@ class AgenticPipeline:
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
+        # Agents come from the registry — swap any specialist by registering
+        # a replacement under its role (see agents/registry.py).
+        from agents.registry import build
         self.history = RunHistory(history_dir)
-        self.supervisor = SupervisorAgent()
-        self.coordinator = CoordinatorAgent()
-        self.trajectory = TrajectoryAgent()
-        self.rm = RewardModelAgent()
-        self.trainer = AgenticTrainingAgent()
-        self.evaluator = EvaluationAgent()
-        self.hack_watch = RewardHackingDetector()
-        self.reporter = ReporterAgent(history=self.history)
+        self.supervisor = build("supervisor")
+        self.coordinator = build("coordinator")
+        self.trajectory = build("trajectory")
+        self.rm = build("reward_model")
+        self.trainer = build("agentic_trainer")
+        self.evaluator = build("evaluator")
+        self.hack_watch = build("reward_hacking_detector")
+        self.reporter = build("reporter", history=self.history)
 
         self.bus.register_agent(self.supervisor)
         self.coordinator.setup_bus(self.bus)

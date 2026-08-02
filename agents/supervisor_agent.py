@@ -21,10 +21,16 @@ from agents.coordinator import CoordinatorAgent
 
 @dataclass
 class Intervention:
-    """A supervisor decision recorded on the run."""
+    """A supervisor decision recorded on the run.
+
+    `config_patch` is what makes the decision *real*: the loop merges it
+    into the next round's config. An `adjust` with an empty patch is
+    just commentary — the supervisor should never emit one.
+    """
     stage: str
     reason: str
-    action: str  # one of: continue, adjust, rollback, abort
+    action: str  # one of: continue, adjust, rollback, abort, stop
+    config_patch: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -108,28 +114,120 @@ class SupervisorAgent(BaseAgent):
                 return RunPlan(p.name, list(p.stages), p.rationale, dict(p.config_overrides))
         raise KeyError(name)
 
-    def review_stage(self, stage: str, result: dict[str, Any]) -> Intervention:
+    def review_stage(self, stage: str, result: dict[str, Any],
+                     config: dict[str, Any] | None = None) -> Intervention:
         """Inspect a stage result and decide what to do next.
 
         Anomaly rules are intentionally simple — they are guardrails, not
-        oracles. Real production checks live in the eval agent.
+        oracles. Every non-continue decision ships a config_patch so the
+        caller can actually act on it.
         """
+        config = config or {}
         kl = float(result.get("kl_divergence", 0.0) or 0.0)
         reward = float(result.get("final_reward", result.get("reward", 0.0)) or 0.0)
         loss = float(result.get("final_loss", result.get("loss", 0.0)) or 0.0)
+        patch: dict[str, Any] = {}
 
         if kl > 0.5:
             action, reason = "adjust", f"KL={kl:.2f} exceeds 0.5 — tighten kl_coef"
+            patch = {"kl_coef": round(float(config.get("kl_coef", 0.05)) * 2, 4)}
         elif reward < 0.1 and stage in {"grpo", "multi_turn_grpo", "training"}:
             action, reason = "rollback", f"reward collapsed to {reward:.2f}"
+            patch = {"restore_best": True}
         elif loss > 5.0:
             action, reason = "abort", f"loss={loss:.2f} diverged"
         else:
             action, reason = "continue", "metrics within expected envelope"
 
-        decision = Intervention(stage=stage, reason=reason, action=action)
+        decision = Intervention(stage=stage, reason=reason, action=action, config_patch=patch)
         self.interventions.append(decision)
         return decision
+
+    KL_COEF_CAP = 0.4          # beyond this the update is so conservative it can't learn
+    ESCALATION_BUDGET = 2      # distinct interventions to try per no-gain streak before stopping
+
+    def decide_round(
+        self,
+        round_metrics: dict[str, Any],
+        best_success: float,
+        target_success: float,
+        rounds_without_gain: int,
+        budget_remaining: int,
+        config: dict[str, Any],
+        patience: int = 3,
+    ) -> Intervention:
+        """Loop-mode decision: what should the NEXT round do?
+
+        Priority order (first match wins):
+          1. target met       → stop
+          2. budget exhausted → stop
+          3. no gain for ≥ patience rounds → escalate through interventions
+             (rollback-to-best on hacking evidence, then exploration boost),
+             at most ESCALATION_BUDGET per streak — then stop. A supervisor
+             that adjusts forever isn't supervising.
+          4. hacking (high) with gains still coming → rollback + tighten KL
+          5. drift (medium)  → tighten kl_coef, hard-capped at KL_COEF_CAP;
+             at the cap it stops adjusting (spamming the same knob is noise)
+          6. otherwise → continue
+
+        Escalation state lives in config under underscore keys; the loop
+        clears them when a new best is found. Every non-continue decision
+        carries a config_patch — decisions are never advisory.
+        """
+        success = float(round_metrics.get("task_success_rate", 0.0))
+        audit = round_metrics.get("audit") or {}
+        severity = audit.get("severity", "low")
+        kl_coef = float(config.get("kl_coef", 0.05))
+        escalations = int(config.get("_escalations", 0))
+
+        if success >= target_success:
+            d = Intervention("loop", f"target met: {success:.0%} ≥ {target_success:.0%}", "stop")
+        elif budget_remaining <= 0:
+            d = Intervention("loop", "rollout budget exhausted", "stop")
+        elif rounds_without_gain >= patience:
+            if escalations >= self.ESCALATION_BUDGET:
+                d = Intervention(
+                    "loop",
+                    f"no improvement in {rounds_without_gain} rounds despite "
+                    f"{escalations} interventions — converged at {best_success:.0%}",
+                    "stop",
+                )
+            elif severity in ("medium", "high") and not config.get("_rolled_back"):
+                d = Intervention(
+                    "loop",
+                    f"plateaued with reward/eval misalignment (ρ={audit.get('spearman_rho')}) "
+                    f"— rollback to best ({best_success:.0%}) and tighten KL",
+                    "rollback",
+                    {"restore_best": True,
+                     "kl_coef": min(self.KL_COEF_CAP, round(kl_coef * 2, 4)),
+                     "_rolled_back": True, "_escalations": escalations + 1},
+                )
+            else:
+                d = Intervention(
+                    "loop", f"plateaued {rounds_without_gain} rounds — boost exploration",
+                    "adjust",
+                    {"num_rollouts": int(config.get("num_rollouts", 64) * 2),
+                     "keep_top_frac": max(0.25, float(config.get("keep_top_frac", 0.5)) - 0.15),
+                     "_escalations": escalations + 1},
+                )
+        elif severity == "high":
+            d = Intervention(
+                "loop", f"reward hacking suspected (ρ={audit.get('spearman_rho')}) — "
+                        f"rollback to best ({best_success:.0%}) and tighten KL",
+                "rollback",
+                {"restore_best": True,
+                 "kl_coef": min(self.KL_COEF_CAP, round(kl_coef * 2, 4))},
+            )
+        elif severity == "medium" and kl_coef < self.KL_COEF_CAP:
+            d = Intervention(
+                "loop", "reward/eval drift — tighten kl_coef",
+                "adjust", {"kl_coef": min(self.KL_COEF_CAP, round(kl_coef * 2, 4))},
+            )
+        else:
+            d = Intervention("loop", "improving — continue", "continue")
+
+        self.interventions.append(d)
+        return d
 
     def print_plan(self) -> None:
         p = self.selected_plan

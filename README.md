@@ -70,6 +70,9 @@ python3 examples/compare_techniques.py --techniques ppo dpo grpo
 
 # Agentic post-training (supervisor + specialists, produces a TL;DR)
 python3 examples/run_agentic_training.py --goal "agentic tool use"
+
+# Autonomous closed loop — collect→train→probe until the target is met
+python3 examples/run_autonomous.py --target-success 0.85 --budget 2000
 ```
 
 ## Agentic Post-Training (v2)

@@ -154,7 +154,7 @@ class ReporterAgent(BaseAgent):
 # had a plan running sft AND grpo AND distill, and the metrics line
 # picked sft's 59% while the headline picked grpo's 68%.
 _TRAIN_PRIORITY: tuple[str, ...] = (
-    "multi_turn_grpo", "grpo", "trajectory_dpo", "dpo",
+    "autonomous_loop", "multi_turn_grpo", "grpo", "trajectory_dpo", "dpo",
     "distill", "sft", "rft", "rejection_sampling_ft", "training",
 )
 
@@ -225,7 +225,7 @@ def _key_metrics_line(results: dict[str, Any]) -> str:
 
 def _sparklines(results: dict[str, Any]) -> list[tuple[str, str]]:
     """Extract iteration_metrics from the training stage and render sparklines."""
-    for stage in ("multi_turn_grpo", "grpo", "dpo", "rft", "training"):
+    for stage in _TRAIN_PRIORITY:
         r = results.get(stage)
         if not isinstance(r, dict):
             continue
