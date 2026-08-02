@@ -166,3 +166,15 @@ def test_loop_report_headline_uses_autonomous_stage(tmp_path):
     tldr = summary["report"]["tldr"]
     assert "via autonomous_loop" in tldr        # reporter recognizes the stage
     assert "Curves" in tldr                     # sparklines rendered from rounds
+
+
+def test_loop_target_met_is_not_an_anomaly(tmp_path):
+    """A stop-on-target run must NOT render 'Needs attention' or
+    'Address loop — target met' — reaching the goal is success. Caught in
+    the first CI run of the autonomous job."""
+    loop = AutonomousLoop(out_dir=str(tmp_path / "out"), history_dir=str(tmp_path / "runs"))
+    summary = asyncio.run(loop.run(target_success=0.8, budget_rollouts=2000))
+    tldr = summary["report"]["tldr"]
+    assert "Needs attention" not in tldr
+    assert "Address `loop`" not in tldr
+    assert "Target met" in tldr and "ship the checkpoint" in tldr

@@ -92,7 +92,11 @@ class ReporterAgent(BaseAgent):
         results = run.get("results", {})
 
         headline = _headline(results)
-        anomalies = [i for i in interventions if i.get("action") != "continue"]
+        # `stop` is a terminal status, not an anomaly — a loop stopping on
+        # "target met" was showing up under "Needs attention" with the
+        # nonsensical next action "Address loop — target met".
+        anomalies = [i for i in interventions
+                     if i.get("action") in ("adjust", "rollback", "abort")]
         sparks = _sparklines(results)
 
         lines: list[str] = []
@@ -272,6 +276,9 @@ def _next_action(results: dict[str, Any], anomalies: list[dict], deltas: dict[st
     # Only judge the strongest training stage — a plan's SFT cold-start
     # legitimately caps below 60%, and shouldn't make grpo's 68% look bad.
     primary = _primary_training_result(results)
+    if primary is not None and primary.get("target_achieved") is True:
+        return (f"Target met ({primary.get('task_success_rate', 0):.0%} ≥ "
+                f"{primary.get('target_success', 0):.0%}) — ship the checkpoint.")
     if primary is not None and primary.get("task_success_rate", 1.0) < 0.6:
         return "Success rate under 60% — schedule another RL iteration."
     return "Ship the checkpoint. Nothing else to tune."
