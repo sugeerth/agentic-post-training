@@ -288,56 +288,107 @@ class TestPPOMigration(unittest.TestCase):
         self.assertGreater(loss, 0)
 
 
-class TestExperimentalStubsAreMarked(unittest.TestCase):
-    """The remaining stubs must declare themselves experimental and emit a FutureWarning.
+class TestNoStubsRemain(unittest.TestCase):
+    """Every technique now ships a real loss — nothing is experimental.
 
-    SimPO and IPO graduated to real implementations (wired through
-    `pairwise_ratio_loss`), so only the two loop-based techniques that need
-    infrastructure beyond a loss function (RLAIF: AI feedback; SPIN:
-    iterative self-play) remain stubs.
+    SimPO/IPO graduated by wiring `pairwise_ratio_loss`; SPIN graduated with
+    the same loss plus `build_spin_pairs` and iteration bookkeeping; RLAIF
+    graduated with the `Judge` protocol and `label_pairs`.
     """
 
-    def test_stubs_are_marked(self):
-        from techniques.rlaif import RLAIF
-        from techniques.spin import SPIN
-        for cls in (RLAIF, SPIN):
-            self.assertTrue(cls.is_experimental, f"{cls.__name__} should be experimental")
+    def test_no_technique_is_experimental(self):
+        from techniques import TECHNIQUE_REGISTRY
+        for name, cls in TECHNIQUE_REGISTRY.items():
+            self.assertFalse(cls.is_experimental, f"{name} should NOT be experimental")
 
-    def test_real_techniques_are_not_marked(self):
-        from techniques.dpo import DPO
-        from techniques.grpo import GRPO
-        from techniques.ipo import IPO
-        from techniques.orpo import ORPO
-        from techniques.ppo import PPO
-        from techniques.simpo import SimPO
-        for cls in (DPO, GRPO, PPO, ORPO, SimPO, IPO):
-            self.assertFalse(cls.is_experimental, f"{cls.__name__} should NOT be experimental")
+    def test_no_technique_warns_on_instantiation(self):
+        from techniques import TECHNIQUE_REGISTRY
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            for cls in TECHNIQUE_REGISTRY.values():
+                cls()
+            futures = [x for x in w if issubclass(x.category, FutureWarning)]
+            self.assertEqual(futures, [])
 
-    def test_simpo_ipo_registered_in_core_registry(self):
+    def test_graduated_techniques_registered_in_core_registry(self):
         from core.registry import get_technique
         from techniques.ipo import IPOTechnique
+        from techniques.rlaif import RLAIFTechnique
         from techniques.simpo import SimPOTechnique
+        from techniques.spin import SPINTechnique
         self.assertIs(get_technique("simpo"), SimPOTechnique)
         self.assertIs(get_technique("ipo"), IPOTechnique)
+        self.assertIs(get_technique("spin"), SPINTechnique)
+        self.assertIs(get_technique("rlaif"), RLAIFTechnique)
 
-    def test_simpo_ipo_protocol_step_simulation(self):
+    def test_graduated_protocol_step_simulation(self):
         from core.types import PreferencePair
         from techniques.ipo import IPOTechnique
+        from techniques.rlaif import RLAIFTechnique
         from techniques.simpo import SimPOTechnique
-        for cls in (SimPOTechnique, IPOTechnique):
+        from techniques.spin import SPINTechnique
+        for cls in (SimPOTechnique, IPOTechnique, SPINTechnique, RLAIFTechnique):
             impl = cls()
             pair = PreferencePair(prompt="p", chosen="a", rejected="b")
             m = impl.step(pair)
             self.assertEqual(m.step, 1)
             self.assertGreater(m.loss, 0)
 
-    def test_stub_instantiation_warns(self):
-        from techniques.rlaif import RLAIF
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            RLAIF()
-            kinds = [issubclass(x.category, FutureWarning) for x in w]
-            self.assertTrue(any(kinds))
+
+class TestSPINPairConstruction(unittest.TestCase):
+    def test_build_spin_pairs(self):
+        from techniques.spin import build_spin_pairs
+        pairs = build_spin_pairs(
+            prompts=["q1", "q2"],
+            human_responses=["h1", "h2"],
+            generated_responses=["g1", "g2"],
+            iteration=1,
+        )
+        self.assertEqual(len(pairs), 2)
+        self.assertEqual(pairs[0].chosen, "h1")
+        self.assertEqual(pairs[0].rejected, "g1")
+        self.assertEqual(pairs[0].metadata["spin_iteration"], 1)
+
+    def test_build_spin_pairs_length_mismatch(self):
+        from techniques.spin import build_spin_pairs
+        with self.assertRaises(ValueError):
+            build_spin_pairs(["q1"], ["h1", "h2"], ["g1"])
+
+    def test_iteration_bookkeeping(self):
+        from techniques.spin import SPINConfigV2, SPINTechnique
+        impl = SPINTechnique(SPINConfigV2(num_iterations=2))
+        self.assertEqual(impl.iteration, 0)
+        self.assertEqual(impl.advance_iteration(), 1)
+        with self.assertRaises(RuntimeError):
+            impl.advance_iteration()
+
+
+class TestRLAIFJudge(unittest.TestCase):
+    def test_score_judge_labels_pairs(self):
+        from techniques.rlaif import ScoreJudge, label_pairs
+        judge = ScoreJudge(lambda prompt, response: len(response))
+        pairs = label_pairs(judge, "q", ["short", "a longer response", "mid one"])
+        self.assertEqual(len(pairs), 2)
+        self.assertEqual(pairs[0].chosen, "a longer response")
+        self.assertEqual(pairs[0].rejected, "short")
+        self.assertEqual(pairs[0].metadata["labeler"], "ai")
+        self.assertEqual(pairs[0].metadata["judge"], "ScoreJudge")
+
+    def test_label_pairs_needs_two_candidates(self):
+        from techniques.rlaif import ScoreJudge, label_pairs
+        judge = ScoreJudge(lambda prompt, response: 0.0)
+        with self.assertRaises(ValueError):
+            label_pairs(judge, "q", ["only one"])
+
+    def test_bad_judge_return_value_rejected(self):
+        from techniques.rlaif import label_pairs
+        with self.assertRaises(ValueError):
+            label_pairs(lambda p, a, b: 2, "q", ["a", "b"])
+
+    def test_technique_without_judge_raises_on_label(self):
+        from techniques.rlaif import RLAIFTechnique
+        with self.assertRaises(RuntimeError):
+            RLAIFTechnique().label("q", ["a", "b"])
 
 
 if __name__ == "__main__":

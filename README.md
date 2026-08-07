@@ -42,14 +42,21 @@ A modular framework where specialized AI agents coordinate to execute post-train
 | 2 | **ORPO** | Odds Ratio Preference Opt. | Combined SFT + alignment | ✅ Real loss |
 | 2 | **SimPO** | Simple Preference Opt. | Reference-free, length-normalized | ✅ Real loss |
 | 3 | **IPO** | Identity Preference Opt. | Regularized DPO variant | ✅ Real loss |
-| 2 | **RLAIF** | RL from AI Feedback | No human labelers needed | ⚠ Simulation stub |
-| 2 | **SPIN** | Self-Play Fine-Tuning | Only needs SFT data | ⚠ Simulation stub |
+| 2 | **RLAIF** | RL from AI Feedback | No human labelers needed | ✅ Real loss + `Judge` protocol |
+| 2 | **SPIN** | Self-Play Fine-Tuning | Only needs SFT data | ✅ Real loss + pair builder |
 
-Every technique also ships a deterministic **simulation mode** so demos, tests, and
-notebooks run without a GPU (or even without torch installed). The two remaining
-stubs (RLAIF, SPIN) need loop infrastructure beyond a loss function — an AI
-feedback labeler and an iterative self-play driver — and emit a `FutureWarning`
-on instantiation so their numbers are never mistaken for real training.
+All 11 techniques ship real loss implementations. Every technique also ships a
+deterministic **simulation mode** so demos, tests, and notebooks run without a
+GPU (or even without torch installed) — the simulation path is taken automatically
+when no tensors are supplied.
+
+RLAIF's AI labeler is pluggable: implement the one-method `Judge` protocol
+(`judge(prompt, response_a, response_b) -> 0 | 1`) or wrap any scoring function
+with `ScoreJudge`, then `label_pairs(judge, prompt, responses)` produces
+AI-labeled preference pairs. SPIN's pair construction (`build_spin_pairs`,
+chosen = human response, rejected = the model's own generation) and self-play
+iteration bookkeeping live in `techniques/spin.py`; the generation/snapshot
+cadence belongs to the trainer loop.
 
 ## Demos
 
