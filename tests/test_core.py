@@ -289,23 +289,47 @@ class TestPPOMigration(unittest.TestCase):
 
 
 class TestExperimentalStubsAreMarked(unittest.TestCase):
-    """The 4 stubs must declare themselves experimental and emit a FutureWarning."""
+    """The remaining stubs must declare themselves experimental and emit a FutureWarning.
+
+    SimPO and IPO graduated to real implementations (wired through
+    `pairwise_ratio_loss`), so only the two loop-based techniques that need
+    infrastructure beyond a loss function (RLAIF: AI feedback; SPIN:
+    iterative self-play) remain stubs.
+    """
 
     def test_stubs_are_marked(self):
-        from techniques.ipo import IPO
         from techniques.rlaif import RLAIF
-        from techniques.simpo import SimPO
         from techniques.spin import SPIN
-        for cls in (RLAIF, SPIN, SimPO, IPO):
+        for cls in (RLAIF, SPIN):
             self.assertTrue(cls.is_experimental, f"{cls.__name__} should be experimental")
 
     def test_real_techniques_are_not_marked(self):
         from techniques.dpo import DPO
         from techniques.grpo import GRPO
+        from techniques.ipo import IPO
         from techniques.orpo import ORPO
         from techniques.ppo import PPO
-        for cls in (DPO, GRPO, PPO, ORPO):
+        from techniques.simpo import SimPO
+        for cls in (DPO, GRPO, PPO, ORPO, SimPO, IPO):
             self.assertFalse(cls.is_experimental, f"{cls.__name__} should NOT be experimental")
+
+    def test_simpo_ipo_registered_in_core_registry(self):
+        from core.registry import get_technique
+        from techniques.ipo import IPOTechnique
+        from techniques.simpo import SimPOTechnique
+        self.assertIs(get_technique("simpo"), SimPOTechnique)
+        self.assertIs(get_technique("ipo"), IPOTechnique)
+
+    def test_simpo_ipo_protocol_step_simulation(self):
+        from core.types import PreferencePair
+        from techniques.ipo import IPOTechnique
+        from techniques.simpo import SimPOTechnique
+        for cls in (SimPOTechnique, IPOTechnique):
+            impl = cls()
+            pair = PreferencePair(prompt="p", chosen="a", rejected="b")
+            m = impl.step(pair)
+            self.assertEqual(m.step, 1)
+            self.assertGreater(m.loss, 0)
 
     def test_stub_instantiation_warns(self):
         from techniques.rlaif import RLAIF

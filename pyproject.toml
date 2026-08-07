@@ -73,6 +73,23 @@ strict = true
 files = ["core", "techniques/_base"]
 # The rest of the codebase migrates to strict typing incrementally in Phase 3.
 
+# torch is an optional runtime dep (simulation mode runs without it) and
+# ships no stubs we can rely on in a CPU-only CI job.
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*"]
+ignore_missing_imports = true
+
+# Modules outside the strict scope get pulled in via follow-imports from
+# `techniques/_base` re-exports; don't fail the gate on their errors until
+# they migrate.
+[[tool.mypy.overrides]]
+module = ["techniques.*", "agents.*", "pipeline.*", "backends.*", "optimization.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["techniques._base.*"]
+ignore_errors = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"

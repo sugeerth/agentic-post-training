@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # The framework's simulation mode runs without torch by design, so CI
+      # stays light: no CUDA wheels, just the config/validation deps.
+      - name: Install test dependencies
+        run: python -m pip install pytest pydantic pyyaml
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  lint:
+    name: ruff + mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install lint dependencies
+        run: python -m pip install ruff mypy pydantic pyyaml types-PyYAML
+      - name: Ruff
+        run: ruff check .
+      - name: Mypy (strict on core + techniques/_base)
+        run: python -m mypy core techniques/_base
+
+  demo-smoke:
+    name: CLI dry-run demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install pydantic pyyaml
+      - name: Dry-run the ORPO quickstart
+        run: python -m pipeline.cli run examples/orpo_quickstart/run.yaml --backend local --dry-run

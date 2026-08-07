@@ -14,7 +14,7 @@ def compute_group_advantages(rewards: Any, eps: float = 1e-8) -> Any:
     try:
         import torch
     except ImportError:
-        torch = None  # type: ignore[assignment]
+        torch = None
 
     if torch is not None and isinstance(rewards, torch.Tensor):
         mean = rewards.mean()

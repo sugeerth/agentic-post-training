@@ -1,5 +1,6 @@
 # Agentic Post-Training Framework
 
+[![CI](https://github.com/sugeerth/agentic-post-training/actions/workflows/ci.yml/badge.svg)](https://github.com/sugeerth/agentic-post-training/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_colab.ipynb)
@@ -30,19 +31,25 @@ A modular framework where specialized AI agents coordinate to execute post-train
 
 ## Supported Techniques
 
-| Priority | Technique | Description | Key Advantage |
-|----------|-----------|-------------|---------------|
-| 1 | **PPO** | Proximal Policy Optimization | Stable RL with clipped objectives |
-| 1 | **GRPO** | Group Relative Policy Opt. | No value model needed (DeepSeek-R1) |
-| 1 | **DPO** | Direct Preference Opt. | Simple, no reward model needed |
-| 1 | **SPO** | Self-Play Optimization | Iterative self-improvement |
-| 1 | **RLHF** | RL from Human Feedback | Full proven pipeline (InstructGPT) |
-| 2 | **KTO** | Kahneman-Tversky Opt. | Works with binary feedback |
-| 2 | **ORPO** | Odds Ratio Preference Opt. | Combined SFT + alignment |
-| 2 | **RLAIF** | RL from AI Feedback | No human labelers needed |
-| 2 | **SPIN** | Self-Play Fine-Tuning | Only needs SFT data |
-| 2 | **SimPO** | Simple Preference Opt. | Reference-free, length-normalized |
-| 3 | **IPO** | Identity Preference Opt. | Regularized DPO variant |
+| Priority | Technique | Description | Key Advantage | Status |
+|----------|-----------|-------------|---------------|--------|
+| 1 | **PPO** | Proximal Policy Optimization | Stable RL with clipped objectives | ✅ Real loss |
+| 1 | **GRPO** | Group Relative Policy Opt. | No value model needed (DeepSeek-R1) | ✅ Real loss |
+| 1 | **DPO** | Direct Preference Opt. | Simple, no reward model needed | ✅ Real loss |
+| 1 | **SPO** | Self-Play Optimization | Iterative self-improvement | ✅ Real loss |
+| 1 | **RLHF** | RL from Human Feedback | Full proven pipeline (InstructGPT) | ✅ Real loss |
+| 2 | **KTO** | Kahneman-Tversky Opt. | Works with binary feedback | ✅ Real loss |
+| 2 | **ORPO** | Odds Ratio Preference Opt. | Combined SFT + alignment | ✅ Real loss |
+| 2 | **SimPO** | Simple Preference Opt. | Reference-free, length-normalized | ✅ Real loss |
+| 3 | **IPO** | Identity Preference Opt. | Regularized DPO variant | ✅ Real loss |
+| 2 | **RLAIF** | RL from AI Feedback | No human labelers needed | ⚠ Simulation stub |
+| 2 | **SPIN** | Self-Play Fine-Tuning | Only needs SFT data | ⚠ Simulation stub |
+
+Every technique also ships a deterministic **simulation mode** so demos, tests, and
+notebooks run without a GPU (or even without torch installed). The two remaining
+stubs (RLAIF, SPIN) need loop infrastructure beyond a loss function — an AI
+feedback labeler and an iterative self-play driver — and emit a `FutureWarning`
+on instantiation so their numbers are never mistaken for real training.
 
 ## Demos
 
@@ -140,10 +147,29 @@ config = PipelineConfig.preset("production")
 | NF4 | 8x | ~99% | QLoRA training |
 | INT8 | 4x | ~99.9% | Minimal quality loss |
 
-## Tests
+## CLI
 
 ```bash
-python3 -m pytest tests/ -v
+# Dry-run the ORPO quickstart (prints the resolved plan, spends nothing)
+python3 -m pipeline.cli run examples/orpo_quickstart/run.yaml --backend local --dry-run
+
+# List what's registered
+python3 -m pipeline.cli list techniques
+python3 -m pipeline.cli list backends
+
+# Inspect a technique (JSON: paper, priority, pros/cons, experimental flag)
+python3 -m pipeline.cli inspect grpo
+```
+
+## Tests & Quality Gates
+
+CI runs the full suite on Python 3.10–3.12, plus `ruff` and `mypy --strict`
+(on `core/` and `techniques/_base/`) on every push and pull request.
+
+```bash
+make test    # pytest — runs without a GPU or torch
+make lint    # ruff check .
+make mypy    # strict typing on core + techniques/_base
 ```
 
 ## License
