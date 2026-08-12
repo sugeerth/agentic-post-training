@@ -10,7 +10,10 @@ readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [{name = "Agentic Post-Training Contributors"}]
-keywords = ["llm", "post-training", "rlhf", "alignment", "agents", "grpo", "dpo", "ppo"]
+keywords = [
+    "llm", "post-training", "rlhf", "alignment", "agents", "grpo", "dpo", "ppo",
+    "computer-use", "gui-agents", "vlm", "vision-language-model",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -35,14 +38,21 @@ dependencies = [
 [project.optional-dependencies]
 quantization = ["auto-gptq>=0.7", "autoawq>=0.2"]
 eval = ["lm-eval>=0.4"]
-all = ["agentic-post-training[quantization,eval]"]
+# Computer use: the Anthropic SDK drives the vision model, Playwright supplies
+# a real browser environment. Neither is needed for the mock environment, which
+# is why the offline demo and the whole test suite run without them.
+computer-use = ["anthropic>=0.69", "playwright>=1.44"]
+all = ["agentic-post-training[quantization,eval,computer-use]"]
 dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.3", "mypy>=1.8", "pre-commit>=3.6"]
 
 [project.scripts]
 agentic-train = "pipeline.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["core*", "agents*", "techniques*", "optimization*", "pipeline*", "backends*"]
+include = [
+    "core*", "agents*", "techniques*", "optimization*",
+    "pipeline*", "backends*", "computer_use*",
+]
 
 [project.entry-points."agentic_post_training.techniques"]
 # Built-in techniques register themselves via `@register_technique` on import.

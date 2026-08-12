@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry clean
+.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -23,6 +23,13 @@ demo-dry:
 
 demo:
 	$(PYTHON) -m pipeline.cli run examples/orpo_quickstart/run.yaml --backend local
+
+# Computer use. `demo-gui` is fully offline — no API key, no browser, no GPU.
+demo-gui:
+	$(PYTHON) examples/computer_use_demo.py
+
+demo-gui-live:
+	$(PYTHON) examples/computer_use_demo.py --live
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache

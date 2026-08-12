@@ -12,20 +12,20 @@ A modular framework where specialized AI agents coordinate to execute post-train
 ## Architecture
 
 ```
-                    ┌─────────────────┐
-                    │   Coordinator   │
-                    │     Agent       │
-                    └────────┬────────┘
-                             │ Message Bus
-              ┌──────────────┼──────────────┐
-              │              │              │
-     ┌────────▼───────┐ ┌───▼──────────┐ ┌─▼──────────────┐
-     │  Training Agent │ │ Optimization │ │  Evaluation    │
-     │                 │ │    Agent     │ │    Agent       │
-     │ PPO,GRPO,DPO,  │ │ Quantization │ │ MMLU,MT-Bench  │
-     │ SPO,RLHF,...   │ │ Pruning,     │ │ HumanEval,...  │
-     │                 │ │ Distillation │ │                │
-     └─────────────────┘ └──────────────┘ └────────────────┘
+                        ┌─────────────────┐
+                        │   Coordinator   │
+                        │     Agent       │
+                        └────────┬────────┘
+                                 │ Message Bus
+        ┌──────────────┬─────────┴────┬──────────────┐
+        │              │              │              │
+┌───────▼────────┐ ┌───▼──────────┐ ┌─▼────────────┐ ┌▼───────────────┐
+│ Training Agent │ │ Optimization │ │  Evaluation  │ │ Computer-Use   │
+│                │ │    Agent     │ │    Agent     │ │    Agent       │
+│ PPO,GRPO,DPO,  │ │ Quantization │ │ MMLU,MT-Bench│ │ VLM GUI        │
+│ SPO,RLHF,...   │ │ Pruning,     │ │ HumanEval,...│ │ rollouts →     │
+│                │ │ Distillation │ │              │ │ training data  │
+└────────────────┘ └──────────────┘ └──────────────┘ └────────────────┘
 ```
 
 ## Supported Techniques
@@ -52,6 +52,7 @@ A modular framework where specialized AI agents coordinate to execute post-train
 | **Full Training on A100** | Google Colab | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_colab.ipynb) |
 | **Multi-GPU Training (T4x2)** | Kaggle | [Open in Kaggle](https://www.kaggle.com/kernels/welcome?src=https://github.com/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_kaggle_t4x2.ipynb) |
 | **Agent Communication** | Local terminal | `python3 examples/agent_demo.py` |
+| **Computer Use → Training Data** | Local terminal | `python3 examples/computer_use_demo.py` |
 
 ## Quick Start
 
@@ -95,6 +96,117 @@ results = asyncio.run(pipeline.run())
 3. **Training** — Execute post-training with the selected technique
 4. **Optimization** — Quantize (GPTQ/AWQ/GGUF), prune, or distill
 5. **Evaluation** — Benchmark on MMLU, MT-Bench, HumanEval, etc.
+
+## Computer Use with Vision Models
+
+A GUI agent produces something a text corpus cannot: attempts at a task whose
+outcome can be **checked**. Every episode is a verified success or a verified
+failure, which is exactly the supervision that preference and RL methods need.
+That is why computer use lives in a post-training framework and not beside one.
+
+```
+task ──▶ screenshot ──▶ VLM ──▶ action ──▶ environment ──┐
+          ▲                                              │
+          └──────────────── new screenshot ◀─────────────┘
+                                 │
+                          verifier (ground truth)
+                                 │
+                        shaped reward per trajectory
+                                 │
+    ┌────────────────────────────┼─────────────────────────────┐
+    ▼                            ▼                             ▼
+PreferencePair              RolloutBatch                TrainingExample
+(DPO/ORPO/SimPO)            (GRPO/PPO)                  (SFT / rejection)
+```
+
+Run the whole loop with no API key, no GPU, and no browser:
+
+```bash
+python3 examples/computer_use_demo.py     # or: make demo-gui
+```
+
+The offline demo runs three agents of deliberately different quality against
+the same task and shows the training data that falls out of the spread between
+them — which is the point, since a preference pair needs a better attempt and a
+worse one.
+
+```python
+import asyncio
+from computer_use import MockComputer, StateVerifier, run_episode
+from computer_use import ClaudeComputerUsePolicy
+
+env = MockComputer.settings_form()
+
+trajectory = asyncio.run(run_episode(
+    task="Set the email to ada@example.com, enable notifications, and save.",
+    env=env,
+    policy=ClaudeComputerUsePolicy(env.width, env.height),
+    # Ground truth, not a judge: the reward is an exact state check.
+    verifier=StateVerifier({"email": "ada@example.com", "notify": True, "saved": True}),
+))
+
+print(trajectory.summary())
+# [success] 'Set the email to ...' — 6 steps (5 effective), reward 1.000
+```
+
+### From rollouts to training data
+
+```python
+from computer_use import run_group, to_preference_pairs, to_rollout_batch
+from techniques.grpo import GRPOTechnique
+
+# Independent attempts at one task — a GRPO group.
+group = asyncio.run(run_group(task, MockComputer.settings_form,
+                              lambda env: ClaudeComputerUsePolicy(env.width, env.height),
+                              group_size=8, verifier=verifier))
+
+pairs = to_preference_pairs(group)          # → DPO, ORPO, SimPO, KTO
+batch = to_rollout_batch({task: group})     # → GRPO, PPO, RLHF
+
+technique = GRPOTechnique()
+technique.prepare(model, tokenizer, cfg)
+metrics = technique.step(batch)             # no adapter — the shapes line up
+```
+
+### What's in the box
+
+| Piece | What it does |
+|-------|--------------|
+| `MockComputer` | Deterministic widget GUI. Renders real PNG frames (legible to an actual VLM) and exposes ground-truth state. Zero dependencies. |
+| `PlaywrightComputer` | A real browser, same `ComputerEnvironment` protocol. |
+| `ClaudeComputerUsePolicy` | Drives Claude through the computer-use tool. Prunes stale frames, caches the system prompt, opts into refusal fallbacks. |
+| `ScriptedPolicy` | Offline baseline and gold-trajectory recorder. |
+| `StateVerifier` | Exact-match verification against ground truth — no judge in the reward path. |
+| `score_trajectory` | Shaped reward: success, efficiency, grounding, redundancy, invalid actions. |
+| `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
+| `ComputerUseAgent` | The whole thing as an agent on the message bus. |
+
+### Reward design
+
+The shaped reward keeps two properties that are easy to lose when retuning
+weights, and both are enforced by tests:
+
+- **Successes never saturate.** Weights sum to exactly the clip ceiling, so a
+  flawless run scores 1.0 and every other success lands strictly below it.
+  Overflowing weights would collapse all successes to the same number and
+  silently delete the shaping signal.
+- **Success dominates.** No amount of efficient, well-aimed failing outranks a
+  clumsy success.
+
+A step-level breakdown lands in `trajectory.metadata["reward_breakdown"]`, so a
+regression in the aggregate traces to the term that moved.
+
+### Live model
+
+```bash
+pip install "agentic-post-training[computer-use]"
+export ANTHROPIC_API_KEY=...          # or run `ant auth login`
+python3 examples/computer_use_demo.py --live
+```
+
+Defaults to `claude-opus-5`; the tool version, beta flag, effort, and frame
+budget are all constructor arguments on `PolicyConfig`, so pointing the policy
+at a different model is a config change rather than a code change.
 
 ## Agent Communication
 
