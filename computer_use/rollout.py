@@ -99,6 +99,12 @@ async def run_episode(
                 break
 
             action = decision.action
+            # Hit-test before executing: grounding is a question about the
+            # frame the agent was looking at. A click that navigates to another
+            # screen would otherwise be scored against the screen it produced,
+            # marking every correct navigation as a miss.
+            grounding = _grounding_metadata(env, action)
+
             error: str | None = None
             try:
                 result = await env.execute(action)
@@ -119,7 +125,7 @@ async def run_episode(
                 metadata={
                     "tool_use_id": decision.tool_use_id,
                     "usage": dict(decision.usage),
-                    **_grounding_metadata(env, action),
+                    **grounding,
                 },
             )
             steps.append(step)

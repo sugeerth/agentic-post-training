@@ -47,6 +47,7 @@ dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.3", "mypy>=1.8", "pre-commit>=
 
 [project.scripts]
 agentic-train = "pipeline.cli:main"
+agentic-gui = "computer_use.cli:main"
 
 [tool.setuptools.packages.find]
 include = [

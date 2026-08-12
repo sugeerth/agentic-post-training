@@ -83,7 +83,7 @@ class Widget:
     """One interactive element with a bounding box in page coordinates."""
 
     id: str
-    kind: str  # "button" | "field" | "checkbox" | "label"
+    kind: str  # "button" | "field" | "checkbox" | "radio" | "label"
     x: int
     y: int
     width: int
@@ -94,6 +94,13 @@ class Widget:
     placeholder: str = ""
     #: For buttons: the state key set to True when clicked.
     sets: str | None = None
+    #: Which screen this widget belongs to. Widgets on other screens are
+    #: neither drawn nor clickable — the agent has to navigate to them.
+    screen: str = "main"
+    #: For buttons: the screen to navigate to when clicked.
+    shows: str | None = None
+    #: For radios: only one member of a group can be selected at a time.
+    group: str | None = None
 
     def contains(self, px: int, py: int) -> bool:
         return self.x <= px < self.x + self.width and self.y <= py < self.y + self.height
@@ -128,6 +135,7 @@ class MockComputer:
         self._focus: str | None = None
         self._cursor: tuple[int, int] = (width // 2, height // 2)
         self._scroll_y = 0
+        self._screen = "main"
         self._content_height = content_height or height
         self.action_log: list[str] = []
         self._apply_initial()
@@ -156,13 +164,92 @@ class MockComputer:
         kwargs.setdefault("content_height", 900)
         return cls(widgets, **kwargs)
 
+    @classmethod
+    def checkout_flow(cls, **kwargs: Any) -> MockComputer:
+        """Three screens: cart → shipping → payment.
+
+        Navigation is the part of GUI work that a single-screen mock cannot
+        test. Here the agent has to move between screens, and a radio group
+        makes "pick exactly one option" a real choice rather than a toggle.
+        """
+        widgets = [
+            # main
+            Widget("cart_title", "label", 60, 110, 400, 30, label="YOUR CART"),
+            Widget("line1", "label", 60, 170, 500, 22, label="1 X WIDGET PRO - 49.00"),
+            Widget("line2", "label", 60, 210, 500, 22, label="2 X CABLE - 12.00"),
+            Widget("total", "label", 60, 260, 400, 22, label="TOTAL: 73.00"),
+            Widget("checkout", "button", 60, 330, 200, 48, label="CHECKOUT", shows="shipping"),
+            # shipping
+            Widget("ship_title", "label", 60, 110, 400, 30,
+                   label="SHIPPING SPEED", screen="shipping"),
+            Widget("standard", "radio", 60, 170, 32, 32, label="STANDARD - 5 DAYS - FREE",
+                   checked=True, group="speed", screen="shipping"),
+            Widget("express", "radio", 60, 220, 32, 32, label="EXPRESS - 1 DAY - 15.00",
+                   group="speed", screen="shipping"),
+            Widget("ship_back", "button", 60, 300, 150, 48, label="BACK",
+                   shows="main", screen="shipping"),
+            Widget("ship_next", "button", 230, 300, 200, 48, label="CONTINUE",
+                   shows="payment", screen="shipping"),
+            # payment
+            Widget("pay_title", "label", 60, 110, 400, 30, label="PAYMENT", screen="payment"),
+            Widget("card", "label", 60, 160, 400, 22,
+                   label="CARD ENDING 4242", screen="payment"),
+            Widget("promo", "field", 60, 200, 300, 44,
+                   placeholder="PROMO CODE", screen="payment"),
+            Widget("place_order", "button", 60, 280, 240, 48, label="PLACE ORDER",
+                   sets="ordered", screen="payment"),
+        ]
+        kwargs.setdefault("title", "SHOP")
+        return cls(widgets, **kwargs)
+
+    @classmethod
+    def file_manager(cls, **kwargs: Any) -> MockComputer:
+        """A file list with a destructive action behind a confirmation.
+
+        The confirm screen is the point: an agent that clicks DELETE and
+        declares victory has not deleted anything, and the verifier says so.
+        """
+        widgets = [
+            Widget("files_title", "label", 60, 110, 400, 30, label="FILES"),
+            Widget("report", "radio", 60, 160, 28, 28, label="REPORT-2024.PDF", group="selected"),
+            Widget("notes", "radio", 60, 205, 28, 28, label="NOTES.TXT", group="selected"),
+            Widget("budget", "radio", 60, 250, 28, 28, label="BUDGET.CSV", group="selected"),
+            Widget("rename_btn", "button", 60, 320, 150, 44, label="RENAME", shows="rename"),
+            Widget("delete_btn", "button", 230, 320, 150, 44, label="DELETE", shows="confirm"),
+            # rename
+            Widget("rename_title", "label", 60, 110, 400, 30,
+                   label="RENAME FILE", screen="rename"),
+            Widget("newname", "field", 60, 160, 400, 44,
+                   placeholder="NEW NAME", screen="rename"),
+            Widget("rename_cancel", "button", 60, 240, 150, 44, label="CANCEL",
+                   shows="main", screen="rename"),
+            Widget("rename_save", "button", 230, 240, 150, 44, label="SAVE",
+                   sets="renamed", shows="main", screen="rename"),
+            # confirm
+            Widget("confirm_title", "label", 60, 110, 600, 30,
+                   label="DELETE SELECTED FILE?", screen="confirm"),
+            Widget("confirm_note", "label", 60, 160, 600, 22,
+                   label="THIS CANNOT BE UNDONE", screen="confirm"),
+            Widget("confirm_cancel", "button", 60, 230, 150, 44, label="CANCEL",
+                   shows="main", screen="confirm"),
+            Widget("confirm_delete", "button", 230, 230, 150, 44, label="DELETE",
+                   sets="deleted", shows="main", screen="confirm"),
+        ]
+        kwargs.setdefault("title", "FILES")
+        return cls(widgets, **kwargs)
+
     def _apply_initial(self) -> None:
         self._widgets = [Widget(**vars(w)) for w in self._initial]
         self._flags = {w.sets: False for w in self._widgets if w.sets}
         self._focus = None
         self._scroll_y = 0
+        self._screen = "main"
         self._cursor = (self.width // 2, self.height // 2)
         self.action_log = []
+
+    @property
+    def _visible(self) -> list[Widget]:
+        return [w for w in self._widgets if w.screen == self._screen]
 
     # ---- ComputerEnvironment --------------------------------------------- #
 
@@ -187,13 +274,16 @@ class MockComputer:
         snapshot: dict[str, Any] = {
             "focus": self._focus,
             "scroll_y": self._scroll_y,
+            "screen": self._screen,
             "steps": len(self.action_log),
         }
         for widget in self._widgets:
             if widget.kind == "field":
                 snapshot[widget.id] = widget.value
-            elif widget.kind == "checkbox":
+            elif widget.kind in ("checkbox", "radio"):
                 snapshot[widget.id] = widget.checked
+            if widget.kind == "radio" and widget.group and widget.checked:
+                snapshot[widget.group] = widget.id
         snapshot.update(self._flags)
         return snapshot
 
@@ -226,10 +316,21 @@ class MockComputer:
         elif widget.kind == "checkbox":
             widget.checked = not widget.checked
             self._focus = widget.id
+        elif widget.kind == "radio":
+            # Exactly one member of a group is selected at a time.
+            for sibling in self._widgets:
+                if sibling.kind == "radio" and sibling.group == widget.group:
+                    sibling.checked = sibling is widget
+            self._focus = widget.id
         elif widget.kind == "button":
             self._focus = widget.id
             if widget.sets:
                 self._flags[widget.sets] = True
+            if widget.shows:
+                # Navigating resets the viewport, same as a real app.
+                self._screen = widget.shows
+                self._scroll_y = 0
+                self._focus = None
 
     _do_double_click = _do_left_click
     _do_triple_click = _do_left_click
@@ -278,7 +379,7 @@ class MockComputer:
 
     def _hit_test(self, x: int, y: int) -> Widget | None:
         page_y = y + self._scroll_y
-        for widget in self._widgets:
+        for widget in self._visible:
             if widget.kind == "label":
                 continue
             if widget.contains(x, page_y):
@@ -292,7 +393,10 @@ class MockComputer:
         return widget if widget is not None and widget.kind == "field" else None
 
     def _focus_next(self) -> None:
-        focusable = [w for w in self._widgets if w.kind in ("field", "checkbox", "button")]
+        focusable = [
+            w for w in self._visible
+            if w.kind in ("field", "checkbox", "radio", "button")
+        ]
         if not focusable:
             return
         ids = [w.id for w in focusable]
@@ -304,7 +408,11 @@ class MockComputer:
 
         # Window chrome.
         canvas.fill_rect(0, 0, self.width, 56, PALETTE["chrome"])
-        canvas.text(24, 20, self.title, PALETTE["chrome_text"], scale=3)
+        # The screen name is in the title bar so the agent can tell where it is
+        # without inferring it from the widgets — the same affordance a real
+        # app's breadcrumb or window title provides.
+        heading = self.title if self._screen == "main" else f"{self.title} / {self._screen}"
+        canvas.text(24, 20, heading, PALETTE["chrome_text"], scale=3)
         if max(0, self._content_height - self.height) > 0:
             hint = f"SCROLL {self._scroll_y}/{self._content_height - self.height}"
             canvas.text(self.width - text_width(hint, 2) - 24, 24, hint, PALETTE["muted"], 2)
@@ -313,7 +421,7 @@ class MockComputer:
         canvas.fill_rect(24, 80, self.width - 48, self.height - 104, PALETTE["panel"])
         canvas.stroke_rect(24, 80, self.width - 48, self.height - 104, PALETTE["border"])
 
-        for widget in self._widgets:
+        for widget in self._visible:
             self._draw_widget(canvas, widget)
 
         # Pointer, so a frame carries where the last action landed.
@@ -350,6 +458,17 @@ class MockComputer:
             canvas.stroke_rect(widget.x, y, widget.width, widget.height, border, 2)
             if widget.checked:
                 canvas.fill_rect(widget.x + 7, y + 7, widget.width - 14, widget.height - 14, PALETTE["ok"])
+            canvas.text(widget.x + widget.width + 16, y + 8, widget.label, PALETTE["text"], scale=3)
+
+        elif widget.kind == "radio":
+            # Drawn as a ringed square rather than a filled one, so a radio is
+            # visually distinct from a checkbox at screenshot resolution.
+            canvas.stroke_rect(widget.x, y, widget.width, widget.height, border, 2)
+            canvas.stroke_rect(widget.x + 4, y + 4, widget.width - 8, widget.height - 8,
+                               PALETTE["muted"], 1)
+            if widget.checked:
+                canvas.fill_rect(widget.x + 9, y + 9, widget.width - 18, widget.height - 18,
+                                 PALETTE["accent"])
             canvas.text(widget.x + widget.width + 16, y + 8, widget.label, PALETTE["text"], scale=3)
 
         elif widget.kind == "button":

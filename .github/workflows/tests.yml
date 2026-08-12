@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # The suite is deliberately dependency-light: no torch, no Anthropic SDK,
+      # no browser. The computer-use tests exercise the real loop against the
+      # mock environment, and the API request shape against a stub client.
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pydantic pyyaml pytest ruff
+
+      - name: Lint
+        run: ruff check computer_use core techniques pipeline backends tests examples
+
+      - name: Test
+        run: python -m pytest tests/ -q
+
+      # A benchmark whose reference solutions have rotted is worse than no
+      # benchmark, so the suite self-check runs on every PR.
+      - name: GUI benchmark self-check
+        run: python -m computer_use.cli bench --policy gold --attempts 2 --no-color

@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live clean
+.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -30,6 +30,11 @@ demo-gui:
 
 demo-gui-live:
 	$(PYTHON) examples/computer_use_demo.py --live
+
+# The GUI benchmark. `noisy` is the reference solution with grounding noise —
+# an imperfect baseline, so pass@k and the confidence interval show real spread.
+bench-gui:
+	$(PYTHON) -m computer_use.cli bench --policy noisy --attempts 8
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache

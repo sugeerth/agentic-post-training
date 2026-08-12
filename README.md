@@ -168,18 +168,71 @@ technique.prepare(model, tokenizer, cfg)
 metrics = technique.step(batch)             # no adapter — the shapes line up
 ```
 
+### The benchmark
+
+Eight verified tasks across three applications, three difficulty tiers, and a
+working reference solution for every one of them.
+
+```bash
+agentic-gui tasks                          # what's in the suite
+agentic-gui bench --policy noisy           # or: make bench-gui
+agentic-gui bench --policy claude --attempts 8
+agentic-gui collect --out data.jsonl       # episodes → training data
+```
+
+```
+  task                 diff       pass   reward  steps  ground  pass@k
+  ──────────────────────────────────────────────────────────────────────────
+  settings.notify      easy    4/8        0.562    3.0    0.75  █████░░░░░ @1:0.50 @8:1.00
+  settings.email       medium  6/8        0.781    5.0    0.87  ███████░░░ @1:0.75 @8:1.00
+  checkout.express     hard    5/8        0.655    4.0    0.78  ██████░░░░ @1:0.62 @8:1.00
+  files.rename         hard    3/8        0.473    5.0    0.78  ███░░░░░░░ @1:0.37 @8:1.00
+  ──────────────────────────────────────────────────────────────────────────
+  Overall 38/64 (59.4%)  95% CI [47.1%, 70.5%]  mean reward +0.640
+  pass@k  @1: 0.594   @2: 0.853   @4: 0.988   @8: 1.000
+  By difficulty  easy: 56%   medium: 67%   hard: 54%
+```
+
+Three deliberate choices:
+
+- **Every task ships a reference solution**, and a test asserts each one still
+  scores a perfect 1.000. A benchmark whose gold solutions have rotted reports
+  failures that belong to the harness and blames the agent.
+- **pass@k uses the unbiased estimator**, not "did any of my *n* samples pass".
+  The distance between pass@1 and pass@8 is the most informative number here: a
+  wide gap means the agent knows the task but executes it unreliably — usually
+  grounding, not planning.
+- **Wilson score intervals**, because a suite run is a few dozen episodes. At
+  32/32 the normal approximation reports an interval above 1.0; Wilson reports
+  `[89.3%, 100%]`, which is the honest answer.
+
+`gui_bench` is registered in the evaluator registry, so the pipeline reaches it
+by name — and it's the framework's first evaluator whose score is a measurement
+rather than a simulation, and the first to populate `EvalResult.ci_low/ci_high`.
+
+```python
+from core.registry import get_evaluator
+
+result = get_evaluator("gui_bench")(attempts=8).evaluate("claude-opus-5")
+print(result.value, result.ci_low, result.ci_high)
+```
+
 ### What's in the box
 
 | Piece | What it does |
 |-------|--------------|
-| `MockComputer` | Deterministic widget GUI. Renders real PNG frames (legible to an actual VLM) and exposes ground-truth state. Zero dependencies. |
+| `MockComputer` | Deterministic widget GUI across three apps — typing, toggles, radio groups, scrolling, and multi-screen navigation. Renders real PNG frames (legible to an actual VLM) and exposes ground-truth state. Zero dependencies. |
 | `PlaywrightComputer` | A real browser, same `ComputerEnvironment` protocol. |
 | `ClaudeComputerUsePolicy` | Drives Claude through the computer-use tool. Prunes stale frames, caches the system prompt, opts into refusal fallbacks. |
 | `ScriptedPolicy` | Offline baseline and gold-trajectory recorder. |
+| `NoisyPolicy` | Reference solution plus grounding noise — an imperfect baseline that generates real failure trajectories with zero API calls. |
 | `StateVerifier` | Exact-match verification against ground truth — no judge in the reward path. |
 | `score_trajectory` | Shaped reward: success, efficiency, grounding, redundancy, invalid actions. |
+| `tasks.SUITE` | Eight verified benchmark tasks, each with a reference solution. |
+| `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
+| `agentic-gui` | CLI: `tasks`, `bench`, `collect`. |
 
 ### Reward design
 

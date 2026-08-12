@@ -25,8 +25,9 @@ ordinary custom tools.
 from __future__ import annotations
 
 import os
+import random
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol, runtime_checkable
 
 from computer_use.actions import (
@@ -36,7 +37,7 @@ from computer_use.actions import (
     parse_tool_use,
     system_prompt,
 )
-from computer_use.types import Action, Screenshot
+from computer_use.types import POINTING_ACTIONS, Action, Screenshot
 
 #: Claude's most capable widely available model is the default here because
 #: GUI grounding is one of the tasks where model capability shows up most
@@ -380,3 +381,57 @@ class ScriptedPolicy:
         if action is None:
             return Decision(None, rationale or self._final, None, "end_turn")
         return Decision(action, rationale, f"scripted_{idx}", "tool_use")
+
+
+class NoisyPolicy(ScriptedPolicy):
+    """A reference script with grounding noise — an imperfect baseline.
+
+    Models the dominant real failure mode rather than pretending to be a model:
+    the plan is right, the pixel is wrong. With probability `miss_rate` a
+    pointing action is displaced by up to `jitter` pixels, which usually lands
+    it outside the target widget and derails everything downstream.
+
+    Two things this is good for. It gives the benchmark a policy that scores
+    somewhere other than 0% or 100%, so pass@k and the confidence interval show
+    their behavior offline. And it generates genuine failure trajectories to
+    pair against gold ones, which is preference data you can build without
+    spending a single API call.
+
+    Seeded, so a benchmark run is reproducible.
+    """
+
+    def __init__(
+        self,
+        actions: Sequence[Action],
+        *,
+        miss_rate: float = 0.25,
+        jitter: int = 45,
+        seed: int = 0,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(actions, **kwargs)
+        self.miss_rate = miss_rate
+        self.jitter = jitter
+        self._seed = seed
+        self._rng = random.Random(seed)
+
+    def reset(self) -> None:
+        super().reset()
+        self._rng = random.Random(self._seed)
+
+    def _next(self) -> Decision:
+        decision = super()._next()
+        action = decision.action
+        if action is None or action.coordinate is None:
+            return decision
+        if action.kind not in POINTING_ACTIONS or self._rng.random() >= self.miss_rate:
+            return decision
+
+        dx = self._rng.randint(-self.jitter, self.jitter)
+        dy = self._rng.randint(-self.jitter, self.jitter)
+        x, y = action.coordinate
+        return replace(
+            decision,
+            action=replace(action, coordinate=(max(0, x + dx), max(0, y + dy))),
+            rationale=decision.rationale or "Clicking the target.",
+        )
