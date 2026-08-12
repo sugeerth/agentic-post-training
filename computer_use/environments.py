@@ -19,6 +19,7 @@ Two implementations ship here:
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
@@ -503,9 +504,20 @@ class PlaywrightComputer:
     width: int = 1280
     height: int = 720
     headless: bool = True
+    #: Path to an existing browser binary. Playwright pins an exact build and
+    #: refuses to launch a different one, so any image that ships its own
+    #: Chromium — CI runners, devcontainers, this repo's own sandbox — needs
+    #: this rather than a `playwright install` that re-downloads 400MB.
+    #: Falls back to `PLAYWRIGHT_CHROMIUM_EXECUTABLE` when unset.
+    executable_path: str | None = None
+    #: JS evaluated by `state()` to expose ground truth for verifiers. Without
+    #: it a browser episode cannot be checked, and an unverifiable environment
+    #: produces unusable training data — see the class docstring.
+    state_script: str | None = None
     _playwright: Any = field(default=None, init=False, repr=False)
     _browser: Any = field(default=None, init=False, repr=False)
     _page: Any = field(default=None, init=False, repr=False)
+    _state_cache: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
 
     async def _ensure_page(self) -> Any:
         if self._page is not None:
@@ -520,7 +532,11 @@ class PlaywrightComputer:
             ) from exc
 
         self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(headless=self.headless)
+        launch: dict[str, Any] = {"headless": self.headless}
+        executable = self.executable_path or os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+        if executable:
+            launch["executable_path"] = executable
+        self._browser = await self._playwright.chromium.launch(**launch)
         self._page = await self._browser.new_page(
             viewport={"width": self.width, "height": self.height}
         )
@@ -530,6 +546,7 @@ class PlaywrightComputer:
     async def reset(self) -> Screenshot:
         page = await self._ensure_page()
         await page.goto(self.start_url)
+        await self._refresh_state()
         return await self.screenshot()
 
     async def screenshot(self) -> Screenshot:
@@ -583,12 +600,32 @@ class PlaywrightComputer:
         else:  # pragma: no cover - ActionKind is exhaustive above
             raise ActionError(f"{kind} is not supported by PlaywrightComputer")
 
+        await self._refresh_state()
         return await self.screenshot()
 
     def state(self) -> Mapping[str, Any]:
+        """Ground truth for verifiers — the URL, plus whatever `state_script` reports.
+
+        `ComputerEnvironment.state` is sync because verifiers are, so the page
+        is queried in `execute`/`reset` and cached here. Without a
+        `state_script` this returns the URL alone, which is enough to verify
+        navigation and nothing else.
+        """
         if self._page is None:
             return {}
-        return {"url": self._page.url, "title": ""}
+        return {"url": self._page.url, **self._state_cache}
+
+    async def _refresh_state(self) -> None:
+        if self.state_script is None or self._page is None:
+            return
+        try:
+            result = await self._page.evaluate(self.state_script)
+        except Exception as exc:
+            # A broken state script must not kill the episode — it makes the
+            # run unverifiable, which the verifier will report as a failure.
+            self._state_cache = {"state_error": f"{type(exc).__name__}: {exc}"}
+            return
+        self._state_cache = dict(result) if isinstance(result, dict) else {"state": result}
 
     async def close(self) -> None:
         if self._browser is not None:
@@ -600,20 +637,42 @@ class PlaywrightComputer:
             self._playwright = None
 
 
-#: The model emits X11-style key names; Playwright wants its own spelling.
+#: The computer-use tool speaks X11 key names (`Return`, `BackSpace`, `ctrl+a`,
+#: `Page_Down`); Playwright has its own spelling. Getting the modifiers wrong is
+#: the expensive case: `ctrl+a` naively title-cased becomes `Ctrl`, which
+#: Playwright rejects outright, so select-all, copy, and paste — the shortcuts a
+#: browser agent reaches for most — would fail on a real page.
 _KEY_ALIASES = {
-    "return": "Enter",
-    "kp_enter": "Enter",
-    "escape": "Escape",
+    # modifiers
+    "ctrl": "Control", "control": "Control",
+    "alt": "Alt", "option": "Alt",
+    "shift": "Shift",
+    "cmd": "Meta", "command": "Meta", "super": "Meta", "win": "Meta", "meta": "Meta",
+    # editing / navigation
+    "return": "Enter", "kp_enter": "Enter", "enter": "Enter",
     "backspace": "Backspace",
+    "delete": "Delete", "del": "Delete",
+    "escape": "Escape", "esc": "Escape",
     "tab": "Tab",
     "space": " ",
-    "page_down": "PageDown",
-    "page_up": "PageUp",
+    "up": "ArrowUp", "down": "ArrowDown", "left": "ArrowLeft", "right": "ArrowRight",
+    "page_up": "PageUp", "prior": "PageUp",
+    "page_down": "PageDown", "next": "PageDown",
+    "home": "Home", "end": "End",
+    "insert": "Insert",
 }
 
 
 def _to_playwright_key(key: str) -> str:
-    parts = key.replace("cmd", "Meta").split("+")
-    mapped = [_KEY_ALIASES.get(p.lower(), p.capitalize() if len(p) > 1 else p) for p in parts]
+    """Translate an X11-style key or chord into Playwright's spelling.
+
+    Unknown multi-character names are title-cased (`f5` → `F5`), which covers
+    function keys; single characters pass through untouched so `ctrl+a` keeps
+    its lowercase `a`, as Playwright expects.
+    """
+    parts = [p for p in key.split("+") if p]
+    mapped = [
+        _KEY_ALIASES.get(part.lower(), part if len(part) == 1 else part.capitalize())
+        for part in parts
+    ]
     return "+".join(mapped)

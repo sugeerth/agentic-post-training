@@ -222,7 +222,7 @@ print(result.value, result.ci_low, result.ci_high)
 | Piece | What it does |
 |-------|--------------|
 | `MockComputer` | Deterministic widget GUI across three apps — typing, toggles, radio groups, scrolling, and multi-screen navigation. Renders real PNG frames (legible to an actual VLM) and exposes ground-truth state. Zero dependencies. |
-| `PlaywrightComputer` | A real browser, same `ComputerEnvironment` protocol. |
+| `PlaywrightComputer` | A real browser, same `ComputerEnvironment` protocol. Verified end to end against Chromium — all 16 action kinds, X11→Playwright key chords, and a full scored episode. |
 | `ClaudeComputerUsePolicy` | Drives Claude through the computer-use tool. Prunes stale frames, caches the system prompt, opts into refusal fallbacks. |
 | `ScriptedPolicy` | Offline baseline and gold-trajectory recorder. |
 | `NoisyPolicy` | Reference solution plus grounding noise — an imperfect baseline that generates real failure trajectories with zero API calls. |
@@ -262,6 +262,35 @@ Step-level pairs claim something strong — "from this screen, click *here*, not
 - **Only pairs where the outcomes differ** are kept by default. Between two
   successful runs the reward gap is efficiency, and the "rejected" action is not
   a mistake. Opt out with `require_outcome_difference=False`.
+
+### Real browser
+
+The same `run_episode` and `StateVerifier` drive Chromium — only the
+environment changes. A browser has no ground truth of its own, so
+`state_script` supplies it; without something checkable, an episode cannot be
+verified and its trajectories are not usable as training data.
+
+```python
+env = PlaywrightComputer(
+    start_url="https://example.com/settings",
+    state_script="""() => ({
+        email: document.getElementById('email').value,
+        saved: window.__saved === true,
+    })""",
+    # Point at an existing Chromium instead of downloading one (CI images,
+    # devcontainers). Also reads PLAYWRIGHT_CHROMIUM_EXECUTABLE.
+    executable_path="/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+)
+
+trajectory = asyncio.run(run_episode(
+    task, env, policy,
+    verifier=StateVerifier({"email": "ada@example.com", "saved": True}),
+))
+```
+
+The browser tests skip themselves when Playwright or a Chromium build is
+missing, so CI stays dependency-light while anyone with a browser gets the
+real coverage.
 
 ### Live model
 
