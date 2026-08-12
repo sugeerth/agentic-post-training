@@ -230,6 +230,12 @@ class ClaudeComputerUsePolicy:
                 version=cfg.tool_version,
                 display_number=cfg.display_number,
             )],
+            # One action per turn. The loop executes an action and feeds back
+            # the resulting screenshot, so a second action decided against a
+            # screen that no longer exists is wrong by construction — and the
+            # API requires a tool_result for *every* tool_use block, so a
+            # parallel pair would also make the next request malformed.
+            "tool_choice": {"type": "auto", "disable_parallel_tool_use": True},
             "thinking": {"type": "adaptive"},
             "output_config": {"effort": cfg.effort},
         }

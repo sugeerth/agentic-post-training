@@ -363,6 +363,68 @@ class TestDataset(unittest.TestCase):
             # chosen/rejected are single actions, not whole transcripts
             self.assertEqual(len(pair.chosen.splitlines()), 1)
 
+    def test_step_pairs_blame_the_consequential_divergence(self):
+        """The blamed step must be where the runs actually parted ways.
+
+        Regression test for a silent data-poisoning bug: divergence used to be
+        detected textually, so a click 10px off — landing on the same widget,
+        with the same effect — was blamed for an outcome decided several steps
+        later. That emits a pair whose rejected side is a perfectly good
+        action, which teaches a model that correct grounding is wrong.
+        """
+        good = episode(GOOD_SCRIPT)
+        # Same widget at step 0 (a cosmetic difference), a real miss at step 2.
+        cosmetic_then_miss = episode([
+            Action(ActionKind.SCREENSHOT),          # identical to GOOD_SCRIPT
+            click(300, 225),                        # still inside the email field
+            Action(ActionKind.TYPE, text="ada@example.com"),
+            click(200, 382),                        # misses the notify checkbox
+            Action(ActionKind.SCROLL, coordinate=(640, 400),
+                   scroll_direction="down", scroll_amount=3),
+            click(*SAVE_AFTER_SCROLL),
+        ])
+        self.assertTrue(good.succeeded)
+        self.assertFalse(cosmetic_then_miss.succeeded)
+
+        pairs = to_step_preference_pairs(
+            [good, cosmetic_then_miss], include_frames=False
+        )
+        self.assertEqual(len(pairs), 1)
+        # Step 3, not step 1: step 1 diverges textually but lands on the same
+        # widget, so both runs are still in the same state afterwards.
+        self.assertEqual(pairs[0].metadata["step_index"], 3)
+        self.assertEqual(json.loads(pairs[0].chosen)["coordinate"], list(NOTIFY_BOX))
+
+    def test_step_pairs_require_an_outcome_difference_by_default(self):
+        # Between two successes the gap is efficiency, not correctness — the
+        # rejected action there is not a mistake and must not be labeled one.
+        good = episode(GOOD_SCRIPT)
+        slower = episode(SLOPPY_SCRIPT)
+        self.assertTrue(good.succeeded and slower.succeeded)
+        self.assertGreater(good.reward, slower.reward)
+
+        # min_margin=0 isolates the flag under test from the margin filter.
+        self.assertEqual(
+            to_step_preference_pairs([good, slower], min_margin=0.0), []
+        )
+        opted_in = to_step_preference_pairs(
+            [good, slower], min_margin=0.0, include_frames=False,
+            require_outcome_difference=False,
+        )
+        self.assertTrue(opted_in)
+
+    def test_rollout_records_which_widget_was_hit(self):
+        trajectory = episode(GOOD_SCRIPT)
+        clicks = [s for s in trajectory.steps if s.action.kind is ActionKind.LEFT_CLICK]
+        self.assertTrue(clicks)
+        self.assertEqual(clicks[0].metadata["target"], "email")
+        self.assertTrue(clicks[0].metadata["hit"])
+
+    def test_missed_click_records_no_target(self):
+        trajectory = episode([click(900, 500), *GOOD_SCRIPT])
+        self.assertFalse(trajectory.steps[0].metadata["hit"])
+        self.assertIsNone(trajectory.steps[0].metadata["target"])
+
     def test_step_pairs_carry_the_observation_when_asked(self):
         pairs = to_step_preference_pairs(self.trajectories, include_frames=True)
         self.assertTrue(pairs)
@@ -497,6 +559,42 @@ class TestClaudePolicy(unittest.TestCase):
         self.assertEqual(decision.action.coordinate, (10, 20))
         self.assertEqual(decision.rationale, "Clicking save.")
         self.assertEqual(decision.usage["input_tokens"], 10)
+
+    def test_request_forbids_parallel_tool_calls(self):
+        # The loop executes one action then feeds back the resulting frame, so
+        # a second action chosen against a screen that no longer exists is
+        # wrong — and the API would require a tool_result for both blocks.
+        policy = self._policy([
+            _response([_block(type="text", text="done")], stop_reason="end_turn")
+        ])
+        frame = asyncio.run(MockComputer.settings_form().screenshot())
+        asyncio.run(policy.begin(TASK, frame))
+        self.assertEqual(
+            policy._client.requests[0]["tool_choice"],
+            {"type": "auto", "disable_parallel_tool_use": True},
+        )
+
+    def test_truncated_turn_is_not_recorded_as_success(self):
+        # A `max_tokens` cutoff also arrives with no action. Calling that a
+        # completed episode would hide the real failure.
+        policy = self._policy([
+            _response([_block(type="text", text="First I will click the")],
+                      stop_reason="max_tokens")
+        ])
+        trajectory = asyncio.run(run_episode(
+            TASK, MockComputer.settings_form(), policy, verifier=VERIFIER
+        ))
+        self.assertIs(trajectory.status, TrajectoryStatus.ERROR)
+        self.assertIn("max_tokens", trajectory.final_response)
+
+    def test_normal_end_turn_is_still_success(self):
+        policy = self._policy([
+            _response([_block(type="text", text="All done.")], stop_reason="end_turn")
+        ])
+        trajectory = asyncio.run(run_episode(
+            TASK, MockComputer.settings_form(), policy
+        ))
+        self.assertIs(trajectory.status, TrajectoryStatus.SUCCESS)
 
     def test_fallback_can_be_disabled(self):
         policy = self._policy(

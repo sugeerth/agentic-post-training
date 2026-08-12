@@ -249,6 +249,20 @@ weights, and both are enforced by tests:
 A step-level breakdown lands in `trajectory.metadata["reward_breakdown"]`, so a
 regression in the aggregate traces to the term that moved.
 
+### Step pairs: attribution by effect, not by text
+
+Step-level pairs claim something strong — "from this screen, click *here*, not
+*there*" — so two guards keep the claim honest:
+
+- **Divergence is judged by which widget a click landed on**, not by whether the
+  coordinates differ. Two clicks 20px apart on the same button are the same
+  decision; blaming an outcome on the difference between them emits a pair whose
+  rejected side is a perfectly good action. That is training data that degrades
+  grounding rather than improving it, and it fails silently.
+- **Only pairs where the outcomes differ** are kept by default. Between two
+  successful runs the reward gap is efficiency, and the "rejected" action is not
+  a mistake. Opt out with `require_outcome_difference=False`.
+
 ### Live model
 
 ```bash

@@ -31,8 +31,10 @@ from computer_use.dataset import (
     to_step_preference_pairs,
     to_training_examples,
 )
-from computer_use.rollout import RolloutConfig
+from computer_use.metrics import BenchmarkReport, TaskResult, summarize, summarize_task
+from computer_use.rollout import RolloutConfig, run_group
 from computer_use.tasks import DIFFICULTIES, SUITE, GUITask, suite
+from computer_use.types import Trajectory
 
 
 def _select(args: argparse.Namespace) -> tuple[GUITask, ...]:
@@ -65,14 +67,13 @@ def _policy_factory(args: argparse.Namespace, task: GUITask) -> Any:
     return lambda env: ClaudeComputerUsePolicy(env.width, env.height, config)
 
 
-async def _run(args: argparse.Namespace, tasks: tuple[GUITask, ...]) -> tuple[Any, list]:
+async def _run(
+    args: argparse.Namespace, tasks: tuple[GUITask, ...]
+) -> tuple[BenchmarkReport, list[Trajectory]]:
     """Run the selected tasks, one policy factory per task."""
-    from computer_use.metrics import summarize, summarize_task
-    from computer_use.rollout import run_group
-
     rollout_config = RolloutConfig(max_steps=args.max_steps)
-    results = []
-    trajectories: list = []
+    results: list[TaskResult] = []
+    trajectories: list[Trajectory] = []
 
     for task in tasks:
         group = await run_group(
@@ -232,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     p_collect.set_defaults(func=_cmd_collect)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    return int(args.func(args))
 
 
 if __name__ == "__main__":

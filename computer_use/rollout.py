@@ -145,9 +145,21 @@ async def run_episode(
                 policy.observe(result, error=error), timeout=cfg.step_timeout
             )
         else:
-            # Loop exited because the policy stopped calling the tool.
-            status = TrajectoryStatus.SUCCESS
-            final_response = decision.rationale
+            # The policy stopped calling the tool. That means "I am done" only
+            # when the turn ended normally — a truncated turn (`max_tokens`) or
+            # a paused one also arrives here with no action, and recording
+            # those as a completed episode would hide the real failure. The
+            # verifier would still mark them unsuccessful, but the status and
+            # the final response are what you read when diagnosing a run.
+            if decision.stop_reason in ("end_turn", "", "stop_sequence"):
+                status = TrajectoryStatus.SUCCESS
+                final_response = decision.rationale
+            else:
+                status = TrajectoryStatus.ERROR
+                final_response = (
+                    f"turn ended with stop_reason={decision.stop_reason!r} and no "
+                    f"action; the episode is incomplete"
+                )
 
     except RefusalError as exc:
         status = TrajectoryStatus.REFUSED
@@ -294,9 +306,15 @@ def _grounding_metadata(env: ComputerEnvironment, action: Action) -> dict[str, A
     if hit_test is None or action.coordinate is None or action.kind not in POINTING_ACTIONS:
         return {}
     try:
-        return {"hit": hit_test(*action.coordinate) is not None}
+        target = hit_test(*action.coordinate)
     except Exception:
         return {}
+    # `target` — which widget, not just whether one was hit — is what lets the
+    # dataset builder tell a cosmetically different click from a consequentially
+    # different one. Two clicks 20px apart on the same button are the same
+    # decision; blaming an outcome on the difference between them would be
+    # teaching a model that a correct action is wrong.
+    return {"hit": target is not None, "target": getattr(target, "id", None)}
 
 
 async def _maybe_await(value: Any) -> Any:

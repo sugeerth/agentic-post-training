@@ -358,6 +358,30 @@ class TestRegisteredEvaluator(unittest.TestCase):
         with self.assertRaises(TypeError):
             GUIBenchEvaluator(attempts=1).evaluate(model=42)
 
+    def test_async_callers_use_evaluate_async(self):
+        # Every agent in this framework is async, so this is the path that
+        # actually gets used.
+        async def from_an_agent():
+            evaluator = GUIBenchEvaluator(
+                tasks=suite(names=["files.select"]), attempts=2
+            )
+            return await evaluator.evaluate_async()
+
+        result = asyncio.run(from_an_agent())
+        self.assertEqual(result.value, 100.0)
+        self.assertEqual(result.n, 2)
+
+    def test_sync_evaluate_refuses_inside_an_event_loop(self):
+        # Rather than raising an opaque asyncio error, or blocking the caller's
+        # loop for the length of a benchmark run.
+        async def from_an_agent():
+            with self.assertRaises(RuntimeError) as ctx:
+                GUIBenchEvaluator(attempts=1).evaluate()
+            return str(ctx.exception)
+
+        message = asyncio.run(from_an_agent())
+        self.assertIn("evaluate_async", message)
+
 
 class TestCLI(unittest.TestCase):
     def test_tasks_json_lists_the_suite(self):

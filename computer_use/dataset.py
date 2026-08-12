@@ -151,17 +151,32 @@ def to_step_preference_pairs(
     *,
     min_margin: float = 0.05,
     include_frames: bool = True,
+    require_outcome_difference: bool = True,
 ) -> list[PreferencePair]:
     """Pair individual *decisions* taken from the same state.
 
-    Sharper signal than trajectory-level pairs: when two attempts share a
-    prefix and then diverge, the difference in outcome is attributable to that
-    one action rather than smeared across twenty. This is where a GUI agent's
-    grounding actually improves — the pair is "from this screen, click here,
-    not there".
+    Sharper signal than trajectory-level pairs: when a successful attempt and a
+    failed one share a prefix and then part ways, the difference is
+    attributable to that one action rather than smeared across twenty. This is
+    where a GUI agent's grounding improves — the pair is "from this screen,
+    click here, not there".
 
-    Frames are included by default here because a single-decision example is
-    almost useless to a VLM without the screenshot it was conditioned on.
+    Two guards keep that claim honest, and both matter more than they look:
+
+    `require_outcome_difference` (default on) keeps only pairs where the chosen
+    run succeeded and the rejected one did not. Between two *successful* runs
+    the reward gap is about efficiency, and attributing it to a single action
+    would be wrong — the rejected action there is not a mistake.
+
+    Divergence is judged by **effect, not by text**. Two clicks 20px apart on
+    the same button are the same decision, and the first action that merely
+    *looks* different is usually not the one that lost the episode. Blaming it
+    would emit a pair whose rejected side is a perfectly good action — training
+    data that actively degrades grounding rather than improving it. See
+    `_blame_step`.
+
+    Frames are included by default: a single-decision example is almost useless
+    to a VLM without the screenshot it was conditioned on.
     """
     pairs: list[PreferencePair] = []
 
@@ -174,7 +189,9 @@ def to_step_preference_pairs(
         for other in ranked[1:]:
             if best.reward - other.reward < min_margin:
                 continue
-            divergence = _first_divergence(best.steps, other.steps)
+            if require_outcome_difference and not (best.succeeded and not other.succeeded):
+                continue
+            divergence = _blame_step(best.steps, other.steps)
             if divergence is None:
                 continue
 
@@ -385,11 +402,47 @@ def _by_task(trajectories: Iterable[Trajectory]) -> dict[str, list[Trajectory]]:
     return dict(grouped)
 
 
-def _first_divergence(a: Sequence[Step], b: Sequence[Step]) -> int | None:
-    """Index of the first step where two attempts chose different actions."""
-    for i in range(min(len(a), len(b))):
-        if a[i].action.to_tool_input() != b[i].action.to_tool_input():
-            return i
+def _same_effect(a: Step, b: Step) -> bool:
+    """Whether two differently-written actions do the same thing.
+
+    Uses the widget each click landed on, recorded by the rollout. Without that
+    the only available test is textual equality, which calls two clicks on
+    opposite corners of the same button "different decisions".
+
+    Falls back to exact equality when no target was recorded (scrolls, typing,
+    environments that can't hit-test) — conservative in the right direction:
+    an unrecognized equivalence costs a training pair, an unrecognized
+    difference costs a wrong one.
+    """
+    if a.action.kind is not b.action.kind or a.action.text != b.action.text:
+        return False
+    if a.failed != b.failed:
+        return False
+    target_a, target_b = a.metadata.get("target"), b.metadata.get("target")
+    if target_a is None and target_b is None:
+        return a.action.to_tool_input() == b.action.to_tool_input()
+    return target_a == target_b
+
+
+def _blame_step(good: Sequence[Step], bad: Sequence[Step]) -> int | None:
+    """The step where two runs actually parted ways.
+
+    Scans forward past divergences that had the same effect — those leave both
+    runs in the same state, so the comparison stays valid — and stops at the
+    first one that did something different. That step is the last point at
+    which both agents faced the same screen, which is what makes the pair a
+    statement about one decision.
+
+    Returns `None` when the runs never diverge consequentially, in which case
+    the outcome gap belongs to something other than a single choice and no
+    honest step pair can be made.
+    """
+    for i in range(min(len(good), len(bad))):
+        if good[i].action.to_tool_input() == bad[i].action.to_tool_input():
+            continue
+        if _same_effect(good[i], bad[i]):
+            continue
+        return i
     return None
 
 

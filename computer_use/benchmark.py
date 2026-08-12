@@ -19,7 +19,7 @@ import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import count
-from typing import Any
+from typing import Any, cast
 
 from computer_use.metrics import BenchmarkReport, TaskResult, summarize, summarize_task
 from computer_use.policies import NoisyPolicy, ScriptedPolicy, VLMPolicy
@@ -163,15 +163,22 @@ class GUIBenchEvaluator:
     last_report: BenchmarkReport | None = field(default=None, init=False)
     last_trajectories: list[Trajectory] = field(default_factory=list, init=False)
 
-    def evaluate(self, model: Any = None, tokenizer: Any = None) -> EvalResult:
+    async def evaluate_async(
+        self, model: Any = None, tokenizer: Any = None
+    ) -> EvalResult:
+        """The real implementation. Await this from async code.
+
+        Every agent in this framework is async, so this — not `evaluate` — is
+        the method the pipeline and the evaluation agent should call.
+        """
         factory = self.policy_factory or _factory_for(model)
-        report, trajectories = asyncio.run(run_benchmark(
+        report, trajectories = await run_benchmark(
             self.tasks,
             factory,
             attempts=self.attempts,
             rollout_config=self.rollout_config,
             max_concurrency=self.max_concurrency,
-        ))
+        )
         self.last_report = report
         self.last_trajectories = trajectories
 
@@ -183,6 +190,25 @@ class GUIBenchEvaluator:
             ci_low=round(low * 100, 2),
             ci_high=round(high * 100, 2),
             metadata=report.to_dict(),
+        )
+
+    def evaluate(self, model: Any = None, tokenizer: Any = None) -> EvalResult:
+        """Synchronous entry point, for `core.Evaluator` conformance.
+
+        Refuses to run inside an existing event loop rather than doing
+        something worse. `asyncio.run` would raise an opaque RuntimeError, and
+        offloading to a worker thread would silently block the caller's loop
+        for the length of a benchmark run. Awaiting `evaluate_async` is the
+        correct fix and the error says so.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self.evaluate_async(model, tokenizer))
+        raise RuntimeError(
+            "gui_bench.evaluate() was called from inside a running event loop. "
+            "Await evaluate_async(...) instead — every agent in this framework "
+            "is async, so that is almost certainly the method you want."
         )
 
 
@@ -205,7 +231,7 @@ def _factory_for(model: Any) -> PolicyFactory | None:
 
         return _build
     if callable(model):
-        return model
+        return cast("PolicyFactory", model)
     raise TypeError(
         "gui_bench needs a model id string, a policy factory, or None (gold "
         f"reference); got {type(model).__name__}"
