@@ -291,6 +291,40 @@ class MockComputer:
     async def close(self) -> None:
         return None
 
+    # ---- save / restore --------------------------------------------------- #
+
+    def snapshot(self) -> dict[str, Any]:
+        """Capture the full mutable state, cheaply and completely.
+
+        Exists so the environment's state space can be *searched* rather than
+        only stepped through — see `computer_use.synthesis`, which uses
+        snapshot/restore to breadth-first the reachable states and derive
+        provably-optimal solutions to tasks nobody wrote by hand.
+
+        Deliberately a plain dict of copies rather than `copy.deepcopy(self)`:
+        search restores millions of times, and the widget list is the only
+        thing that actually needs copying.
+        """
+        return {
+            "widgets": [Widget(**vars(w)) for w in self._widgets],
+            "flags": dict(self._flags),
+            "focus": self._focus,
+            "scroll_y": self._scroll_y,
+            "screen": self._screen,
+            "cursor": self._cursor,
+            "log": list(self.action_log),
+        }
+
+    def restore(self, snap: Mapping[str, Any]) -> None:
+        """Reinstate a `snapshot()`. The inverse, exactly."""
+        self._widgets = [Widget(**vars(w)) for w in snap["widgets"]]
+        self._flags = dict(snap["flags"])
+        self._focus = snap["focus"]
+        self._scroll_y = snap["scroll_y"]
+        self._screen = snap["screen"]
+        self._cursor = snap["cursor"]
+        self.action_log = list(snap["log"])
+
     # ---- action handlers -------------------------------------------------- #
     # One method per ActionKind value; `execute` dispatches by name.
 

@@ -104,6 +104,14 @@ from computer_use.rollout import (
     run_suite,
     success_rate,
 )
+from computer_use.synthesis import (
+    AbstractAction,
+    Discovery,
+    SynthesisConfig,
+    explore,
+    synthesize,
+    synthesize_suite,
+)
 from computer_use.tasks import SUITE, GUITask, get_task, suite
 from computer_use.types import (
     Action,
@@ -119,6 +127,7 @@ __all__ = [
     "DEFAULT_TOOL_VERSION",
     "RESOLUTIONS",
     "SUITE",
+    "AbstractAction",
     "Action",
     "ActionError",
     "ActionKind",
@@ -128,6 +137,7 @@ __all__ = [
     "ComputerEnvironment",
     "ComputerUseAgent",
     "Decision",
+    "Discovery",
     "GUIBenchEvaluator",
     "GUITask",
     "MockComputer",
@@ -141,6 +151,7 @@ __all__ = [
     "ScriptedPolicy",
     "StateVerifier",
     "Step",
+    "SynthesisConfig",
     "TaskResult",
     "Trajectory",
     "TrajectoryStatus",
@@ -150,6 +161,7 @@ __all__ = [
     "Widget",
     "assign_step_credit",
     "computer_tool",
+    "explore",
     "format_report",
     "get_task",
     "gold_factory",
@@ -168,6 +180,8 @@ __all__ = [
     "suite",
     "summarize",
     "summarize_task",
+    "synthesize",
+    "synthesize_suite",
     "system_prompt",
     "to_preference_pairs",
     "to_rollout_batch",

@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui clean
+.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -35,6 +35,10 @@ demo-gui-live:
 # an imperfect baseline, so pass@k and the confidence interval show real spread.
 bench-gui:
 	$(PYTHON) -m computer_use.cli bench --policy noisy --attempts 8
+
+# Benchmark on tasks derived by searching the environments — nothing hand-written.
+bench-gui-synth:
+	$(PYTHON) -m computer_use.cli bench --synthetic --policy noisy --attempts 8
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache

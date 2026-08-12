@@ -229,6 +229,7 @@ print(result.value, result.ci_low, result.ci_high)
 | `StateVerifier` | Exact-match verification against ground truth — no judge in the reward path. |
 | `score_trajectory` | Shaped reward: success, efficiency, grounding, redundancy, invalid actions. |
 | `tasks.SUITE` | Eight verified benchmark tasks, each with a reference solution. |
+| `synthesis.*` | Derives tasks by searching the environment — provably-optimal gold, measured difficulty, unlimited supply. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
@@ -248,6 +249,61 @@ weights, and both are enforced by tests:
 
 A step-level breakdown lands in `trajectory.metadata["reward_breakdown"]`, so a
 regression in the aggregate traces to the term that moved.
+
+### Synthesized tasks: stop writing the benchmark, search for it
+
+A hand-written benchmark has three problems no amount of care fixes: the tasks
+don't scale, the gold solutions rot, and `optimal_steps` — the number
+efficiency is scored against — is a human guess about something the
+environment actually knows. All three come from one root: the task is authored
+*outside* the environment, so nothing keeps them in agreement.
+
+`computer_use.synthesis` inverts it. It breadth-first searches the
+environment's reachable state space and reads tasks back out:
+
+```
+initial state ──BFS over abstract actions──▶ every reachable state
+                                                    │
+                      for each reachable state, the shortest path to it
+                                                    │
+    ┌───────────────────────────────────────────────┼──────────────────┐
+    ▼                        ▼                      ▼                  ▼
+instruction            verifier                   gold           optimal_steps
+(from the delta)  (the goal state itself)   (the BFS path)    (its length — minimal)
+```
+
+```bash
+agentic-gui tasks --synthetic          # tasks nobody wrote
+agentic-gui bench --synthetic --policy noisy --attempts 8
+```
+
+```
+  synth.settings.02    medium   4 steps  [click, typing, synthetic]
+    Set EMAIL to "ada@example.com" and set MAX RETRIES to "5".
+  synth.checkout.02    hard     4 steps  [click, navigate, synthetic]
+    Choose EXPRESS - 1 DAY - 15.00 and press PLACE ORDER.
+```
+
+What this buys is structural rather than a matter of discipline:
+
+- **Gold can never rot.** It's derived from the environment, not written beside
+  it. Change a layout and the next run produces correct solutions — there is no
+  second artifact to fall out of sync.
+- **`optimal_steps` is provably minimal**, because BFS finds the shortest path.
+  A test proves it by re-searching with one step less budget and confirming the
+  goal is unreachable. A hand-written benchmark cannot make this claim.
+- **Difficulty is measured, not labeled** — search depth is ground truth. It
+  shows up in the results: easy 80%, medium 75%, hard 57% for the same agent.
+- **Tasks become unlimited and hold-out-able.** A benchmark that is a generator
+  over a seed lets you hold out whole *environments*, which is what you need to
+  detect memorization rather than skill.
+
+The search is given no hints. It discovers on its own that SAVE sits below the
+fold and must be scrolled to first — the dependency is found, not encoded.
+
+Synthesis and the curated suite cross-validate each other: a test asserts every
+hand-written goal is rediscovered by search within its declared step budget. If
+a hand-guessed `optimal_steps` were wrong, that test would say so.
 
 ### Step pairs: attribution by effect, not by text
 

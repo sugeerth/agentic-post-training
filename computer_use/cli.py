@@ -38,6 +38,22 @@ from computer_use.types import Trajectory
 
 
 def _select(args: argparse.Namespace) -> tuple[GUITask, ...]:
+    """The tasks to run: the curated suite, or a freshly synthesized one."""
+    if getattr(args, "synthetic", False):
+        from computer_use.synthesis import synthesize_suite
+
+        tasks = tuple(synthesize_suite(
+            per_environment=args.per_environment,
+            max_depth=args.max_depth,
+            seed=args.seed,
+        ))
+        if args.difficulty:
+            tasks = tuple(t for t in tasks if t.difficulty == args.difficulty)
+        if args.tags:
+            wanted = set(args.tags)
+            tasks = tuple(t for t in tasks if wanted & set(t.tags))
+        return tasks
+
     try:
         return suite(
             difficulty=args.difficulty,
@@ -120,7 +136,10 @@ def _cmd_tasks(args: argparse.Namespace) -> int:
         ], indent=2))
         return 0
 
-    print(f"{len(tasks)} task(s) of {len(SUITE)} in the suite\n")
+    if getattr(args, "synthetic", False):
+        print(f"{len(tasks)} task(s) synthesized by searching the environments\n")
+    else:
+        print(f"{len(tasks)} task(s) of {len(SUITE)} in the curated suite\n")
     for task in tasks:
         print(f"  {task.name:<20} {task.difficulty:<7} "
               f"{task.optimal_steps:>2} steps  [{', '.join(task.tags)}]")
@@ -187,6 +206,15 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
                         help="only tasks carrying any of these tags")
     parser.add_argument("--task", nargs="+", metavar="NAME",
                         help="only these tasks, by name")
+    parser.add_argument("--synthetic", action="store_true",
+                        help="synthesize tasks by searching the environments "
+                             "instead of using the curated suite")
+    parser.add_argument("--per-environment", type=int, default=6,
+                        help="synthesized tasks per environment (default: 6)")
+    parser.add_argument("--max-depth", type=int, default=5,
+                        help="search depth for --synthetic (default: 5)")
+    parser.add_argument("--seed", type=int, default=0,
+                        help="seed for --synthetic sampling and --policy noisy")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
 
 
@@ -201,7 +229,6 @@ def _add_run_options(parser: argparse.ArgumentParser) -> None:
                         choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("--miss-rate", type=float, default=0.25,
                         help="click miss probability for --policy noisy (default: 0.25)")
-    parser.add_argument("--seed", type=int, default=0, help="seed for --policy noisy")
     parser.add_argument("--max-steps", type=int, default=20, help="step budget per episode")
     parser.add_argument("--concurrency", type=int, default=4,
                         help="parallel episodes; keep low for real models")
