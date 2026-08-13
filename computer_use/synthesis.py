@@ -379,11 +379,17 @@ def describe(env: MockComputer, delta: Mapping[str, Any]) -> str:
 
 
 def _difficulty(discovery: Discovery, path_kinds: set[str]) -> str:
-    if discovery.depth <= 2:
-        return "easy"
-    if discovery.depth <= 4 and "navigate" not in path_kinds:
-        return "medium"
-    return "hard"
+    """Depth band, escalated one tier when the task crosses screens.
+
+    Applied uniformly rather than only in the middle band: an earlier version
+    escalated at depth 3–4 but not at depth 2, which ranked a 3-step
+    navigation task "hard" while a 4-step one came out "medium". Difficulty
+    has to be monotone in depth or it is not a useful axis to report against.
+    """
+    tier = 0 if discovery.depth <= 2 else (1 if discovery.depth <= 4 else 2)
+    if "navigate" in path_kinds:
+        tier = min(2, tier + 1)
+    return ("easy", "medium", "hard")[tier]
 
 
 def synthesize(

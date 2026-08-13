@@ -6,6 +6,7 @@ it reports failures that belong to the harness and blames the agent. That test
 (and the CI step that mirrors it) is what makes a score trustworthy.
 """
 
+import argparse
 import asyncio
 import json
 import os
@@ -399,6 +400,26 @@ class TestCLI(unittest.TestCase):
         with self.assertRaises(SystemExit) as ctx:
             gui_main(["bench", "--task", "not.a.task"])
         self.assertEqual(ctx.exception.code, 2)
+
+    def test_worlds_benchmarks_generated_applications(self):
+        code = gui_main([
+            "bench", "--worlds", "2", "--per-environment", "1",
+            "--policy", "gold", "--attempts", "1", "--json",
+        ])
+        self.assertEqual(code, 0)
+
+    def test_held_out_worlds_are_disjoint_from_training_worlds(self):
+        """The flag has to actually change which apps you run on."""
+        from computer_use.cli import _select
+
+        def seeds(held_out: bool) -> set[int]:
+            args = argparse.Namespace(
+                worlds=3, held_out=held_out, per_environment=1, max_depth=4,
+                seed=0, difficulty=None, tags=None, task=None, synthetic=False,
+            )
+            return {t.metadata["world_seed"] for t in _select(args)}
+
+        self.assertFalse(seeds(held_out=False) & seeds(held_out=True))
 
     def test_collect_writes_a_dataset(self):
         with tempfile.TemporaryDirectory() as tmp:

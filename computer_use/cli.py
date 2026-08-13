@@ -6,6 +6,12 @@ Three subcommands, matching the three things you actually do with a GUI agent:
     agentic-gui bench --policy noisy        # how good is an agent
     agentic-gui collect --out data.jsonl    # turn episodes into training data
 
+Each accepts `--synthetic` (tasks searched out of the environments) or
+`--worlds N` (apps generated first, then searched). With `--worlds N
+--held-out` the apps come from a seed range no training run uses, which is the
+only configuration where a score is evidence about operating a GUI rather than
+about this particular GUI.
+
 Argparse and dispatch only. The logic lives in `benchmark`, `tasks`, and
 `dataset` — same split as `pipeline/cli.py`.
 """
@@ -36,23 +42,52 @@ from computer_use.rollout import RolloutConfig, run_group
 from computer_use.tasks import DIFFICULTIES, SUITE, GUITask, suite
 from computer_use.types import Trajectory
 
+#: Where `--held-out` starts counting worlds. Any offset larger than the
+#: number of worlds anyone trains on would do; this one is round and obvious in
+#: a task name, so `world1000_*` reads as "an app the data never saw".
+HELD_OUT_OFFSET = 1000
+
+
+def _filter(args: argparse.Namespace, tasks: tuple[GUITask, ...]) -> tuple[GUITask, ...]:
+    """Apply the shared selectors to a generated set.
+
+    `--task` is not applied here: generated names come out of a search, so
+    naming one is only meaningful for the curated suite.
+    """
+    if args.difficulty:
+        tasks = tuple(t for t in tasks if t.difficulty == args.difficulty)
+    if args.tags:
+        wanted = set(args.tags)
+        tasks = tuple(t for t in tasks if wanted & set(t.tags))
+    return tasks
+
 
 def _select(args: argparse.Namespace) -> tuple[GUITask, ...]:
-    """The tasks to run: the curated suite, or a freshly synthesized one."""
+    """The tasks to run.
+
+    Three sources, in increasing order of how little of it a human wrote:
+    the curated suite, tasks searched out of the hand-written environments
+    (`--synthetic`), and tasks searched out of generated apps (`--worlds`).
+    """
+    if getattr(args, "worlds", 0):
+        from computer_use.worlds import curriculum
+
+        start = HELD_OUT_OFFSET if args.held_out else 0
+        return _filter(args, tuple(curriculum(
+            range(start, start + args.worlds),
+            per_world=args.per_environment,
+            max_depth=args.max_depth,
+            sample_seed=args.seed,
+        )))
+
     if getattr(args, "synthetic", False):
         from computer_use.synthesis import synthesize_suite
 
-        tasks = tuple(synthesize_suite(
+        return _filter(args, tuple(synthesize_suite(
             per_environment=args.per_environment,
             max_depth=args.max_depth,
             seed=args.seed,
-        ))
-        if args.difficulty:
-            tasks = tuple(t for t in tasks if t.difficulty == args.difficulty)
-        if args.tags:
-            wanted = set(args.tags)
-            tasks = tuple(t for t in tasks if wanted & set(t.tags))
-        return tasks
+        )))
 
     try:
         return suite(
@@ -136,7 +171,12 @@ def _cmd_tasks(args: argparse.Namespace) -> int:
         ], indent=2))
         return 0
 
-    if getattr(args, "synthetic", False):
+    if getattr(args, "worlds", 0):
+        seeds = sorted({t.metadata["world_seed"] for t in tasks})
+        origin = "held-out" if args.held_out else "training"
+        print(f"{len(tasks)} task(s) synthesized in {len(seeds)} generated "
+              f"{origin} app(s): seeds {seeds[0]}–{seeds[-1]}\n")
+    elif getattr(args, "synthetic", False):
         print(f"{len(tasks)} task(s) synthesized by searching the environments\n")
     else:
         print(f"{len(tasks)} task(s) of {len(SUITE)} in the curated suite\n")
@@ -209,10 +249,16 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--synthetic", action="store_true",
                         help="synthesize tasks by searching the environments "
                              "instead of using the curated suite")
+    parser.add_argument("--worlds", type=int, default=0, metavar="N",
+                        help="generate N applications and synthesize tasks in "
+                             "them; implies --synthetic over generated GUIs")
+    parser.add_argument("--held-out", action="store_true",
+                        help="draw --worlds from a disjoint seed range, so the "
+                             "apps are ones no training run has seen")
     parser.add_argument("--per-environment", type=int, default=6,
                         help="synthesized tasks per environment (default: 6)")
     parser.add_argument("--max-depth", type=int, default=5,
-                        help="search depth for --synthetic (default: 5)")
+                        help="search depth for --synthetic / --worlds (default: 5)")
     parser.add_argument("--seed", type=int, default=0,
                         help="seed for --synthetic sampling and --policy noisy")
     parser.add_argument("--json", action="store_true", help="machine-readable output")

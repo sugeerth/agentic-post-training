@@ -301,6 +301,32 @@ class TestRewards(unittest.TestCase):
         self.assertGreater(self.sloppy.metadata["stats"]["redundancy_rate"], 0)
         self.assertEqual(self.good.metadata["stats"]["redundancy_rate"], 0)
 
+    def test_same_pixel_on_a_different_control_is_not_redundant(self):
+        """A wizard puts CONTINUE and SUBMIT in the same rectangle.
+
+        Pressing that rectangle twice is then the shortest path, and it was
+        being scored as the click-the-dead-pixel failure — docking correct
+        trajectories, which is a reward bug that never fails loudly.
+        """
+        from computer_use.rewards import _redundancy_rate
+
+        click = Action(ActionKind.LEFT_CLICK, coordinate=(390, 270))
+        wizard = [
+            Step(index=0, action=click, metadata={"hit": True, "target": "next"}),
+            Step(index=1, action=click, metadata={"hit": True, "target": "submit"}),
+        ]
+        stuck = [
+            Step(index=0, action=click, metadata={"hit": True, "target": "next"}),
+            Step(index=1, action=click, metadata={"hit": True, "target": "next"}),
+        ]
+        blind = [  # environment cannot hit-test: coordinates are all we have
+            Step(index=0, action=click, metadata={}),
+            Step(index=1, action=click, metadata={}),
+        ]
+        self.assertEqual(_redundancy_rate(wizard), 0.0)
+        self.assertEqual(_redundancy_rate(stuck), 1.0)
+        self.assertEqual(_redundancy_rate(blind), 1.0)
+
     def test_partial_credit_reflects_criteria_met(self):
         verdict = Verdict(False, "", {"a": True, "b": False, "c": False})
         self.assertAlmostEqual(verdict.partial_credit, 1 / 3)

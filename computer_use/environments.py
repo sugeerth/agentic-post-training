@@ -521,6 +521,19 @@ class MockComputer:
 # --------------------------------------------------------------------------- #
 
 
+def _point(action: Action, field: str = "coordinate") -> tuple[int, int]:
+    """The action's coordinate, narrowed to non-None.
+
+    `validate` already rejects a pointing action without one, so reaching the
+    raise means validation was bypassed — worth an explicit failure rather than
+    a `TypeError` from unpacking None several frames deeper.
+    """
+    coordinate: tuple[int, int] | None = getattr(action, field)
+    if coordinate is None:
+        raise ActionError(f"{action.kind.value} requires a {field}")
+    return coordinate
+
+
 @dataclass
 class PlaywrightComputer:
     """A real browser, driven through Playwright.
@@ -596,33 +609,33 @@ class PlaywrightComputer:
         if kind is ActionKind.SCREENSHOT:
             pass
         elif kind is ActionKind.MOUSE_MOVE:
-            await page.mouse.move(*action.coordinate)  # type: ignore[misc]
+            await page.mouse.move(*_point(action))
         elif kind in (ActionKind.LEFT_CLICK, ActionKind.RIGHT_CLICK, ActionKind.MIDDLE_CLICK):
             button = {"left_click": "left", "right_click": "right", "middle_click": "middle"}[kind.value]
-            await page.mouse.click(*action.coordinate, button=button)  # type: ignore[misc]
+            await page.mouse.click(*_point(action), button=button)
         elif kind is ActionKind.DOUBLE_CLICK:
-            await page.mouse.dblclick(*action.coordinate)  # type: ignore[misc]
+            await page.mouse.dblclick(*_point(action))
         elif kind is ActionKind.TRIPLE_CLICK:
-            await page.mouse.click(*action.coordinate, click_count=3)  # type: ignore[misc]
+            await page.mouse.click(*_point(action), click_count=3)
         elif kind is ActionKind.LEFT_MOUSE_DOWN:
-            await page.mouse.move(*action.coordinate)  # type: ignore[misc]
+            await page.mouse.move(*_point(action))
             await page.mouse.down()
         elif kind is ActionKind.LEFT_MOUSE_UP:
-            await page.mouse.move(*action.coordinate)  # type: ignore[misc]
+            await page.mouse.move(*_point(action))
             await page.mouse.up()
         elif kind is ActionKind.LEFT_CLICK_DRAG:
-            await page.mouse.move(*action.start_coordinate)  # type: ignore[misc]
+            await page.mouse.move(*_point(action, "start_coordinate"))
             await page.mouse.down()
-            await page.mouse.move(*action.coordinate)  # type: ignore[misc]
+            await page.mouse.move(*_point(action))
             await page.mouse.up()
         elif kind is ActionKind.SCROLL:
-            await page.mouse.move(*action.coordinate)  # type: ignore[misc]
+            await page.mouse.move(*_point(action))
             step = 100 * int(action.scroll_amount or 1)
             deltas = {
                 "down": (0, step), "up": (0, -step),
                 "right": (step, 0), "left": (-step, 0),
             }
-            await page.mouse.wheel(*deltas[action.scroll_direction])  # type: ignore[index]
+            await page.mouse.wheel(*deltas[action.scroll_direction or "down"])
         elif kind is ActionKind.TYPE:
             await page.keyboard.type(action.text or "")
         elif kind in (ActionKind.KEY, ActionKind.HOLD_KEY):

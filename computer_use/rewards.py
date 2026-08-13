@@ -259,12 +259,23 @@ def _redundancy_rate(steps: Sequence[Step]) -> float:
     Repeating an action verbatim is the signature failure of a GUI agent that
     isn't reading its screenshots — it clicks the same dead pixel five times.
     Taking a screenshot twice in a row counts too.
+
+    Identical coordinates are not enough to call it, though. A wizard's
+    CONTINUE and the SUBMIT on the screen after it routinely occupy the same
+    rectangle, so pressing the same pixel twice can be the *shortest* path
+    rather than a stuck agent. Where the environment can name the control that
+    was hit, that name decides; where it cannot, the coordinates are all there
+    is.
     """
     if len(steps) < 2:
         return 0.0
-    repeats = sum(
-        1
-        for prev, cur in pairwise(steps)
-        if prev.action.to_tool_input() == cur.action.to_tool_input()
-    )
+    repeats = 0
+    for prev, cur in pairwise(steps):
+        if prev.action.to_tool_input() != cur.action.to_tool_input():
+            continue
+        targets = [s.metadata.get("target") for s in (prev, cur)
+                   if "target" in s.metadata]
+        if len(targets) == 2 and targets[0] != targets[1]:
+            continue
+        repeats += 1
     return repeats / (len(steps) - 1)

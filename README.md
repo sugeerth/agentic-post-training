@@ -185,12 +185,16 @@ agentic-gui collect --out data.jsonl       # episodes → training data
   ──────────────────────────────────────────────────────────────────────────
   settings.notify      easy    4/8        0.562    3.0    0.75  █████░░░░░ @1:0.50 @8:1.00
   settings.email       medium  6/8        0.781    5.0    0.87  ███████░░░ @1:0.75 @8:1.00
-  checkout.express     hard    5/8        0.655    4.0    0.78  ██████░░░░ @1:0.62 @8:1.00
-  files.rename         hard    3/8        0.473    5.0    0.78  ███░░░░░░░ @1:0.37 @8:1.00
+  settings.retries     medium  6/8        0.785    4.0    0.88  ███████░░░ @1:0.75 @8:1.00
+  checkout.express     hard    6/8        0.759    4.0    0.81  ███████░░░ @1:0.75 @8:1.00
+  checkout.promo       hard    6/8        0.768    5.0    0.81  ███████░░░ @1:0.75 @8:1.00
+  files.select         easy    5/8        0.625    1.0    0.62  ██████░░░░ @1:0.62 @8:1.00
+  files.delete         medium  4/8        0.569    3.0    0.79  █████░░░░░ @1:0.50 @8:1.00
+  files.rename         hard    4/8        0.576    5.0    0.81  █████░░░░░ @1:0.50 @8:1.00
   ──────────────────────────────────────────────────────────────────────────
-  Overall 38/64 (59.4%)  95% CI [47.1%, 70.5%]  mean reward +0.640
-  pass@k  @1: 0.594   @2: 0.853   @4: 0.988   @8: 1.000
-  By difficulty  easy: 56%   medium: 67%   hard: 54%
+  Overall 41/64 (64.1%)  95% CI [51.8%, 74.7%]  mean reward +0.678
+  pass@k  @1: 0.641   @2: 0.888   @4: 0.995   @8: 1.000
+  By difficulty  easy: 56%   medium: 67%   hard: 67%
 ```
 
 Three deliberate choices:
@@ -230,10 +234,11 @@ print(result.value, result.ci_low, result.ci_high)
 | `score_trajectory` | Shaped reward: success, efficiency, grounding, redundancy, invalid actions. |
 | `tasks.SUITE` | Eight verified benchmark tasks, each with a reference solution. |
 | `synthesis.*` | Derives tasks by searching the environment — provably-optimal gold, measured difficulty, unlimited supply. |
+| `worlds.*` | Generates the *applications* — seeded screens, fields, and layouts — so whole apps can be held out instead of only tasks. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
-| `agentic-gui` | CLI: `tasks`, `bench`, `collect`. |
+| `agentic-gui` | CLI: `tasks`, `bench`, `collect` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
 
 ### Reward design
 
@@ -293,10 +298,10 @@ What this buys is structural rather than a matter of discipline:
   A test proves it by re-searching with one step less budget and confirming the
   goal is unreachable. A hand-written benchmark cannot make this claim.
 - **Difficulty is measured, not labeled** — search depth is ground truth. It
-  shows up in the results: easy 80%, medium 75%, hard 57% for the same agent.
+  shows up in the results: easy 88%, medium 75%, hard 61% for the same agent.
 - **Tasks become unlimited and hold-out-able.** A benchmark that is a generator
-  over a seed lets you hold out whole *environments*, which is what you need to
-  detect memorization rather than skill.
+  over a seed lets you hold out whole *environments* — see the next section,
+  which generates the environments too.
 
 The search is given no hints. It discovers on its own that SAVE sits below the
 fold and must be scrolled to first — the dependency is found, not encoded.
@@ -304,6 +309,68 @@ fold and must be scrolled to first — the dependency is found, not encoded.
 Synthesis and the curated suite cross-validate each other: a test asserts every
 hand-written goal is rediscovered by search within its declared step budget. If
 a hand-guessed `optimal_steps` were wrong, that test would say so.
+
+### Generated worlds: hold out the application, not the task
+
+Synthesis removes the human from writing tasks, but it still searches
+environments a human wrote — so "held out" could only ever mean a fresh task on
+a familiar screen. An agent that has memorized where SAVE lives scores the same
+as one that can find it. `computer_use.worlds` closes that: it generates the
+application first, and synthesis then searches *that*.
+
+```bash
+agentic-gui tasks --worlds 8                     # apps that did not exist a second ago
+agentic-gui bench --worlds 8 --held-out          # or: make bench-gui-worlds
+```
+
+```
+6 task(s) synthesized in 3 generated training app(s): seeds 0–2
+
+  world000.00          medium   2 steps  [click, navigate, synthetic]
+    Choose CSV.
+  world000.01          hard     3 steps  [click, navigate, synthetic]
+    Choose CSV and turn on SHARE USAGE DATA.
+  world001.00          easy     2 steps  [click, scroll, synthetic]
+    Press APPLY.
+  world001.01          medium   3 steps  [click, typing, synthetic]
+    Set CITY to "BERLIN" and turn on EMAIL ME ON FAILURE.
+  world002.00          easy     2 steps  [click, typing, synthetic]
+    Set PHONE to "5550142".
+  world002.01          medium   3 steps  [click, typing, synthetic]
+    Set PHONE to "5550142" and choose UNLISTED.
+```
+
+A seed fixes the whole application: how many screens, what fields with which
+value vocabularies, which toggles and radio groups, whether the primary action
+sits below the fold, and what everything is called. Layout flows downward from a
+cursor, so widgets cannot overlap by construction — hit-testing stays
+unambiguous, which is what every derived gold path depends on.
+
+```python
+from computer_use.worlds import split
+
+train, test = split(train=range(40), test=range(1000, 1010), per_world=4)
+# 152 training tasks, 39 test tasks, no shared application
+```
+
+`split` refuses overlapping seed ranges rather than quietly leaking the layout,
+the labels, and the button position it exists to hold out. Every task carries
+its world's seed in `metadata`, so any result traces back to the app it came
+from and a split can be audited after the fact.
+
+The chain has no human link left in it: **the app was generated, the task was
+searched out of the app, the solution is the search path, and the check is the
+goal state**. A test runs 60 tasks across 30 generated worlds end to end and
+asserts every one is solved by its own generated gold at a perfect 1.000 — if
+any link were wrong, that is where it shows.
+
+It found a reward bug the hand-written suite could not. Generated wizards put
+CONTINUE and the final SUBMIT in the same rectangle on consecutive screens, so
+the shortest path presses the same pixel twice — and the redundancy penalty,
+which compared coordinates, scored that as the click-the-dead-pixel failure
+mode. Correct trajectories were being docked, silently, in any app with a
+fixed-position Next button. Redundancy now believes the environment's hit-test
+over the coordinates.
 
 ### Step pairs: attribution by effect, not by text
 

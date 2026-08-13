@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
 from collections.abc import Callable
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -84,7 +84,9 @@ class Registry(Generic[T]):
         try:
             eps = importlib_metadata.entry_points(group=group)
         except TypeError:  # pragma: no cover  (older importlib_metadata)
-            eps = importlib_metadata.entry_points().get(group, [])  # type: ignore[attr-defined]
+            # Pre-3.10 shape: a mapping of group name to entry points.
+            legacy: Any = importlib_metadata.entry_points()
+            eps = legacy.get(group, [])
         for ep in eps:
             if ep.name in self._items:
                 continue
@@ -98,10 +100,12 @@ class Registry(Generic[T]):
 
 # Singletons. Importing `core` does NOT trigger entry-point discovery —
 # discovery is lazy on first `get`/`list` call.
-TECHNIQUES: Registry = Registry("technique")
-DATASETS: Registry = Registry("dataset")
-EVALUATORS: Registry = Registry("evaluator")
-BACKENDS: Registry = Registry("backend")
+# `Any` rather than the component protocols: the registry is imported by the
+# modules that define them, so parameterising it here would be a cycle.
+TECHNIQUES: Registry[Any] = Registry("technique")
+DATASETS: Registry[Any] = Registry("dataset")
+EVALUATORS: Registry[Any] = Registry("evaluator")
+BACKENDS: Registry[Any] = Registry("backend")
 
 
 # Convenience module-level functions. These are the public API; the
@@ -140,10 +144,10 @@ def register_backend(name: str, *, replace: bool = False) -> Callable[[T], T]:
     return _decorator
 
 
-def get_technique(name: str): return TECHNIQUES.get(name)
-def get_dataset(name: str): return DATASETS.get(name)
-def get_evaluator(name: str): return EVALUATORS.get(name)
-def get_backend(name: str): return BACKENDS.get(name)
+def get_technique(name: str) -> Any: return TECHNIQUES.get(name)
+def get_dataset(name: str) -> Any: return DATASETS.get(name)
+def get_evaluator(name: str) -> Any: return EVALUATORS.get(name)
+def get_backend(name: str) -> Any: return BACKENDS.get(name)
 
 def list_techniques() -> list[str]: return TECHNIQUES.list()
 def list_datasets() -> list[str]: return DATASETS.list()

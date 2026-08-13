@@ -81,8 +81,46 @@ ignore = [
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["core", "techniques/_base"]
+files = ["core", "techniques/_base", "computer_use"]
+# The repo root ships an `__init__.py`, so mypy would otherwise try to read the
+# checkout directory itself as a package and choke on the dash in its name.
+mypy_path = "."
+explicit_package_bases = true
 # The rest of the codebase migrates to strict typing incrementally in Phase 3.
+
+# Modules outside the strict set are pulled in as imports, not as targets:
+# report their errors when they are migrated, not when something else imports
+# them.
+[[tool.mypy.overrides]]
+module = ["agents.*", "optimization.*", "pipeline.*", "backends.*", "techniques.*"]
+follow_imports = "silent"
+
+# ...except the shared primitives, which are a checked target in their own right.
+[[tool.mypy.overrides]]
+module = ["techniques._base.*"]
+follow_imports = "normal"
+
+# Optional extras. Neither ships with the base install, so the type checker
+# must not require them to be present.
+[[tool.mypy.overrides]]
+module = [
+    "anthropic", "anthropic.*",
+    "playwright", "playwright.*",
+    "torch", "torch.*",
+    "pydantic", "pydantic.*",
+    "yaml",
+]
+ignore_missing_imports = true
+
+# `core.config` builds on pydantic's BaseModel. When the type-check
+# environment has pydantic installed these two checks pass on their own; when
+# it does not, BaseModel degrades to `Any` and strict mode flags correct code
+# for subclassing it and for returning its values. Relaxing them here keeps a
+# dependency-free `make mypy` meaningful instead of noisy.
+[[tool.mypy.overrides]]
+module = ["core.config"]
+disallow_subclassing_any = false
+warn_return_any = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

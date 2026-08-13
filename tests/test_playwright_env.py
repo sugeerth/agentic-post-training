@@ -53,14 +53,53 @@ STATE_SCRIPT = """() => ({
 })"""
 
 
+def _discover_chromium() -> str | None:
+    """Resolve a Chromium that actually exists on disk, or None.
+
+    Playwright resolves its browser by *build number*, so a pip upgrade of the
+    package silently invalidates a perfectly good Chromium already in the
+    image: it looks for `chromium_headless_shell-1234` and ignores the
+    `chromium-1194` sitting next to it. That surfaced here as six red tests on
+    a machine that could run every one of them. So: honour an explicit
+    override, otherwise search the browser root ourselves and hand Playwright
+    the path.
+    """
+    explicit = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+    if explicit:
+        return explicit if Path(explicit).exists() else None
+    roots = [os.environ.get("PLAYWRIGHT_BROWSERS_PATH"), "~/.cache/ms-playwright"]
+    relative = (
+        "chrome-linux/chrome",
+        "chrome-headless-shell-linux64/chrome-headless-shell",
+        "chrome-mac/Chromium.app/Contents/MacOS/Chromium",
+    )
+    for root in roots:
+        if not root:
+            continue
+        base = Path(root).expanduser()
+        # Newest build first — `chromium-9` must not beat `chromium-1194`.
+        installs = sorted(
+            (p for p in base.glob("chromium*-*") if p.is_dir()),
+            key=lambda p: int(p.name.rpartition("-")[2] or 0),
+            reverse=True,
+        )
+        for install in installs:
+            for suffix in relative:
+                candidate = install / suffix
+                if candidate.exists():
+                    return str(candidate)
+    return None
+
+
 def _browser_available() -> bool:
     try:
         import playwright  # noqa: F401
     except ImportError:
         return False
-    executable = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
-    return executable is None or Path(executable).exists()
+    return CHROMIUM is not None
 
+
+CHROMIUM = _discover_chromium()
 
 requires_browser = unittest.skipUnless(
     _browser_available(), "Playwright and a Chromium build are required"
@@ -112,7 +151,11 @@ class TestBrowserEnvironment(unittest.TestCase):
         cls._tmp.cleanup()
 
     def _env(self):
-        return PlaywrightComputer(start_url=self.url, state_script=STATE_SCRIPT)
+        return PlaywrightComputer(
+            start_url=self.url,
+            state_script=STATE_SCRIPT,
+            executable_path=CHROMIUM,
+        )
 
     def test_screenshot_is_a_real_png_at_viewport_size(self):
         async def run():
@@ -230,7 +273,7 @@ class TestBrowserEnvironment(unittest.TestCase):
         real page and scoring against real DOM state.
         """
         async def run():
-            env = PlaywrightComputer(start_url=self.url, state_script=STATE_SCRIPT)
+            env = self._env()
             try:
                 await env.reset()
                 coords = await env._page.evaluate(
