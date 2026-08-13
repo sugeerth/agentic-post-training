@@ -237,10 +237,11 @@ print(result.value, result.ci_low, result.ci_high)
 | `worlds.*` | Generates the *applications* — seeded screens, fields, and layouts — so whole apps can be held out instead of only tasks. |
 | `perception.*` | Reads a frame back out of its pixels: PNG decode, font-matched text, control detection. 271/271 controls recovered across 43 apps. |
 | `learn.*` | Trains a grounding policy on the pipeline's own rollouts and scores it on generated apps it has never seen. Pixels only, pure Python. |
+| `evolve.*` | Self-improvement: practise on undemonstrated apps, keep what the verifier passes, and report what the loop can see beside what is true. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
-| `agentic-gui` | CLI: `tasks`, `bench`, `collect`, `learn` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
+| `agentic-gui` | CLI: `tasks`, `bench`, `collect`, `learn`, `evolve` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
 
 ### Reward design
 
@@ -440,6 +441,82 @@ way, so it is not recognizing labels it memorized, it is reading the screen.
 The learner is a softmax over candidates trained by SGD in pure Python — no
 numpy, no torch. That is the point rather than a limitation: a model small
 enough to read end to end makes it obvious the signal is coming from the data.
+
+### Practice instead of demonstrations
+
+Demonstrations are the expensive part of post-training. They are free here
+because search produces them, but the question that matters elsewhere is
+whether an agent can improve by *practising* — attempting tasks nobody
+demonstrated and keeping only what a verifier passes.
+
+```bash
+agentic-gui evolve --seed-worlds 3 --practice-worlds 12    # or: make evolve-gui
+```
+
+Two stages, following the shape current GUI-agent work has converged on
+([UI-Voyager](https://arxiv.org/abs/2603.24533)):
+
+- **Rejection fine-tuning.** Roll the current policy out several times per
+  task, keep the attempts the verifier passes, retrain. No labels, no human.
+- **Fork-point supervision.** Rejection sampling throws away every failure,
+  which early on is most of the data. When one group holds both a success and
+  a failure, the two runs agree up to some step and then diverge — and there
+  the successful run is a *correction* for the failed one. They were looking at
+  the same screen until that point, so the failed run's frame paired with the
+  successful run's choice is a labelled decision at the exact moment the
+  failure was decided. Divergence is judged by effect, not coordinates.
+
+Starting from **one demonstrated task**:
+
+```
+  round    practice    kept  forks   pool   held out
+  ──────────────────────────────────────────────────
+  0               —       2      0      2     6/12    50%
+  1             58%      36      6     44   12/12   100%
+  2            100%      56      0    100   12/12   100%
+  ──────────────────────────────────────────────────
+  held out: 50% → 100% (+50%) with no new demonstrations
+```
+
+One demonstration plus practice reaches what thirty demonstrated applications
+gave. From one application's worth of gold (three tasks), 56% → 97%. Across
+three training seeds the one-demonstration result is 50% → 100% every time.
+
+**Fork-point supervision earns nothing here, and the ablation says so.**
+Turning it off (`--no-forks`) changes the outcome at no seed: it contributed
+six labelled decisions in one run and zero in the others. The reason is
+structural rather than a bug — a fork needs one group to contain both a success
+and a failure, and practice pass rates here reach 100% within a round, so
+almost no mixed groups exist to mine. It is implemented, tested, and reported
+as inert in this setting; it is aimed at the long-horizon case where pass rates
+stay low and most of the data is failures.
+
+**The guard is the point, though.** Recent work finds that self-improvement
+loops built on self-authored verification degrade quietly, and that
+verifier-in-the-loop training stalls with the visible score climbing while
+accuracy does not move. Two things here are aimed squarely at that:
+
+The verifier is an exact state check the policy cannot see, so nothing the
+agent does can move the bar it is judged against.
+
+Every round reports the practice pass rate — what the loop can see — beside
+held-out accuracy, which is the truth. The first full run of this module is
+what that guard is for:
+
+```
+  round    practice    kept  forks   pool   held out
+  0               —      19      0     19    35/36    97%
+  1             89%     253      6    278    35/36    97%
+  3             94%     277      1    836    35/36    97%
+  ⚠ practice is getting easier while held-out accuracy is not moving —
+    the loop is feeding on what it already solves
+```
+
+Practice climbed, the pool grew from 19 decisions to 836, and held-out accuracy
+did not move at all. That case is a ceiling rather than a stall — three
+demonstrated applications already saturate this task distribution — but a loop
+reporting only what it can see would have shown a rising curve and called it
+progress.
 
 ### Step pairs: attribution by effect, not by text
 
