@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth bench-gui-worlds clean
+.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth bench-gui-worlds learn-gui clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -47,6 +47,12 @@ bench-gui-synth:
 # solution, and nobody has seen the screen before.
 bench-gui-worlds:
 	$(PYTHON) -m computer_use.cli bench --worlds 8 --held-out --policy noisy --attempts 8
+
+# The loop closed: generate applications, search tasks out of them, roll out the
+# solutions, train a policy on the result, and score it on applications from a
+# disjoint seed range. The policy reads pixels — no environment state anywhere.
+learn-gui:
+	$(PYTHON) -m computer_use.cli learn --train-worlds 30 --test-worlds 12
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache

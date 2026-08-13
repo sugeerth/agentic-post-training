@@ -235,10 +235,12 @@ print(result.value, result.ci_low, result.ci_high)
 | `tasks.SUITE` | Eight verified benchmark tasks, each with a reference solution. |
 | `synthesis.*` | Derives tasks by searching the environment — provably-optimal gold, measured difficulty, unlimited supply. |
 | `worlds.*` | Generates the *applications* — seeded screens, fields, and layouts — so whole apps can be held out instead of only tasks. |
+| `perception.*` | Reads a frame back out of its pixels: PNG decode, font-matched text, control detection. 271/271 controls recovered across 43 apps. |
+| `learn.*` | Trains a grounding policy on the pipeline's own rollouts and scores it on generated apps it has never seen. Pixels only, pure Python. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
-| `agentic-gui` | CLI: `tasks`, `bench`, `collect` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
+| `agentic-gui` | CLI: `tasks`, `bench`, `collect`, `learn` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
 
 ### Reward design
 
@@ -371,6 +373,73 @@ which compared coordinates, scored that as the click-the-dead-pixel failure
 mode. Correct trajectories were being docked, silently, in any app with a
 fixed-position Next button. Redundancy now believes the environment's hit-test
 over the coordinates.
+
+### Closing the loop: a policy trained on this data, scored on apps it has never seen
+
+Everything above generates. Nothing consumed any of it, which made the central
+claim — verified GUI episodes are useful post-training data — an argument
+rather than a result. A bug that quietly destroyed the data's value would have
+shown up as nothing at all.
+
+```bash
+agentic-gui learn --train-worlds 30 --test-worlds 12    # or: make learn-gui
+```
+
+```
+  trained on 89 tasks from 30 generated apps
+  189 grounding decisions, train accuracy 98.4%
+
+  held out (apps never seen)       36 tasks
+    trained policy                 35/36  97%
+    same features, random weights  16, 0, 11 of 36  25%
+```
+
+The chain has no human in it anywhere: the applications were generated, the
+tasks were searched out of them, the training data is rollouts of the searched
+solutions, and the score is on applications from a disjoint seed range. A
+second held-out set scores 89%, and the result is stable across training seeds.
+
+**The policy reads pixels.** `computer_use.perception` decodes the PNG,
+recovers the text by matching the renderer's 3×5 font, and finds controls by
+pairing their borders — then hands over labelled boxes with a point to click.
+The policy is given a `Screenshot` and nothing else; it never calls
+`env.state()`, which is what a benchmark score has to mean. Across 43
+applications at two scroll positions, **271 of 271 controls are located,
+correctly typed, and correctly labelled**, so the parse is not the bottleneck.
+
+That doubles as a mechanical legibility test. The claim that these frames are
+readable by a vision model used to be an assertion; now a label that cannot be
+recovered from the pixels fails a test.
+
+**What is learned, and what is not** — because a demo that hardcodes the answer
+and calls it learning is worse than no demo:
+
+- *Not learned.* Turning the instruction into an ordered list of goals. That is
+  template parsing, and pretending to learn it would prove nothing.
+- *Learned.* Which thing on screen a goal refers to. No feature says "click the
+  element whose label matches" — token overlap is equally high for the caption
+  naming a field and for the field itself, so the weights have to find the rule
+  in the data.
+
+They do, and the weights are legible:
+
+| weight | learned |
+|---|---|
+| `kind:text` −2.6 | the words above an input are not the input |
+| `goal:set\|above` +3.9 | a form names its field with the caption above it |
+| `goal:navigate\|x` +1.3 | to leave a screen, take the button on the right |
+| `goal:navigate\|filled` −1.2 | avoid the primary action — that's the commit, not the exit |
+| `goal:navigate\|exact` −3.1 | never press the button the task *names* while still looking for it |
+
+The controls matter more than the score. The same feature set with random
+weights scores 25%, and it swings from 0% to 44% between seeds — so "the policy
+solves held-out apps" is a statement about the data, not about the features.
+Deleting the learned vocabulary (`word:*`) changes nothing at all: 97% either
+way, so it is not recognizing labels it memorized, it is reading the screen.
+
+The learner is a softmax over candidates trained by SGD in pure Python — no
+numpy, no torch. That is the point rather than a limitation: a model small
+enough to read end to end makes it obvious the signal is coming from the data.
 
 ### Step pairs: attribution by effect, not by text
 

@@ -239,6 +239,39 @@ def _cmd_collect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_learn(args: argparse.Namespace) -> int:
+    """Generate apps, search tasks, collect rollouts, train, score on new apps."""
+    from computer_use.learn import closed_loop, top_weights
+
+    result = closed_loop(
+        train_worlds=range(args.train_worlds),
+        test_worlds=range(HELD_OUT_OFFSET, HELD_OUT_OFFSET + args.test_worlds),
+        per_world=args.per_environment,
+        max_steps=args.max_steps,
+        epochs=args.epochs,
+        seed=args.seed,
+    )
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 0
+
+    print(
+        f"\n  trained on {result.train_tasks} tasks from {args.train_worlds} generated apps"
+        f"\n  {result.decisions} grounding decisions, "
+        f"train accuracy {result.train_accuracy:.1%}\n"
+    )
+    print(f"  {'held out (apps never seen)':<32} {result.test_tasks} tasks")
+    print(f"  {'  trained policy':<32} {result.trained}/{result.test_tasks}"
+          f"  {result.trained_rate:.0%}")
+    controls = ", ".join(str(u) for u in result.untrained)
+    print(f"  {'  same features, random weights':<32} "
+          f"{controls} of {result.test_tasks}  {result.untrained_rate:.0%}")
+    print("\n  what it decided mattered:")
+    for name, weight in top_weights(result.model, 8):
+        print(f"    {name:<34} {weight:+.2f}")
+    return 0
+
+
 def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--difficulty", choices=list(DIFFICULTIES),
                         help="only tasks at this difficulty")
@@ -304,6 +337,19 @@ def main(argv: list[str] | None = None) -> int:
     p_collect.add_argument("--include-frames", action="store_true",
                            help="embed screenshots in the JSONL (large)")
     p_collect.set_defaults(func=_cmd_collect)
+
+    p_learn = sub.add_parser(
+        "learn", help="Train a pixel-only policy on generated data and score it "
+                      "on generated apps it has never seen",
+    )
+    p_learn.add_argument("--train-worlds", type=int, default=30)
+    p_learn.add_argument("--test-worlds", type=int, default=12)
+    p_learn.add_argument("--per-environment", type=int, default=3)
+    p_learn.add_argument("--epochs", type=int, default=30)
+    p_learn.add_argument("--max-steps", type=int, default=24)
+    p_learn.add_argument("--seed", type=int, default=0)
+    p_learn.add_argument("--json", action="store_true")
+    p_learn.set_defaults(func=_cmd_learn)
 
     args = parser.parse_args(argv)
     return int(args.func(args))
