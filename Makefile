@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth bench-gui-worlds learn-gui clean
+.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth bench-gui-worlds learn-gui evolve-gui clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -53,6 +53,12 @@ bench-gui-worlds:
 # disjoint seed range. The policy reads pixels — no environment state anywhere.
 learn-gui:
 	$(PYTHON) -m computer_use.cli learn --train-worlds 30 --test-worlds 12
+
+# Practice instead of demonstrations: a handful of demonstrated apps, then
+# rounds of attempts on apps that have none, keeping only what a ground-truth
+# verifier passes. Reports what the loop can see next to what is actually true.
+evolve-gui:
+	$(PYTHON) -m computer_use.cli evolve --seed-worlds 3 --practice-worlds 12 --rounds 3
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache

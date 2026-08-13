@@ -272,6 +272,31 @@ def _cmd_learn(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_evolve(args: argparse.Namespace) -> int:
+    """Practise on undemonstrated apps; keep only what the verifier passes."""
+    from computer_use.evolve import evolve, format_report
+
+    seed_end = args.seed_worlds
+    practice_end = seed_end + args.practice_worlds
+    report = evolve(
+        seed_worlds=range(seed_end),
+        practice_worlds=range(seed_end, practice_end),
+        test_worlds=range(HELD_OUT_OFFSET, HELD_OUT_OFFSET + args.test_worlds),
+        rounds=args.rounds,
+        group_size=args.group_size,
+        temperature=args.temperature,
+        per_world=args.per_environment,
+        max_steps=args.max_steps,
+        use_forks=not args.no_forks,
+        seed=args.seed,
+    )
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(format_report(report))
+    return 0
+
+
 def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--difficulty", choices=list(DIFFICULTIES),
                         help="only tasks at this difficulty")
@@ -350,6 +375,29 @@ def main(argv: list[str] | None = None) -> int:
     p_learn.add_argument("--seed", type=int, default=0)
     p_learn.add_argument("--json", action="store_true")
     p_learn.set_defaults(func=_cmd_learn)
+
+    p_evolve = sub.add_parser(
+        "evolve", help="Practise on applications with no demonstrations, keeping "
+                       "only the attempts a verifier passes",
+    )
+    p_evolve.add_argument("--seed-worlds", type=int, default=3,
+                          help="apps that get demonstrations (default: 3)")
+    p_evolve.add_argument("--practice-worlds", type=int, default=15,
+                          help="apps the agent only ever practises on")
+    p_evolve.add_argument("--test-worlds", type=int, default=12)
+    p_evolve.add_argument("--rounds", type=int, default=3)
+    p_evolve.add_argument("--group-size", type=int, default=4,
+                          help="attempts per task per round")
+    p_evolve.add_argument("--temperature", type=float, default=0.8,
+                          help="0 makes every attempt in a group identical")
+    p_evolve.add_argument("--no-forks", action="store_true",
+                          help="ablation: learn only from successes, discarding "
+                               "the corrections that failures carry")
+    p_evolve.add_argument("--per-environment", type=int, default=3)
+    p_evolve.add_argument("--max-steps", type=int, default=24)
+    p_evolve.add_argument("--seed", type=int, default=0)
+    p_evolve.add_argument("--json", action="store_true")
+    p_evolve.set_defaults(func=_cmd_evolve)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

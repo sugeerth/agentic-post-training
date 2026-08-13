@@ -354,6 +354,13 @@ class LearnedPolicy:
     max_scrolls: int = 2
     max_explore: int = 4
     confidence: float = float("-inf")
+    #: Above zero, the click is sampled from the scores rather than taken at
+    #: the argmax. A self-improvement loop needs this: a deterministic policy
+    #: rolled out eight times produces eight identical trajectories, so the
+    #: group carries no more information than a single attempt and there is
+    #: nothing to learn from.
+    temperature: float = 0.0
+    seed: int = 0
 
     _goals: tuple[Goal, ...] = field(default_factory=tuple, init=False)
     _index: int = field(default=0, init=False)
@@ -361,6 +368,7 @@ class LearnedPolicy:
     _scrolls: int = field(default=0, init=False)
     _explored: int = field(default=0, init=False)
     _visited: set[str] = field(default_factory=set, init=False)
+    _rng: random.Random | None = field(default=None, init=False)
 
     def reset(self) -> None:
         self._goals = ()
@@ -369,6 +377,7 @@ class LearnedPolicy:
         self._scrolls = 0
         self._explored = 0
         self._visited = set()
+        self._rng = random.Random(self.seed)
 
     async def begin(self, task: str, screenshot: Screenshot) -> Decision:
         self.reset()
@@ -396,7 +405,7 @@ class LearnedPolicy:
         if not ranked:
             return Decision(None, "nothing on screen", None, "end_turn")
 
-        score, element = ranked[0]
+        score, element = self._pick(ranked)
         # A goal names its target by what the screen says about it — which for
         # a button is the word on it, and for an input is the caption above it.
         # If neither shares anything with the goal, the target is not on this
@@ -418,6 +427,19 @@ class LearnedPolicy:
             f"{goal.kind} {goal.phrase!r} -> {element.label!r} ({score:+.2f})",
             "learned", "tool_use",
         )
+
+    def _pick(self, ranked: list[tuple[float, Element]]) -> tuple[float, Element]:
+        """The argmax, or a sample from the scores when exploring.
+
+        Sampling is what makes a group of rollouts informative rather than
+        eight copies of one attempt — and the disagreement inside a group is
+        the only place a self-improvement loop can find a correction.
+        """
+        if self.temperature <= 0.0 or len(ranked) == 1 or self._rng is None:
+            return ranked[0]
+        highest = ranked[0][0]
+        weights = [math.exp((s - highest) / self.temperature) for s, _ in ranked]
+        return self._rng.choices(ranked, weights=weights, k=1)[0]
 
     def _look_further(self, screen: Screen, goal: Goal) -> Decision:
         """Go looking: scroll this screen, then try a way off it."""
