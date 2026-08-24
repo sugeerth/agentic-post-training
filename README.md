@@ -238,6 +238,7 @@ print(result.value, result.ci_low, result.ci_high)
 | `perception.*` | Reads a frame back out of its pixels: PNG decode, font-matched text, control detection. 271/271 controls recovered across 43 apps. |
 | `learn.*` | Trains a grounding policy on the pipeline's own rollouts and scores it on generated apps it has never seen. Pixels only, pure Python. |
 | `evolve.*` | Self-improvement: practise on undemonstrated apps, keep what the verifier passes, and report what the loop can see beside what is true. |
+| `tokens.*` | Interactions as a token stream a transformer can read and write — 3 tokens per click, padded batches, optional torch tensors. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
@@ -563,6 +564,61 @@ One methodological note, since it nearly fooled me. A single untrained control
 run is worthless here: five draws of random weights on the same tasks scored
 `[34, 3, 11, 0, 5]` out of 36. The first of those, taken alone, says training
 contributes nothing.
+
+### Interactions as tokens
+
+A trajectory reaches a trainer as JSON text:
+
+```json
+{"action": "left_click", "coordinate": [290, 218]}
+```
+
+A subword tokenizer spends about twenty tokens on that, most of them
+punctuation, and spells the coordinate as digits — so the model has to learn
+that "2", "9", "0" composes into a horizontal position, and that the same pixel
+written `291` means nearly the same thing. Neither is a fact about operating a
+GUI. It is an encoding tax paid on every step of every episode.
+
+`computer_use.tokens` gives interactions their own vocabulary: one symbol per
+action kind, one per quantized coordinate, one per character. **A click is 3
+tokens instead of ~20**, and "nearby pixels are nearby" is built into the
+representation instead of inferred from digit strings.
+
+```python
+from computer_use import encode_trajectory, to_token_batch
+
+ids = encode_trajectory(trajectory)              # [<bos>, task…, <act>, <k:left_click>, <x:14>, <y:10>, …]
+batch = to_token_batch(group, include_screens=True)
+tensors = batch.to_torch()                       # input_ids, attention_mask, rewards
+```
+
+211 tokens in the vocabulary; 4.1–4.7 tokens per step against a ~12.5 estimate
+for the JSON rendering.
+
+**The grid is measured, not chosen.** A lossy encoding of actions is only safe
+if the actions still work afterwards, so the resolution is the coarsest one on
+which every control in every generated world still hit-tests to itself:
+
+| grid | controls surviving | max shift | vocabulary |
+|---|---|---|---|
+| 16×9 | 41% | 40px | 110 |
+| 32×18 | 92% | 20px | 135 |
+| **64×36** | **100%** | 10px | 185 |
+| 128×72 | 100% | 5px | 285 |
+
+32×18 is a smaller vocabulary and a corrupted dataset — 8% of controls decode
+to a click on a *different* control, and nothing downstream would report it.
+
+The real check is end to end: decode an episode from its ids alone, replay it,
+and ask the verifier. **128 of 128 trajectories still pass** across the curated
+suite and generated worlds, easy and hard.
+
+That test earned its place immediately. The first version folded text to
+uppercase, reasoning that the renderer's font defines the alphabet — it defines
+what the environment can *draw*, but a field stores what it was *typed*, so
+`ada@example.com` came back as `ADA@EXAMPLE.COM` and failed verification. Every
+coordinate in those episodes was still perfect, which is exactly why nothing
+else in the suite noticed.
 
 ### Step pairs: attribution by effect, not by text
 
