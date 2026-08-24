@@ -77,7 +77,9 @@ def _select(args: argparse.Namespace) -> tuple[GUITask, ...]:
             range(start, start + args.worlds),
             per_world=args.per_environment,
             max_depth=args.max_depth,
+            min_depth=args.min_depth,
             sample_seed=args.seed,
+            hard=getattr(args, "hard", False),
         )))
 
     if getattr(args, "synthetic", False):
@@ -250,6 +252,7 @@ def _cmd_learn(args: argparse.Namespace) -> int:
         max_steps=args.max_steps,
         epochs=args.epochs,
         seed=args.seed,
+        hard=args.hard,
     )
     if args.json:
         print(json.dumps(result.to_dict(), indent=2))
@@ -289,6 +292,7 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
         max_steps=args.max_steps,
         use_forks=not args.no_forks,
         seed=args.seed,
+        hard=args.hard,
     )
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))
@@ -313,10 +317,18 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--held-out", action="store_true",
                         help="draw --worlds from a disjoint seed range, so the "
                              "apps are ones no training run has seen")
+    parser.add_argument("--hard", action="store_true",
+                        help="generate apps with near-duplicate captions and a "
+                             "decoy primary action, so matching the goal's "
+                             "words against the screen is not a whole strategy")
     parser.add_argument("--per-environment", type=int, default=6,
                         help="synthesized tasks per environment (default: 6)")
     parser.add_argument("--max-depth", type=int, default=5,
                         help="search depth for --synthetic / --worlds (default: 5)")
+    parser.add_argument("--min-depth", type=int, default=2,
+                        help="shortest task to keep. Raising this is the knob "
+                             "that actually makes the benchmark harder: success "
+                             "falls off with horizon length, not with distractors")
     parser.add_argument("--seed", type=int, default=0,
                         help="seed for --synthetic sampling and --policy noisy")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
@@ -373,6 +385,9 @@ def main(argv: list[str] | None = None) -> int:
     p_learn.add_argument("--epochs", type=int, default=30)
     p_learn.add_argument("--max-steps", type=int, default=24)
     p_learn.add_argument("--seed", type=int, default=0)
+    p_learn.add_argument("--hard", action="store_true",
+                         help="generate apps with near-duplicate captions and a "
+                              "decoy primary action")
     p_learn.add_argument("--json", action="store_true")
     p_learn.set_defaults(func=_cmd_learn)
 
@@ -396,6 +411,9 @@ def main(argv: list[str] | None = None) -> int:
     p_evolve.add_argument("--per-environment", type=int, default=3)
     p_evolve.add_argument("--max-steps", type=int, default=24)
     p_evolve.add_argument("--seed", type=int, default=0)
+    p_evolve.add_argument("--hard", action="store_true",
+                          help="practise on apps with near-duplicate captions "
+                               "and a decoy primary action")
     p_evolve.add_argument("--json", action="store_true")
     p_evolve.set_defaults(func=_cmd_evolve)
 

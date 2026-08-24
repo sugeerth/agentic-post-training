@@ -518,6 +518,52 @@ demonstrated applications already saturate this task distribution — but a loop
 reporting only what it can see would have shown a rising curve and called it
 progress.
 
+### What actually makes this benchmark hard
+
+Three demonstrated applications reach 97% on held-out apps, which means the
+easy distribution is saturated and no method can be told from another on it.
+Two candidate difficulty knobs, measured rather than assumed:
+
+**Distractors do not work.** `--hard` generates near-duplicate captions
+("EMAIL" beside "EMAIL BACKUP") and a decoy primary action ("SAVE" beside
+"SAVE DRAFT"), on the theory that matching the goal's words against the screen
+would stop being a whole strategy. It barely moves: **97% → 94%**, with an
+untrained control at 24% and 29%. Blinding the model to exact string equality
+does not change either number, so exact-match is not what saves it either.
+
+The reason is arithmetic. Token overlap here is Jaccard, so a caption that is a
+strict superset of the goal is *already* penalised — goal `EMAIL` scores 1.0
+against `EMAIL` and 0.5 against `EMAIL BACKUP`. The distractor was designed
+against a weakness the metric does not have.
+
+**Horizon length works.** Holding everything else fixed and generating deeper
+tasks:
+
+| optimal steps | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|
+| solved | 100% | 88% | 94% | 81% | 75% | 69% | **63%** |
+
+95% over 2–4 steps, 72% over 5–8, declining monotonically after depth 4. Errors
+compound: one wrong control early leaves the agent on the wrong screen with no
+way to notice. So `--min-depth` is the knob worth turning, and difficulty in
+this environment is about how long the chain is rather than how confusable the
+labels are.
+
+```bash
+agentic-gui tasks --worlds 8 --min-depth 5 --max-depth 8
+```
+
+`--hard` stays, because it is honest about what it is and it paid for itself
+twice: it exposed two perception bugs that the easy worlds were hiding — a
+button clipping its own caption at the edge, and the rows of a filled button's
+white text pairing into phantom controls *inside* the button, each wide enough
+to be read as a field.
+
+One methodological note, since it nearly fooled me. A single untrained control
+run is worthless here: five draws of random weights on the same tasks scored
+`[34, 3, 11, 0, 5]` out of 36. The first of those, taken alone, says training
+contributes nothing.
+
 ### Step pairs: attribution by effect, not by text
 
 Step-level pairs claim something strong — "from this screen, click *here*, not

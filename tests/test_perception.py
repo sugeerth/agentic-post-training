@@ -218,6 +218,58 @@ class TestControls(unittest.TestCase):
         self.assertLess(before[0], after[0])
         self.assertEqual(before[1], after[1])
 
+    def test_a_filled_button_does_not_contain_phantom_controls(self):
+        """The letters of a caption should not parse as controls.
+
+        A primary button is a solid block of accent with white text on it, and
+        each row of that text is a long horizontal run of one colour — so rows
+        pair into perfectly good rectangles *inside* the button. Wide enough to
+        be read as fields, they sit exactly on top of the one control the task
+        is usually about.
+        """
+        world = next(
+            generate(s, hard=True) for s in range(40)
+            if generate(s, hard=True).spec.screens == 1
+            and not generate(s, hard=True).spec.scroll
+        )
+        env = world.build()
+        asyncio.run(env.reset())
+        screen = parse_screen(frame(env).data)
+        buttons = [e for e in screen.elements if e.kind == "button" and e.filled]
+        self.assertTrue(buttons, f"{world.name}: no filled button to check")
+        for button in buttons:
+            inside = [
+                e for e in screen.elements
+                if e is not button and e.box is not None
+                and button.box.contains(*e.click)
+            ]
+            self.assertFalse(
+                inside,
+                f"{world.name}: {button.label!r} contains "
+                f"{[(e.kind, e.label) for e in inside]}",
+            )
+
+    def test_hard_worlds_stay_exactly_readable(self):
+        # Distractors are only a harder *task* if the screen is still read
+        # perfectly — otherwise the benchmark measures the parser.
+        for seed in range(8):
+            env = generate(seed, hard=True).build()
+            asyncio.run(env.reset())
+            screen = parse_screen(frame(env).data)
+            for widget in on_screen(env):
+                match = next(
+                    (
+                        e for e in screen.elements
+                        if e.box is not None
+                        and (hit := env._hit_test(*e.click)) is not None
+                        and hit.id == widget.id
+                    ),
+                    None,
+                )
+                self.assertIsNotNone(match, f"world{seed:03d}: lost {widget.id}")
+                if widget.label:
+                    self.assertIn(widget.label.upper(), match.label.upper())
+
     def test_boxes_do_not_double_count_a_thick_border(self):
         env = MockComputer.settings_form()
         raster = decode_png(asyncio.run(env.reset()).data)

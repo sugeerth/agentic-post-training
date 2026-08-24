@@ -415,7 +415,8 @@ class TestCLI(unittest.TestCase):
         def seeds(held_out: bool) -> set[int]:
             args = argparse.Namespace(
                 worlds=3, held_out=held_out, per_environment=1, max_depth=4,
-                seed=0, difficulty=None, tags=None, task=None, synthetic=False,
+                min_depth=2, seed=0, difficulty=None, tags=None, task=None,
+                synthetic=False, hard=False,
             )
             return {t.metadata["world_seed"] for t in _select(args)}
 

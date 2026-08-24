@@ -33,7 +33,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from computer_use._render import _GLYPHS
+from computer_use._render import _GLYPHS, text_width
 from computer_use.environments import MockComputer, Widget
 from computer_use.tasks import GUITask
 
@@ -80,6 +80,19 @@ APP_TITLES: tuple[str, ...] = (
 
 SCREEN_NAMES: tuple[str, ...] = ("details", "options", "review")
 
+#: Suffixes that turn a caption into a near-duplicate of itself. A form with
+#: both "EMAIL" and "EMAIL BACKUP" cannot be operated by matching words against
+#: the instruction — every token of the goal appears on both controls — so an
+#: agent has to prefer the caption that matches *exactly* over the one that
+#: merely contains it. This is what real settings screens look like, and it is
+#: the cheapest way to stop token overlap from being a complete strategy.
+DISTRACTOR_SUFFIXES: tuple[str, ...] = ("BACKUP", "ALERTS", "ALT", "OVERRIDE")
+
+#: Labels for a second, wrong primary action. "SAVE" beside "SAVE DRAFT" is the
+#: decoy an agent takes when it is scanning for a word rather than reading the
+#: screen — and both are filled, so the visual cue does not separate them.
+DECOY_ACTIONS: tuple[str, ...] = ("DRAFT", "ALL", "LATER")
+
 # Layout constants. A single downward cursor makes overlap impossible.
 _X = 60
 _TOP = 110
@@ -103,6 +116,8 @@ class WorldSpec:
     scroll: bool
     action: str
     flag: str
+    #: Near-duplicate controls added to defeat matching by word overlap.
+    distractors: int = 0
 
     def summary(self) -> str:
         parts = [f"{self.screens} screen(s)", f"{self.fields} field(s)"]
@@ -112,6 +127,8 @@ class WorldSpec:
             parts.append(f"{self.radio_groups} radio group(s)")
         if self.scroll:
             parts.append("below-the-fold action")
+        if self.distractors:
+            parts.append(f"{self.distractors} distractor(s)")
         return ", ".join(parts)
 
 
@@ -194,15 +211,21 @@ class _Layout:
         """A row of buttons: (id, label, sets, shows)."""
         x = _X
         for widget_id, label, sets, shows in specs:
+            # Size to the caption. A fixed width clips a long label at the
+            # button's edge, and a control whose own text runs off it cannot be
+            # read back from the screen — which makes it unusable to an agent
+            # working from pixels, for reasons that have nothing to do with the
+            # task being hard.
+            width = max(_BUTTON_W, text_width(label, 3) + 24)
             self.widgets.append(Widget(
-                widget_id, "button", x, self.y, _BUTTON_W, _BUTTON_H,
+                widget_id, "button", x, self.y, width, _BUTTON_H,
                 label=label, sets=sets, shows=shows, screen=self.screen,
             ))
-            x += _BUTTON_W + 30
+            x += width + 30
         self.y += _BUTTON_H + _GAP
 
 
-def _spec(seed: int) -> WorldSpec:
+def _spec(seed: int, *, hard: bool = False) -> WorldSpec:
     rng = random.Random(seed)
     screens = rng.choice((1, 1, 2, 3))
     action, flag = rng.choice(PRIMARY_ACTIONS)
@@ -219,6 +242,7 @@ def _spec(seed: int) -> WorldSpec:
         scroll=screens == 1 and rng.random() < 0.5,
         action=action,
         flag=flag,
+        distractors=rng.randint(1, 2) if hard else 0,
     )
 
 
@@ -242,6 +266,23 @@ def _compose(spec: WorldSpec) -> tuple[list[Widget], dict[str, tuple[str, ...]],
     rng.shuffle(items)
     for index, item in enumerate(items):
         buckets[index % len(screens)].append(item)
+
+    # Distractors go beside the control they imitate, not somewhere else on the
+    # screen: a twin caption three screens away is a navigation problem, while
+    # a twin caption in the same list is a reading problem, and reading is what
+    # is being tested.
+    # Snapshot first: a twin of a twin gives "EMAIL BACKUP ALERTS", which is
+    # not a harder screen so much as an incoherent one, and no real form is
+    # laid out that way.
+    originals = [item for bucket in buckets for item in bucket
+                 if item[0] in ("field", "toggle")]
+    for slot, item in enumerate(originals[:spec.distractors]):
+        decoy = _twin(item, DISTRACTOR_SUFFIXES[slot % len(DISTRACTOR_SUFFIXES)])
+        bucket = next(b for b in buckets if item in b)
+        bucket.insert(bucket.index(item) + 1, decoy)
+        if decoy[0] == "field":
+            widget_id, _, _, value = decoy[1]
+            vocabulary[widget_id] = (value,)
 
     content_height = 720
     for index, screen in enumerate(screens):
@@ -270,6 +311,16 @@ def _compose(spec: WorldSpec) -> tuple[list[Widget], dict[str, tuple[str, ...]],
             row.append((f"{screen}_back", "BACK", None, screens[index - 1]))
         if last:
             row.append((f"{screen}_go", spec.action, spec.flag, None))
+            if spec.distractors:
+                # A second button carrying the same verb, and filled the same
+                # way, so neither the words nor the styling picks the right one
+                # on its own. It sets a real but different flag, which means
+                # pressing it is a wrong answer the verifier can see.
+                variant = DECOY_ACTIONS[spec.seed % len(DECOY_ACTIONS)]
+                row.append((
+                    f"{screen}_go_decoy", f"{spec.action} {variant}",
+                    f"{spec.flag}_{variant.lower()}", None,
+                ))
         else:
             row.append((f"{screen}_next", "CONTINUE", None, screens[index + 1]))
         layout.buttons(row)
@@ -280,13 +331,33 @@ def _compose(spec: WorldSpec) -> tuple[list[Widget], dict[str, tuple[str, ...]],
     return widgets, vocabulary, content_height
 
 
+def _twin(item: tuple[str, Any], suffix: str) -> tuple[str, Any]:
+    """A near-duplicate of one control, to sit directly beneath it."""
+    kind, payload = item
+    if kind == "field":
+        widget_id, label, placeholder, value = payload
+        return ("field", (
+            f"{widget_id}_{suffix.lower()}", f"{label} {suffix}", placeholder,
+            _vary(value),
+        ))
+    return ("toggle", f"{payload} {suffix}")
+
+
+def _vary(value: str) -> str:
+    """A different value for the twin, so a task names one of them uniquely."""
+    if value.isdigit():
+        return str(int(value) + 2)
+    head, _, tail = value.partition("@")
+    return f"{head}.alt@{tail}" if tail else f"{value}-2"
+
+
 def _slug(label: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in label.lower()).strip("_")[:24]
 
 
-def generate(seed: int) -> World:
-    """Generate one world. Deterministic in `seed`."""
-    spec = _spec(seed)
+def generate(seed: int, *, hard: bool = False) -> World:
+    """Generate one world. Deterministic in `seed` (and in `hard`)."""
+    spec = _spec(seed, hard=hard)
     widgets, vocabulary, content_height = _compose(spec)
     return World(
         spec=spec,
@@ -314,12 +385,13 @@ def is_viable(world: World, *, max_depth: int = 4) -> bool:
 
 
 def generate_many(
-    seeds: Iterable[int], *, require_viable: bool = True, max_depth: int = 4
+    seeds: Iterable[int], *, require_viable: bool = True, max_depth: int = 4,
+    hard: bool = False,
 ) -> list[World]:
     """Generate worlds for `seeds`, dropping any that cannot host a task."""
     worlds = []
     for seed in seeds:
-        world = generate(seed)
+        world = generate(seed, hard=hard)
         if require_viable and not is_viable(world, max_depth=max_depth):
             continue
         worlds.append(world)
@@ -333,6 +405,7 @@ def curriculum(
     max_depth: int = 5,
     min_depth: int = 2,
     sample_seed: int | None = 0,
+    hard: bool = False,
 ) -> list[GUITask]:
     """Tasks across generated worlds — the unit you actually train or test on.
 
@@ -342,7 +415,7 @@ def curriculum(
     from computer_use.synthesis import SynthesisConfig, synthesize
 
     tasks: list[GUITask] = []
-    for world in generate_many(seeds):
+    for world in generate_many(seeds, hard=hard):
         generated = synthesize(
             world.factory(),
             SynthesisConfig(vocabulary=world.vocabulary, max_depth=max_depth),
@@ -355,6 +428,7 @@ def curriculum(
             task.metadata.update({
                 "world_seed": world.spec.seed,
                 "world": world.spec.summary(),
+                "hard": hard,
             })
         tasks.extend(generated)
     return tasks

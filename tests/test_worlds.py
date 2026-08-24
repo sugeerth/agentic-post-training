@@ -21,7 +21,9 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from computer_use import ScriptedPolicy, run_episode
+from computer_use._render import text_width
 from computer_use.worlds import (
+    DISTRACTOR_SUFFIXES,
     curriculum,
     generate,
     generate_many,
@@ -180,6 +182,109 @@ class TestCurriculum(unittest.TestCase):
                 floors[shallow], floors[deep],
                 f"depth {deep} is ranked easier than depth {shallow}",
             )
+
+
+class TestHardMode(unittest.TestCase):
+    """Distractors exist to stop word-matching from being a whole strategy.
+
+    An app with both "EMAIL" and "EMAIL BACKUP" cannot be operated by finding
+    the goal's words on the screen, because every one of them appears on two
+    controls. That is what makes a held-out score mean something once the easy
+    distribution saturates.
+    """
+
+    SEEDS = range(20)
+
+    def test_hard_worlds_carry_near_duplicate_captions(self):
+        twinned = 0
+        for seed in self.SEEDS:
+            labels = [w.label for w in generate(seed, hard=True).widgets if w.label]
+            for label in labels:
+                suffixed = any(
+                    other == f"{label} {suffix}"
+                    for other in labels for suffix in DISTRACTOR_SUFFIXES
+                )
+                if suffixed:
+                    twinned += 1
+                    break
+        self.assertGreater(twinned, len(self.SEEDS) // 2)
+
+    def test_easy_worlds_do_not(self):
+        # Checked against the generated suffixes rather than any shared prefix:
+        # "EMAIL" and "EMAIL ME ON FAILURE" are both in the base vocabulary and
+        # coexist honestly, which is a different thing from a manufactured twin.
+        for seed in self.SEEDS:
+            for widget in generate(seed).widgets:
+                twinned = [
+                    suffix for suffix in DISTRACTOR_SUFFIXES
+                    if widget.label.endswith(f" {suffix}")
+                ]
+                self.assertFalse(twinned, f"world{seed:03d}: {widget.label!r}")
+
+    def test_a_twin_is_never_twinned_again(self):
+        # "EMAIL BACKUP ALERTS" is not a harder screen, it is an incoherent
+        # one, and no real form is laid out that way.
+        for seed in self.SEEDS:
+            for widget in generate(seed, hard=True).widgets:
+                doubled = [
+                    a for a in DISTRACTOR_SUFFIXES
+                    for b in DISTRACTOR_SUFFIXES
+                    if f"{a} {b}" in widget.label
+                ]
+                self.assertFalse(doubled, f"world{seed:03d}: {widget.label!r}")
+
+    def test_the_decoy_action_is_wrong_rather_than_harmless(self):
+        # It sets a real but different flag, so pressing it is a mistake the
+        # verifier can see. A decoy that did nothing would be free to click.
+        found = False
+        for seed in self.SEEDS:
+            world = generate(seed, hard=True)
+            decoys = [w for w in world.widgets if w.id.endswith("_go_decoy")]
+            for decoy in decoys:
+                found = True
+                self.assertTrue(decoy.sets)
+                self.assertNotEqual(decoy.sets, world.spec.flag)
+        self.assertTrue(found, "no decoy action in any hard world")
+
+    def test_ids_stay_unique_with_distractors(self):
+        for seed in self.SEEDS:
+            ids = [w.id for w in generate(seed, hard=True).widgets]
+            self.assertEqual(len(ids), len(set(ids)), f"world{seed:03d}")
+
+    def test_a_button_is_wide_enough_for_its_caption(self):
+        """A control whose own text runs off it cannot be read from a frame.
+
+        Distractor labels are longer than the ones the fixed button width was
+        chosen for, so "PLACE ORDER LATER" lost its final letter off the right
+        edge — unreadable for reasons that have nothing to do with difficulty.
+        """
+        for seed in self.SEEDS:
+            for widget in generate(seed, hard=True).widgets:
+                if widget.kind != "button":
+                    continue
+                self.assertGreaterEqual(
+                    widget.width, text_width(widget.label, 3),
+                    f"world{seed:03d}: {widget.label!r} overflows its button",
+                )
+
+    def test_every_hard_task_is_solved_by_its_generated_gold(self):
+        tasks = curriculum(range(12), per_world=2, hard=True)
+        self.assertTrue(tasks)
+        for task in tasks:
+            trajectory = asyncio.run(run_episode(
+                task.instruction, task.env_factory(), ScriptedPolicy(list(task.gold)),
+                verifier=task.verifier, reward_config=task.reward_config(),
+            ))
+            self.assertTrue(trajectory.succeeded, f"{task.name}: {task.instruction}")
+            self.assertAlmostEqual(trajectory.reward, 1.0, places=6, msg=task.name)
+
+    def test_hard_tasks_are_not_satisfied_by_doing_nothing(self):
+        for task in curriculum(range(6), per_world=2, hard=True):
+            idle = asyncio.run(run_episode(
+                task.instruction, task.env_factory(), ScriptedPolicy([]),
+                verifier=task.verifier,
+            ))
+            self.assertFalse(idle.succeeded, f"{task.name} passes trivially")
 
 
 class TestSplit(unittest.TestCase):

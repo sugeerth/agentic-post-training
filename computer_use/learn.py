@@ -543,6 +543,7 @@ def closed_loop(
     epochs: int = 30,
     seed: int = 0,
     controls: int = 3,
+    hard: bool = False,
 ) -> LoopResult:
     """Generate, collect, train, and score on applications never seen.
 
@@ -566,8 +567,8 @@ def closed_loop(
         )
 
     config = RolloutConfig(store_frames=True, max_steps=max_steps)
-    training = curriculum(train_worlds, per_world=per_world)
-    held_out = curriculum(test_worlds, per_world=per_world)
+    training = curriculum(train_worlds, per_world=per_world, hard=hard)
+    held_out = curriculum(test_worlds, per_world=per_world, hard=hard)
 
     from computer_use.policies import ScriptedPolicy
 

@@ -268,6 +268,7 @@ def evolve(
     epochs: int = 30,
     use_forks: bool = True,
     seed: int = 0,
+    hard: bool = False,
 ) -> EvolveReport:
     """Practise on unlabelled applications, keep what the verifier passes.
 
@@ -284,9 +285,9 @@ def evolve(
     _no_overlap(practice_worlds, test_worlds, "practice", "test")
 
     config = RolloutConfig(store_frames=True, max_steps=max_steps)
-    seeded = curriculum(seed_worlds, per_world=per_world)
-    practice = curriculum(practice_worlds, per_world=per_world)
-    held_out = curriculum(test_worlds, per_world=per_world)
+    seeded = curriculum(seed_worlds, per_world=per_world, hard=hard)
+    practice = curriculum(practice_worlds, per_world=per_world, hard=hard)
+    held_out = curriculum(test_worlds, per_world=per_world, hard=hard)
 
     pool = examples_from([
         _episode(task, ScriptedPolicy(list(task.gold)), config) for task in seeded

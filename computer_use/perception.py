@@ -547,6 +547,36 @@ def _dedupe(found: Sequence[Box], *, slack: int = 4) -> list[Box]:
     return kept
 
 
+def _drop_nested(found: Sequence[Box], *, slack: int = 4) -> list[Box]:
+    """Remove rectangles sitting wholly inside another control.
+
+    Controls in this renderer do not nest, so anything inside one is part of
+    it. The case that matters is a filled button: its caption is painted in a
+    single colour across several rows, and those rows pair into perfectly good
+    rectangles *inside* the button — phantom controls made out of the letters
+    of a real one, each one wide enough to be mistaken for a field.
+
+    Runs after the content panel has been dropped. Every control is inside the
+    panel, so applying this with the panel still in the list deletes the entire
+    screen.
+    """
+    kept: list[Box] = []
+    for box in sorted(found, key=lambda b: b.width * b.height, reverse=True):
+        if not any(_within(box, k, slack) for k in kept):
+            kept.append(box)
+    kept.sort(key=lambda b: (b.y, b.x))
+    return kept
+
+
+def _within(inner: Box, outer: Box, slack: int) -> bool:
+    return (
+        inner.x >= outer.x - slack
+        and inner.y >= outer.y - slack
+        and inner.x + inner.width <= outer.x + outer.width + slack
+        and inner.y + inner.height <= outer.y + outer.height + slack
+    )
+
+
 def _runs(xs: Sequence[int], *, min_length: int) -> list[tuple[int, int]]:
     spans: list[tuple[int, int]] = []
     start = previous = xs[0] if xs else 0
@@ -604,7 +634,9 @@ def parse_screen(data: bytes | Raster) -> Screen:
     raster = data if isinstance(data, Raster) else decode_png(data)
     colors = _ink_colors(raster)
     runs = text_runs(raster, colors)
-    outlines = [b for b in boxes(raster, colors) if b.width < raster.width - 60]
+    outlines = _drop_nested(
+        [b for b in boxes(raster, colors) if b.width < raster.width - 60]
+    )
     surfaces = _surfaces(raster)
 
     title = ""
@@ -636,7 +668,16 @@ def parse_screen(data: bytes | Raster) -> Screen:
         if box.width <= _TOGGLE_MAX and box.height <= _TOGGLE_MAX:
             kind, label_runs = "toggle", right
         elif not inside:
-            kind, label_runs = ("field" if box.width >= _FIELD_MIN_WIDTH else "button"), []
+            # Nothing readable against the page background does not mean an
+            # empty control: a caption painted in a surface colour on a filled
+            # button is invisible globally and obvious locally. Read it before
+            # falling back to guessing from the width.
+            local = read_region(raster, box)
+            if local and _centred(box, local):
+                kind, label_runs = "button", []
+            else:
+                kind, label_runs = (
+                    "field" if box.width >= _FIELD_MIN_WIDTH else "button"), []
         else:
             # Width alone gets this wrong — a 200px CONTINUE button is exactly
             # as wide as a short input, and calling it a field leaves the agent
