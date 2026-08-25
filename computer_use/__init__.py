@@ -102,6 +102,18 @@ from computer_use.policies import (
     ScriptedPolicy,
     VLMPolicy,
 )
+
+# `train`, `evaluate` and `generate` are deliberately not re-exported here:
+# `learn.train` fits a grounder, `pretrain.train` fits a transformer, and
+# `worlds.generate` builds an application. A bare name for any of them at
+# package level would resolve to one and read like another.
+from computer_use.pretrain import (
+    CorpusConfig,
+    EvalResult,
+    TrainReport,
+    build_corpus,
+    snap_to_screen,
+)
 from computer_use.rewards import (
     AllOf,
     RewardConfig,
@@ -137,6 +149,7 @@ from computer_use.tokens import (
     encode_trajectory,
     to_token_batch,
 )
+from computer_use.transformer import GPT, ModelConfig, load_model, save_model
 from computer_use.types import (
     Action,
     ActionKind,
@@ -149,6 +162,7 @@ from computer_use.types import (
 __all__ = [
     "DEFAULT_TOOL_BETA",
     "DEFAULT_TOOL_VERSION",
+    "GPT",
     "RESOLUTIONS",
     "SUITE",
     "VOCAB",
@@ -161,15 +175,18 @@ __all__ = [
     "ClaudeComputerUsePolicy",
     "ComputerEnvironment",
     "ComputerUseAgent",
+    "CorpusConfig",
     "Decision",
     "Discovery",
     "Element",
+    "EvalResult",
     "GUIBenchEvaluator",
     "GUITask",
     "Goal",
     "Grounder",
     "LearnedPolicy",
     "MockComputer",
+    "ModelConfig",
     "NoisyPolicy",
     "PlaywrightComputer",
     "PolicyConfig",
@@ -184,6 +201,7 @@ __all__ = [
     "SynthesisConfig",
     "TaskResult",
     "TokenBatch",
+    "TrainReport",
     "Trajectory",
     "TrajectoryStatus",
     "VLMPolicy",
@@ -192,6 +210,7 @@ __all__ = [
     "Vocabulary",
     "Widget",
     "assign_step_credit",
+    "build_corpus",
     "closed_loop",
     "computer_tool",
     "decode_actions",
@@ -205,6 +224,7 @@ __all__ = [
     "gold_factory",
     "legibility",
     "load_jsonl",
+    "load_model",
     "noisy_factory",
     "parse_screen",
     "pass_at_k",
@@ -216,7 +236,9 @@ __all__ = [
     "run_group",
     "run_suite",
     "save_jsonl",
+    "save_model",
     "score_trajectory",
+    "snap_to_screen",
     "success_rate",
     "suite",
     "summarize",

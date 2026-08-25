@@ -57,6 +57,12 @@ X_BINS, Y_BINS = 64, 36
 #: silently, since the click coordinates it also encoded were all still right.
 CHARS: tuple[str, ...] = tuple(sorted(set(_GLYPHS) | set(string.ascii_lowercase)))
 
+#: A toggle's state, for the observation. Without these two symbols a screen
+#: encodes identically before and after a checkbox is flipped, so the same
+#: context carries two different correct actions — measured at 59% of a
+#: generated training corpus, and unlearnable by construction.
+STATES: tuple[str, ...] = ("on", "off", "focus")
+
 SCROLL_DIRECTIONS: tuple[str, ...] = ("up", "down", "left", "right")
 #: Scroll amounts are small integers in practice; larger ones clamp.
 MAX_SCROLL = 8
@@ -68,6 +74,7 @@ def _vocabulary() -> tuple[str, ...]:
     tokens += [f"<k:{kind.value}>" for kind in ActionKind]
     tokens += [f"<x:{i}>" for i in range(X_BINS)]
     tokens += [f"<y:{i}>" for i in range(Y_BINS)]
+    tokens += [f"<s:{s}>" for s in STATES]
     tokens += [f"<d:{d}>" for d in SCROLL_DIRECTIONS]
     tokens += [f"<n:{n}>" for n in range(MAX_SCROLL + 1)]
     tokens += [f"<c:{c}>" for c in CHARS]
@@ -212,7 +219,7 @@ def decode_action(
 # --------------------------------------------------------------------------- #
 
 
-def encode_screen(screen: Any, *, limit: int = 24) -> list[str]:
+def encode_screen(screen: Any, *, limit: int = 24, label_chars: int = 24) -> list[str]:
     """A parsed screen as tokens: what is on it and where.
 
     The point of spending tokens on the observation is that a policy trained on
@@ -227,7 +234,12 @@ def encode_screen(screen: Any, *, limit: int = 24) -> list[str]:
         cx, cy = quantize(*element.click,
                           width=screen.width, height=screen.height)
         out += [f"<x:{cx}>", f"<y:{cy}>"]
-        out += [f"<c:{c}>" for c in element.label.upper()[:24]]
+        checked = getattr(element, "checked", None)
+        if checked is not None:
+            out.append(f"<s:{'on' if checked else 'off'}>")
+        if getattr(element, "focused", False):
+            out.append("<s:focus>")
+        out += [f"<c:{c}>" for c in element.label.upper()[:label_chars]]
         out.append(SEP)
     return out
 
@@ -384,6 +396,7 @@ __all__ = [
     "OBS",
     "PAD",
     "SEP",
+    "STATES",
     "VOCAB",
     "X_BINS",
     "Y_BINS",

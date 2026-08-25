@@ -275,6 +275,83 @@ def _cmd_learn(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_pretrain(args: argparse.Namespace) -> int:
+    """Train a transformer on interaction tokens; score it by execution."""
+    from computer_use.pretrain import (
+        build_corpus,
+        evaluate,
+        format_report,
+        train,
+    )
+    from computer_use.transformer import GPT, ModelConfig, save_model
+    from computer_use.worlds import split
+
+    train_tasks, test_tasks = split(
+        train=range(args.train_worlds),
+        test=range(HELD_OUT_OFFSET, HELD_OUT_OFFSET + args.test_worlds),
+        per_world=args.per_environment,
+    )
+    corpus = build_corpus(train_tasks)
+    held = build_corpus(test_tasks)
+    longest = max(len(e) for e in (*corpus, *held))
+    config = ModelConfig(
+        d_model=args.d_model,
+        n_heads=args.heads,
+        n_layers=args.layers,
+        d_ff=args.d_model * 2,
+        max_len=longest + 8,
+    )
+    print(
+        f"  {len(train_tasks)} tasks / {len(corpus)} decisions from "
+        f"{args.train_worlds} generated apps",
+        flush=True,
+    )
+    print(f"  longest sequence {longest} tokens, model {config.d_model}d "
+          f"x {config.n_layers}L", flush=True)
+
+    def progress(epoch: int, report: object) -> None:
+        losses = report.epoch_loss  # type: ignore[attr-defined]
+        held_out = report.held_out_loss  # type: ignore[attr-defined]
+        tail = f" held-out {held_out[-1]:.3f}" if held_out else ""
+        print(f"    epoch {epoch + 1:2d}  train {losses[-1]:.3f}{tail}"
+              f"  ({report.seconds / 60:.1f} min)", flush=True)  # type: ignore[attr-defined]
+        if args.out:
+            save_model(model_ref["model"], args.out)
+
+    model_ref: dict[str, GPT] = {}
+    model = GPT(config, seed=args.seed)
+    model_ref["model"] = model
+    model, report = train(
+        corpus,
+        model=model,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        seed=args.seed,
+        held_out=held,
+        on_epoch=progress,
+    )
+    if args.out:
+        save_model(model, args.out)
+
+    results = [evaluate(model, test_tasks, label="trained (apps never seen)")]
+    if not args.skip_control:
+        control = GPT(config, seed=args.seed + 977)
+        results.append(evaluate(control, test_tasks, label="untrained, same shape"))
+
+    if args.json:
+        print(json.dumps({
+            "train": report.to_dict(),
+            "results": [r.to_dict() for r in results],
+            "config": {"d_model": config.d_model, "n_layers": config.n_layers,
+                       "n_heads": config.n_heads, "max_len": config.max_len},
+        }, indent=2))
+        return 0
+    print()
+    print(format_report(report, results))
+    return 0
+
+
 def _cmd_evolve(args: argparse.Namespace) -> int:
     """Practise on undemonstrated apps; keep only what the verifier passes."""
     from computer_use.evolve import evolve, format_report
@@ -390,6 +467,28 @@ def main(argv: list[str] | None = None) -> int:
                               "decoy primary action")
     p_learn.add_argument("--json", action="store_true")
     p_learn.set_defaults(func=_cmd_learn)
+
+    p_pretrain = sub.add_parser(
+        "pretrain", help="Train a transformer on tokenized interactions and "
+                         "score it by executing what it generates",
+    )
+    p_pretrain.add_argument("--train-worlds", type=int, default=24)
+    p_pretrain.add_argument("--test-worlds", type=int, default=8)
+    p_pretrain.add_argument("--per-environment", type=int, default=4)
+    p_pretrain.add_argument("--epochs", type=int, default=10)
+    p_pretrain.add_argument("--batch-size", type=int, default=8)
+    p_pretrain.add_argument("--lr", type=float, default=3e-3)
+    p_pretrain.add_argument("--d-model", type=int, default=48)
+    p_pretrain.add_argument("--heads", type=int, default=3)
+    p_pretrain.add_argument("--layers", type=int, default=2)
+    p_pretrain.add_argument("--seed", type=int, default=0)
+    p_pretrain.add_argument("--out", type=str, default="",
+                            help="write the checkpoint here after every epoch")
+    p_pretrain.add_argument("--skip-control", action="store_true",
+                            help="skip the untrained baseline (it costs a full "
+                                 "evaluation pass)")
+    p_pretrain.add_argument("--json", action="store_true")
+    p_pretrain.set_defaults(func=_cmd_pretrain)
 
     p_evolve = sub.add_parser(
         "evolve", help="Practise on applications with no demonstrations, keeping "

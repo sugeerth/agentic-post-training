@@ -235,6 +235,14 @@ class Element:
     #: Painted in something other than a surface color — how a primary action
     #: announces itself, and visible in the pixels rather than looked up.
     filled: bool = False
+    #: For a toggle: whether it is set. `None` for anything that has no such
+    #: state. Read from the middle of the control, which is where both a
+    #: checkbox and a radio put their mark — `filled` samples the top-left
+    #: corner and therefore misses it entirely.
+    checked: bool | None = None
+    #: Whether this control is the one holding keyboard focus, read from its
+    #: outline being drawn in a different color from every other control's.
+    focused: bool = False
 
     @property
     def tokens(self) -> tuple[str, ...]:
@@ -287,6 +295,47 @@ def _ink_colors(raster: Raster, *, stride: int = 5, floor: int = 12) -> list[tup
     # The dominant few are page, panel, and chrome. Everything else that shows
     # up more than a handful of times is a candidate mark color.
     return [color for color, seen in ranked[3:] if seen >= floor // stride]
+
+
+def _resting_outline(found: Sequence[Box]) -> tuple[int, int, int] | None:
+    """The color most controls are outlined in — that is, the unfocused one.
+
+    A form draws the focused control's outline in a different color from every
+    other one, so "focused" is simply "outlined in the minority color". Taking
+    the majority rather than naming a palette entry keeps the parser working
+    off the pixels instead of off knowledge of the renderer.
+
+    Returns None when there is nothing to compare against — a screen with a
+    single control cannot say whether that control is the odd one out, and
+    guessing would report focus on every such screen.
+    """
+    counts: dict[tuple[int, int, int], int] = {}
+    for box in found:
+        counts[box.color] = counts.get(box.color, 0) + 1
+    if len(counts) < 2:
+        return None
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+
+def _checked(
+    raster: Raster, box: Box, surfaces: set[tuple[int, int, int]]
+) -> bool:
+    """Whether a toggle is set, read from the middle of its box.
+
+    A control that is off is hollow: everything inside its border is the
+    surface the page is painted on. A control that is on has a mark in the
+    middle — a filled square for a checkbox, a smaller one for a radio — and
+    that mark is by definition not a surface color.
+
+    This is the same signal `filled` uses, sampled where the mark actually is.
+    `filled` looks 3px inside the top-left corner, which sits between the
+    border and an inset mark and so reports "off" for every checked box on the
+    screen. That omission made 59% of the training corpus ambiguous: after
+    flipping a toggle the encoded screen was identical to before, so the same
+    context carried two different correct actions and no amount of training
+    could separate them.
+    """
+    return raster.at(*box.center) not in surfaces
 
 
 def _surfaces(raster: Raster, *, stride: int = 5, keep: int = 3) -> set[tuple[int, int, int]]:
@@ -638,6 +687,7 @@ def parse_screen(data: bytes | Raster) -> Screen:
         [b for b in boxes(raster, colors) if b.width < raster.width - 60]
     )
     surfaces = _surfaces(raster)
+    resting_outline = _resting_outline(outlines)
 
     title = ""
     scroll: tuple[int, int] | None = None
@@ -699,6 +749,8 @@ def parse_screen(data: bytes | Raster) -> Screen:
         elements.append(Element(
             label=label, kind=kind, box=box, text_run=caption, click=box.center,
             filled=raster.at(box.x + 3, box.y + 3) not in surfaces,
+            checked=_checked(raster, box, surfaces) if kind == "toggle" else None,
+            focused=resting_outline is not None and box.color != resting_outline,
         ))
 
     # Text with no box around it is still worth reporting: it is the caption

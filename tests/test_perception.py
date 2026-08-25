@@ -22,12 +22,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from computer_use import Action, ActionKind, MockComputer
 from computer_use.perception import (
     DecodeError,
+    Screen,
     boxes,
     decode_png,
     legibility,
     parse_screen,
     text_runs,
 )
+from computer_use.tokens import encode_screen
 from computer_use.worlds import generate
 
 #: Environment widget kind -> what the parser should call it from pixels alone.
@@ -281,6 +283,70 @@ class TestControls(unittest.TestCase):
                     and abs(a.width - b.width) <= 8 and abs(a.height - b.height) <= 8
                 )
                 self.assertFalse(same, f"{a} and {b} are the same control")
+
+
+class TestControlState(unittest.TestCase):
+    """State the renderer draws that the parser used to throw away.
+
+    Neither of these was visible as a bug until a model was trained on this
+    encoding and stopped improving. A screen encoded as position-and-label
+    alone is identical before and after a checkbox is flipped, and identical
+    before and after a field takes focus — so the same context carried two
+    different correct actions, which is unlearnable however long you train.
+    """
+
+    def _screen(self, env: MockComputer) -> Screen:
+        return parse_screen(asyncio.run(env.screenshot()).data)
+
+    def _click(self, env: MockComputer, point: tuple[int, int]) -> None:
+        asyncio.run(env.execute(Action(kind=ActionKind.LEFT_CLICK, coordinate=point)))
+
+    def test_toggles_start_unchecked_and_report_it(self) -> None:
+        env = MockComputer.settings_form()
+        toggles = [e for e in self._screen(env).elements if e.kind == "toggle"]
+        self.assertTrue(toggles, "no toggles on the settings form")
+        self.assertTrue(all(e.checked is False for e in toggles))
+
+    def test_clicking_a_toggle_reads_back_as_checked(self) -> None:
+        env = MockComputer.settings_form()
+        target = next(e for e in self._screen(env).elements if e.kind == "toggle")
+        self._click(env, target.click)
+
+        after = {e.label: e.checked for e in self._screen(env).elements if e.kind == "toggle"}
+        self.assertIs(after[target.label], True)
+        self.assertEqual(
+            sum(1 for v in after.values() if v), 1, "one click flipped more than one control"
+        )
+
+    def test_only_toggles_carry_a_checked_state(self) -> None:
+        env = MockComputer.settings_form()
+        for element in self._screen(env).elements:
+            if element.kind != "toggle":
+                self.assertIsNone(element.checked, f"{element.kind} {element.label!r}")
+
+    def test_focus_follows_the_clicked_field(self) -> None:
+        env = MockComputer.settings_form()
+        field = next(e for e in self._screen(env).elements if e.kind == "field")
+        self.assertFalse(any(e.focused for e in self._screen(env).elements))
+
+        self._click(env, field.click)
+        self.assertEqual([e.label for e in self._screen(env).elements if e.focused],
+                         [field.label])
+
+    def test_flipping_a_toggle_changes_the_encoded_screen(self) -> None:
+        """The property a training corpus actually needs from the encoding."""
+        env = MockComputer.settings_form()
+        toggle = next(e for e in self._screen(env).elements if e.kind == "toggle")
+        before = encode_screen(self._screen(env))
+        self._click(env, toggle.click)
+        self.assertNotEqual(encode_screen(self._screen(env)), before)
+
+    def test_focusing_a_field_changes_the_encoded_screen(self) -> None:
+        env = MockComputer.settings_form()
+        field = next(e for e in self._screen(env).elements if e.kind == "field")
+        before = encode_screen(self._screen(env))
+        self._click(env, field.click)
+        self.assertNotEqual(encode_screen(self._screen(env)), before)
 
 
 if __name__ == "__main__":

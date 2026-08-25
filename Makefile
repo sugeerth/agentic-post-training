@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth bench-gui-worlds learn-gui evolve-gui clean
+.PHONY: install test test-fast lint mypy demo demo-dry demo-gui demo-gui-live bench-gui bench-gui-synth bench-gui-worlds learn-gui evolve-gui pretrain-gui clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -59,6 +59,12 @@ learn-gui:
 # verifier passes. Reports what the loop can see next to what is actually true.
 evolve-gui:
 	$(PYTHON) -m computer_use.cli evolve --seed-worlds 3 --practice-worlds 12 --rounds 3
+
+# Train a transformer on tokenized interactions and score it by executing what
+# it generates. Pure Python arithmetic, so this is minutes rather than seconds:
+# ~1s per training step, ~300 steps per epoch.
+pretrain-gui:
+	$(PYTHON) -m computer_use.cli pretrain --train-worlds 24 --test-worlds 8 --epochs 10
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache

@@ -592,8 +592,35 @@ batch = to_token_batch(group, include_screens=True)
 tensors = batch.to_torch()                       # input_ids, attention_mask, rewards
 ```
 
-211 tokens in the vocabulary; 4.1–4.7 tokens per step against a ~12.5 estimate
+214 tokens in the vocabulary; 4.1–4.7 tokens per step against a ~12.5 estimate
 for the JSON rendering.
+
+**The observation has to carry state, not just layout.** Three of those tokens
+— `<s:on>`, `<s:off>`, `<s:focus>` — exist because of a defect this encoding
+had until a transformer was trained on it and refused to improve. A screen
+encoded as position-and-label alone is *identical before and after a checkbox
+is flipped*, and identical before and after a field takes focus. So the same
+context carried two different correct actions, and no amount of training could
+separate them:
+
+| observation carries | training examples on an ambiguous context |
+|---|---|
+| position + label | 58.7% |
+| ...+ toggle state | 40.0% |
+| ...+ focus | **5.3%** |
+
+Of the 5.3% that remain, three quarters are instructions of the form *"do X and
+Y"*, where either subgoal legitimately goes first — both actions are correct,
+and the verifier accepts either. The irreducible contradiction is ~1.3%.
+
+Both signals were already in the pixels: a checked box is drawn with a filled
+middle, a focused control with a differently-coloured outline. `perception` was
+throwing them away — `Element.filled` samples 3px inside the top-left corner,
+which sits between the border and an inset mark, so it reported "off" for every
+checked box on screen. `Element.checked` reads the centre instead, and
+`Element.focused` calls a control focused when its outline is the minority
+colour among the controls on that screen, so neither needs to be told the
+renderer's palette.
 
 **The grid is measured, not chosen.** A lossy encoding of actions is only safe
 if the actions still work afterwards, so the resolution is the coarsest one on
@@ -619,6 +646,83 @@ what the environment can *draw*, but a field stores what it was *typed*, so
 `ada@example.com` came back as `ADA@EXAMPLE.COM` and failed verification. Every
 coordinate in those episodes was still perfect, which is exactly why nothing
 else in the suite noticed.
+
+### A transformer that reads those tokens
+
+The section above ends by handing a `TokenBatch` to "a transformer". There
+wasn't one — the data was in the right shape for a model nobody had run, which
+is the weakest kind of claim a pipeline can make.
+
+`computer_use.nn` and `computer_use.transformer` remove the hand-wave: a
+reverse-mode autograd and a decoder-only transformer, in pure Python, with no
+numpy and no torch. **57,744 parameters, two layers, no pretraining, no outside
+corpus.** Whatever it learns, it learned from this pipeline's own output.
+
+```bash
+agentic-gui pretrain --train-worlds 24 --test-worlds 8   # or: make pretrain-gui
+```
+
+Every training example is one decision — the instruction, the screen as the
+parser recovered it, and the action that followed:
+
+```
+<bos> C H O O S E _ C S V _ A N D _ T U R N _ O N _ S H A R E _ U S A G E _ D A T A .
+<obs> <x:3> <y:8>   R E Q U I R E _ A P P R <sep>
+      <x:3> <y:10>  S H A R E _ U S A G E _ <sep>
+      <x:8> <y:13>  C O N T I N U E         <sep>
+<act> <k:left_click> <x:3> <y:10> <eos>
+      └──────────── loss is charged only here ────────────┘
+```
+
+**The answer is in the context, so this is a pointer problem, not a memory
+one.** Every coordinate the model could emit is already in its input, sitting
+beside the label it belongs to. The work is deciding *which* label the
+instruction is asking for and copying the two tokens next to it — which is why
+two layers is enough, and why it can transfer to an application whose layout it
+has never seen. Nothing about the target's position is memorized.
+
+The same mechanism, isolated, is a test: `test_learns_to_copy_from_context`
+trains this architecture on `k a k ?` sequences where the answer differs every
+time, so only attending back to the earlier match can score.
+
+**Scoring runs the model in the environment.** Held-out next-token accuracy
+would be a friendlier number and would mean less — a model can be right about
+most tokens of an action and still click six pixels outside the control. Here
+the generated action is decoded, executed, the episode continues from whatever
+screen results, and the task's verifier decides.
+
+#### Two things this needed that weren't obvious
+
+**Gradients are checked, not trusted.** Hand-written backwards are the classic
+bug that trains anyway: a transposed index still points roughly downhill, so
+the loss falls and nothing looks wrong. `tests/test_nn.py` finite-difference
+checks all sixteen ops against their analytic gradients; they agree to ~1e-10.
+
+**One click in ten had an uncopyable target.** The search that produces a gold
+path picks some pixel inside a widget; the parser picks the centre of the
+rectangle it recovered from the pixels. Usually the same 20px cell — measured
+at 10% of clicks, not. On those steps the target token is one the context does
+not contain, so the only way to be "right" is to memorize a coordinate, which
+is precisely what this setup exists to avoid teaching. `snap_to_screen` moves
+the click onto the parser's point, and `_frames` does not take on trust that
+this is harmless: it executes the snapped path and keeps it only if the task's
+own verifier still passes. Uncopyable click targets: **10% → 3.8%**.
+
+#### Two decisions that made it finish
+
+Pure-Python arithmetic runs at ~20M multiply-accumulates per second, so the
+shape of the compute is the difference between an experiment and an intention.
+
+- **Project only where the loss is charged.** Logits at all `T` positions cost
+  `T x d x vocab` — the largest matmul in the model. The loss is charged on the
+  ~4 tokens of the action, so the hidden states are sliced to the supervised
+  positions *before* the projection. Same gradients; a tenth of the time. A
+  test asserts the restricted rows equal the full projection's.
+- **The inner loop was picked by measuring, not reasoning.** Three candidate
+  matmul loop orders, benchmarked on the five shapes the model actually uses.
+  The one that looks fastest per element — a list comprehension accumulating
+  into an output row — loses by 5-25%, because it re-slices and reallocates on
+  every one of its `m*k` iterations. The reasoning had it backwards.
 
 ### Step pairs: attribution by effect, not by text
 
