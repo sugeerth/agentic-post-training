@@ -58,6 +58,7 @@ from computer_use.tokens import (
     decode_action,
     encode_action,
     encode_screen,
+    quantize,
 )
 from computer_use.transformer import GPT, ModelConfig, generate
 from computer_use.types import Action, Trajectory, TrajectoryStatus
@@ -70,6 +71,7 @@ __all__ = [
     "build_corpus",
     "evaluate",
     "format_report",
+    "same_action",
     "train",
 ]
 
@@ -381,6 +383,33 @@ class EvalResult:
         }
 
 
+def same_action(left: Action, right: Action) -> bool:
+    """Whether two actions are the same *decision*, at grid resolution.
+
+    Raw equality is the wrong test and quietly reports zero. A gold action
+    carries the pixel the search chose — (290, 206) — while anything the model
+    emits has been through the coordinate grid and comes back as its cell's
+    centre, (290, 210). Those are the same cell and the same click on the same
+    control; comparing them with `==` measures how lossy the tokenizer is, not
+    how often the model is right.
+    """
+    if left.kind is not right.kind:
+        return False
+    if (left.text or "") != (right.text or ""):
+        return False
+    if left.scroll_direction != right.scroll_direction:
+        return False
+    if (left.scroll_amount or 0) != (right.scroll_amount or 0):
+        return False
+    for a, b in ((left.coordinate, right.coordinate),
+                 (left.start_coordinate, right.start_coordinate)):
+        if (a is None) != (b is None):
+            return False
+        if a is not None and b is not None and quantize(*a) != quantize(*b):
+            return False
+    return True
+
+
 def decode_generated(ids: Sequence[int], *, vocab: Vocabulary = VOCAB) -> Action | None:
     """The action a generation describes, or None if it is not one."""
     tokens = [t for t in vocab.decode(ids) if t not in (EOS, BOS, ACT, OBS)]
@@ -434,7 +463,7 @@ async def _run_task(
         if action is None:
             invalid += 1
             break
-        if index < len(gold) and action == gold[index]:
+        if index < len(gold) and same_action(action, gold[index]):
             matched += 1
         try:
             await env.execute(action)

@@ -22,6 +22,7 @@ from computer_use.pretrain import (
     format_report,
     make_example,
     mean_loss,
+    same_action,
     snap_to_screen,
     train,
 )
@@ -161,6 +162,62 @@ class TestDecoding:
 
     def test_returns_none_for_nothing(self) -> None:
         assert decode_generated([]) is None
+
+
+class TestActionMatching:
+    """Comparing a generated action to gold, at the resolution it can express."""
+
+    def test_the_same_cell_counts_as_the_same_decision(self) -> None:
+        """Gold carries a raw pixel; generation can only return a cell centre.
+
+        Raw `==` reports zero forever and looks like a model that never gets
+        anything right, when what it is measuring is the grid.
+        """
+        gold = Action(kind=ActionKind.LEFT_CLICK, coordinate=(290, 206))
+        emitted = Action(kind=ActionKind.LEFT_CLICK, coordinate=(290, 210))
+        assert gold != emitted
+        assert quantize(*gold.coordinate) == quantize(*emitted.coordinate)
+        assert same_action(gold, emitted)
+
+    def test_a_different_cell_does_not(self) -> None:
+        assert not same_action(
+            Action(kind=ActionKind.LEFT_CLICK, coordinate=(290, 206)),
+            Action(kind=ActionKind.LEFT_CLICK, coordinate=(290, 300)),
+        )
+
+    def test_kind_must_agree(self) -> None:
+        assert not same_action(
+            Action(kind=ActionKind.LEFT_CLICK, coordinate=(10, 10)),
+            Action(kind=ActionKind.DOUBLE_CLICK, coordinate=(10, 10)),
+        )
+
+    def test_text_must_agree(self) -> None:
+        assert same_action(
+            Action(kind=ActionKind.TYPE, text="hello"),
+            Action(kind=ActionKind.TYPE, text="hello"),
+        )
+        assert not same_action(
+            Action(kind=ActionKind.TYPE, text="hello"),
+            Action(kind=ActionKind.TYPE, text="goodbye"),
+        )
+
+    def test_a_missing_coordinate_is_not_a_matching_one(self) -> None:
+        assert not same_action(
+            Action(kind=ActionKind.LEFT_CLICK, coordinate=(10, 10)),
+            Action(kind=ActionKind.LEFT_CLICK),
+        )
+
+    def test_scroll_fields_must_agree(self) -> None:
+        base = dict(kind=ActionKind.SCROLL, coordinate=(640, 360), scroll_direction="down")
+        assert same_action(Action(**base, scroll_amount=3), Action(**base, scroll_amount=3))
+        assert not same_action(Action(**base, scroll_amount=3), Action(**base, scroll_amount=5))
+
+    def test_a_round_trip_through_the_tokenizer_still_matches(self) -> None:
+        """The property that makes this the right comparison."""
+        gold = Action(kind=ActionKind.LEFT_CLICK, coordinate=(291, 207))
+        through = decode_generated(VOCAB.encode([*encode_action(gold), EOS]))
+        assert through is not None
+        assert same_action(gold, through)
 
 
 class TestTraining:
