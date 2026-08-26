@@ -239,10 +239,13 @@ print(result.value, result.ci_low, result.ci_high)
 | `learn.*` | Trains a grounding policy on the pipeline's own rollouts and scores it on generated apps it has never seen. Pixels only, pure Python. |
 | `evolve.*` | Self-improvement: practise on undemonstrated apps, keep what the verifier passes, and report what the loop can see beside what is true. |
 | `tokens.*` | Interactions as a token stream a transformer can read and write — 3 tokens per click, padded batches, optional torch tensors. |
+| `nn.*` | A reverse-mode autograd at matrix granularity — 16 ops, every one finite-difference checked. No numpy, no torch. |
+| `transformer.*` | A decoder-only transformer over interaction tokens: 57,744 parameters, two layers, tied output. |
+| `pretrain.*` | Builds the corpus, trains the model, and scores it by executing what it generates against the task's own verifier. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
-| `agentic-gui` | CLI: `tasks`, `bench`, `collect`, `learn`, `evolve` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
+| `agentic-gui` | CLI: `tasks`, `bench`, `collect`, `learn`, `evolve`, `pretrain` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
 
 ### Reward design
 
