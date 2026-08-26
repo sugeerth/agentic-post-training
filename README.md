@@ -240,7 +240,7 @@ print(result.value, result.ci_low, result.ci_high)
 | `evolve.*` | Self-improvement: practise on undemonstrated apps, keep what the verifier passes, and report what the loop can see beside what is true. |
 | `tokens.*` | Interactions as a token stream a transformer can read and write — 3 tokens per click, padded batches, optional torch tensors. |
 | `nn.*` | A reverse-mode autograd at matrix granularity — 16 ops, every one finite-difference checked. No numpy, no torch. |
-| `transformer.*` | A decoder-only transformer over interaction tokens: 57,744 parameters, two layers, tied output. |
+| `transformer.*` | A decoder-only transformer over interaction tokens: ~56k parameters, two layers, tied output. |
 | `pretrain.*` | Builds the corpus, trains the model, and scores it by executing what it generates against the task's own verifier. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
@@ -658,7 +658,7 @@ is the weakest kind of claim a pipeline can make.
 
 `computer_use.nn` and `computer_use.transformer` remove the hand-wave: a
 reverse-mode autograd and a decoder-only transformer, in pure Python, with no
-numpy and no torch. **57,744 parameters, two layers, no pretraining, no outside
+numpy and no torch. **56,352 parameters, two layers, no pretraining, no outside
 corpus.** Whatever it learns, it learned from this pipeline's own output.
 
 ```bash
@@ -693,6 +693,46 @@ would be a friendlier number and would mean less — a model can be right about
 most tokens of an action and still click six pixels outside the control. Here
 the generated action is decoded, executed, the episode continues from whatever
 screen results, and the task's verifier decides.
+
+#### What it scored
+
+Two measures, reported together because they answer different questions.
+**Step accuracy** is teacher-forced: given the screen the gold path actually
+reached, is the next action right? **Solved** is closed-loop: the model acts on
+the screen its own previous action produced, and the task's verifier decides.
+
+```
+  held out: 112 decisions across 32 tasks, on 8 generated apps never seen
+
+  training data      params    step accuracy      solved
+  ---------------------------------------------------------
+  24 apps            56,352    20/112   17.9%     0/32    0%
+  24 apps, wider     91,520    24/112   21.4%     0/32    0%
+  48 apps            56,352    42/112   37.5%     3/32    9%
+  untrained          56,352     0/112    0.0%     0/32    0%
+```
+
+**The signal is real: 0% → 37.5%.** Same architecture, same features, random
+weights — nothing. The pipeline's own output is enough to teach a model to
+ground an instruction in a screen it has never seen.
+
+**Data diversity is the binding constraint, not capacity.** Doubling the
+applications at an identical parameter count nearly doubled step accuracy and
+took closed-loop from zero to three. Adding 62% more parameters against the
+same 24 apps bought 3.5 points and no solved task. The wider model also overfit
+harder — held-out loss bottomed at 1.18 and rose, while the 48-app run reached
+0.64 and stayed there.
+
+**Closed-loop is much harder than per-step, and that gap is the honest part.**
+At 37.5% per decision, a three-step task is unlikely to survive: one wrong
+click and every later step is taken from a screen the gold path never visited.
+`type` is 0/16 in every run — emitting `ada@example.com` means fifteen exact
+character tokens, and nothing about that is partial credit.
+
+**A zero is only evidence if a perfect policy would not score zero.** Replaying
+each task's own gold actions through the same verifier the evaluation uses
+scores 32/32, so the closed-loop numbers are about the model. There is a test
+that asserts it.
 
 #### Two things this needed that weren't obvious
 

@@ -10,6 +10,8 @@ selects, by name, rather than by counting.
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from computer_use.perception import Box, Element
@@ -37,7 +39,13 @@ from computer_use.tokens import (
     quantize,
 )
 from computer_use.transformer import GPT, ModelConfig
-from computer_use.types import POINTING_ACTIONS, Action, ActionKind
+from computer_use.types import (
+    POINTING_ACTIONS,
+    Action,
+    ActionKind,
+    Trajectory,
+    TrajectoryStatus,
+)
 from computer_use.worlds import curriculum
 
 CLICK = Action(kind=ActionKind.LEFT_CLICK, coordinate=(300, 200))
@@ -133,8 +141,7 @@ class TestCorpus:
     def test_gold_paths_still_solve_their_tasks_after_snapping(self, tasks: list) -> None:
         """Snapping must not change what an action does, only where it points."""
         for task in tasks:
-            examples = build_corpus([task])
-            assert len(examples) == len(task.gold)
+            assert len(build_corpus([task])) == len(task.gold)
 
 
 class TestDecoding:
@@ -255,6 +262,31 @@ class TestTraining:
 
 
 class TestEvaluation:
+    def test_the_harness_can_score_a_success(self, tasks: list) -> None:
+        """The control that makes a zero mean something.
+
+        A closed-loop score of 0/32 is only evidence about the model if a
+        perfect policy would have scored 32/32 through the same path. Replay
+        each task's own gold actions and check the same verifier the evaluation
+        uses — if this ever fails, every score in this module is measuring the
+        harness.
+        """
+        async def replay() -> int:
+            solved = 0
+            for task in tasks:
+                env = task.env_factory()
+                await env.reset()
+                for action in task.gold:
+                    await env.execute(action)
+                episode = Trajectory(
+                    task=task.instruction, steps=(), status=TrajectoryStatus.MAX_STEPS
+                )
+                solved += bool(task.verifier(episode, env.state()).success)
+                await env.close()
+            return solved
+
+        assert asyncio.run(replay()) == len(tasks)
+
     def test_an_untrained_model_is_scored_without_crashing(self, tasks: list) -> None:
         """Random weights emit malformed actions; that is a score, not an error."""
         longest = 220

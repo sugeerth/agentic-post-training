@@ -72,6 +72,7 @@ __all__ = [
     "evaluate",
     "format_report",
     "same_action",
+    "step_accuracy",
     "train",
 ]
 
@@ -423,6 +424,43 @@ def decode_generated(ids: Sequence[int], *, vocab: Vocabulary = VOCAB) -> Action
         # producing nonsense is a way for a policy to fail, not for the
         # harness to crash.
         return None
+
+
+def step_accuracy(
+    model: GPT, examples: Sequence[Example], *, vocab: Vocabulary = VOCAB
+) -> dict[str, tuple[int, int]]:
+    """Teacher-forced accuracy: given the real screen, is the next action right?
+
+    This is the measure that says whether the model learned to ground, and it
+    is deliberately reported next to the closed-loop score rather than instead
+    of it, because the two answer different questions.
+
+    Closed-loop, the model acts on the screen its own previous action produced.
+    One wrong click and every later step is scored against a gold path that no
+    longer applies, so the episode is lost and the per-step comparison stops
+    meaning anything. Here each decision is judged from the screen the gold
+    path actually reached — which isolates grounding from error compounding.
+
+    Returns `{action kind: (correct, total)}`, plus an `"all"` entry. Split by
+    kind because the kinds are not equally hard: a click has to name one of a
+    dozen cells, and a `type` has to emit a fifteen-character string exactly.
+    """
+    stop = vocab.id(EOS)
+    tally: dict[str, list[int]] = {}
+    for example in examples:
+        gold = example.action
+        if gold is None:
+            continue
+        produced = generate(
+            model, example.ids[: example.prompt_length], max_new=24, stop=(stop,)
+        )
+        predicted = decode_generated(produced, vocab=vocab)
+        hit = predicted is not None and same_action(predicted, gold)
+        for key in (gold.kind.value, "all"):
+            slot = tally.setdefault(key, [0, 0])
+            slot[0] += int(hit)
+            slot[1] += 1
+    return {k: (v[0], v[1]) for k, v in tally.items()}
 
 
 async def _run_task(
