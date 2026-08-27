@@ -17,6 +17,7 @@ import pytest
 from computer_use.diagnose import (
     Baseline,
     FieldScores,
+    attention_to_target,
     baselines,
     ceiling,
     context_elements,
@@ -26,6 +27,7 @@ from computer_use.diagnose import (
 from computer_use.perception import Box, Element
 from computer_use.pretrain import DEFAULT_CORPUS, CorpusConfig, make_example
 from computer_use.tokens import quantize
+from computer_use.transformer import GPT, ModelConfig
 from computer_use.types import Action, ActionKind
 
 
@@ -321,3 +323,88 @@ class TestFormatting:
         assert "floor" in text
         assert "by field" in text
         assert "left_click" in text
+
+
+# --------------------------------------------------------------------------- #
+# Where the model looked
+# --------------------------------------------------------------------------- #
+
+
+class TestAttention:
+    """The mechanics, not the verdict.
+
+    An untrained model attends nowhere meaningful, so nothing here asserts that
+    the mass lands on the target — that is the measurement, and asserting it
+    would be asserting the result. What is checked is that the reading is a
+    reading: that recording cannot change what the model computes, that the
+    row is the one belonging to the position that emits the coordinate, and
+    that the uniform reference is the share it claims to be.
+    """
+
+    def _example(self):
+        screen = _Screen(
+            _control("SAVE", 100, 200),
+            _control("CANCEL", 300, 400),
+            _control("HELP", 500, 600),
+        )
+        return make_example("PRESS CANCEL", screen, _click(340, 420))
+
+    def _model(self, example) -> GPT:
+        return GPT(ModelConfig(max_len=len(example.ids) + 8), seed=3)
+
+    def test_recording_does_not_change_what_the_model_computes(self) -> None:
+        """The instrument must be inert. It keeps references to tensors the
+        forward pass already built, so this should hold exactly, not nearly."""
+        example = self._example()
+        model = self._model(example)
+
+        plain = model.hidden(example.ids).data
+        record: list = []
+        watched = model.hidden(example.ids, record).data
+
+        assert plain == watched
+        assert record  # and it did in fact record something
+
+    def test_one_matrix_is_recorded_per_layer_per_head(self) -> None:
+        example = self._example()
+        config = ModelConfig(max_len=len(example.ids) + 8, n_layers=2, n_heads=3)
+        record: list = []
+        GPT(config, seed=3).hidden(example.ids, record)
+
+        assert len(record) == config.n_layers * config.n_heads
+
+    def test_the_uniform_reference_is_the_target_share_of_the_observation(self) -> None:
+        """Three equal controls, so an evenly spread gaze lands a third of its
+        mass on the one that matters."""
+        example = self._example()
+
+        result = attention_to_target(self._model(example), [example])
+
+        assert result.examples == 1
+        assert result.if_uniform == pytest.approx(1 / 3, abs=0.08)
+
+    def test_the_measured_mass_is_a_probability(self) -> None:
+        example = self._example()
+
+        result = attention_to_target(self._model(example), [example])
+
+        assert 0.0 <= result.on_target <= 1.0
+        assert result.ratio == pytest.approx(result.on_target / result.if_uniform)
+
+    def test_a_screen_with_one_control_is_skipped(self) -> None:
+        """With nothing to choose between, where the model looked says nothing."""
+        example = make_example(
+            "PRESS SAVE", _Screen(_control("SAVE", 100, 200)), _click(140, 220)
+        )
+
+        assert attention_to_target(self._model(example), [example]).examples == 0
+
+    def test_scrolls_and_types_are_skipped(self) -> None:
+        typed = make_example(
+            'SET CITY TO "BERLIN"', _Screen(), Action(kind=ActionKind.TYPE, text="BERLIN")
+        )
+
+        assert attention_to_target(self._model(typed), [typed]).examples == 0
+
+    def test_an_empty_reading_reports_zero_rather_than_dividing_by_it(self) -> None:
+        assert attention_to_target(GPT(ModelConfig()), []).ratio == 0.0

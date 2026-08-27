@@ -100,7 +100,7 @@ class Block:
             self.ln2_g, self.ln2_b, self.w1, self.b1, self.w2, self.b2,
         ]
 
-    def __call__(self, x: Tensor) -> Tensor:
+    def __call__(self, x: Tensor, record: list[Tensor] | None = None) -> Tensor:
         cfg = self.config
         head_dim = cfg.head_dim
         inv = 1.0 / math.sqrt(head_dim)
@@ -115,7 +115,13 @@ class Block:
             kh = nn.slice_cols(k, start, head_dim)
             vh = nn.slice_cols(v, start, head_dim)
             scores = nn.scale(nn.matmul(qh, nn.transpose(kh)), inv)
-            heads.append(nn.matmul(nn.softmax_rows(scores, causal=True), vh))
+            weights = nn.softmax_rows(scores, causal=True)
+            # Kept by reference, not recomputed: the matrix is already built,
+            # so watching where the model looks costs nothing but a list append
+            # and cannot perturb what it does.
+            if record is not None:
+                record.append(weights)
+            heads.append(nn.matmul(weights, vh))
         attended = nn.matmul(nn.concat_cols(heads), self.wo)
         x = nn.add(x, attended)
 
@@ -155,8 +161,16 @@ class GPT:
 
     # -- forward ----------------------------------------------------------- #
 
-    def hidden(self, ids: Sequence[int]) -> Tensor:
-        """Final-layer states for every position."""
+    def hidden(
+        self, ids: Sequence[int], record: list[Tensor] | None = None
+    ) -> Tensor:
+        """Final-layer states for every position.
+
+        Pass `record` to collect the attention matrices as they are computed,
+        one per layer per head in order. Nothing else changes: the same tensors
+        are returned either way, and `diagnose` uses this to ask what the model
+        was looking at when it emitted a coordinate.
+        """
         if len(ids) > self.config.max_len:
             raise ValueError(
                 f"sequence of {len(ids)} exceeds max_len={self.config.max_len}; "
@@ -165,7 +179,7 @@ class GPT:
             )
         x = nn.add(nn.embed(self.tok, ids), nn.embed(self.pos, range(len(ids))))
         for block in self.blocks:
-            x = block(x)
+            x = block(x, record)
         return nn.layer_norm(x, self.ln_g, self.ln_b)
 
     def logits(self, ids: Sequence[int], positions: Sequence[int] | None = None) -> Tensor:

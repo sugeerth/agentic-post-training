@@ -278,6 +278,7 @@ def _cmd_learn(args: argparse.Namespace) -> int:
 def _cmd_pretrain(args: argparse.Namespace) -> int:
     """Train a transformer on interaction tokens; score it by execution."""
     from computer_use.diagnose import (
+        attention_to_target,
         baselines,
         ceiling,
         field_scores,
@@ -358,6 +359,7 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
     limit = ceiling(held)
     floor = baselines(held)
     fields = field_scores(predictions(model, held))
+    gaze = attention_to_target(model, held)
 
     if args.json:
         print(json.dumps({
@@ -368,6 +370,10 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
                 {"name": b.name, "correct": b.correct, "total": b.total}
                 for b in floor
             ],
+            "attention": {
+                "on_target": gaze.on_target, "if_uniform": gaze.if_uniform,
+                "ratio": gaze.ratio, "examples": gaze.examples,
+            },
             "fields": {
                 "kind": fields.kind, "column": fields.column, "row": fields.row,
                 "point": fields.point, "characters": fields.characters,
@@ -379,7 +385,7 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
         return 0
     print()
     print(format_report(report, results))
-    print(format_diagnosis(limit, floor, fields))
+    print(format_diagnosis(limit, floor, fields, gaze))
     return 0
 
 

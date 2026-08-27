@@ -48,16 +48,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from computer_use.nn import Tensor
 from computer_use.pretrain import Example, decode_generated
 from computer_use.tokens import ACT, EOS, OBS, SEP, VOCAB, Vocabulary, quantize
 from computer_use.transformer import GPT, generate
 from computer_use.types import Action
 
 __all__ = [
+    "Attention",
     "Baseline",
     "Ceiling",
     "Element",
     "FieldScores",
+    "attention_to_target",
     "baselines",
     "ceiling",
     "context_elements",
@@ -435,6 +438,102 @@ def field_scores(
 
 
 # --------------------------------------------------------------------------- #
+# Where the model looked
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Attention:
+    """How much of the model's attention landed on the control it needed.
+
+    The encoding's whole premise is that emitting a coordinate is a copy: find
+    the label the instruction names, take the cell beside it. If that is what
+    the model does, then at the moment it emits the coordinate its attention
+    should concentrate on the target control's tokens. If it is doing something
+    else — reproducing a position it memorized, or following the instruction
+    without consulting the screen — the mass goes elsewhere, and that is
+    visible here whether or not the accuracy moved.
+    """
+
+    #: Mass on the target control's span, summed over layers and heads then
+    #: averaged over examples.
+    on_target: float = 0.0
+    #: What the same measurement would give if attention were spread evenly
+    #: over the observation. The number `on_target` has to beat to mean
+    #: anything — the target's share of the span is not small.
+    if_uniform: float = 0.0
+    examples: int = 0
+
+    @property
+    def ratio(self) -> float:
+        """Above one, the model is looking at the right control."""
+        return self.on_target / self.if_uniform if self.if_uniform else 0.0
+
+
+def _element_spans(
+    tokens: Sequence[str], start: int, end: int
+) -> list[tuple[int, int]]:
+    """Where each control's tokens begin and end, in `tokens[start:end]`."""
+    spans: list[tuple[int, int]] = []
+    left = start
+    for index in range(start, end):
+        if tokens[index] == SEP:
+            spans.append((left, index))
+            left = index + 1
+    return spans
+
+
+def attention_to_target(
+    model: GPT, examples: Sequence[Example], *, vocab: Vocabulary = VOCAB
+) -> Attention:
+    """At the position that emits the coordinate, what was the model reading?
+
+    Teacher-forced on the gold action, so this asks where attention goes when
+    the model is about to produce the right answer — not where it went while
+    producing a wrong one, which would confound looking in the wrong place with
+    being in the wrong state.
+    """
+    on_target = uniform = 0.0
+    counted = 0
+
+    for example in examples:
+        gold = example.action
+        if gold is None or gold.coordinate is None or gold.scroll_direction:
+            continue
+        tokens = vocab.decode(example.ids)
+        if OBS not in tokens or ACT not in tokens:
+            continue
+        obs, act = tokens.index(OBS) + 1, tokens.index(ACT)
+        spans = _element_spans(tokens, obs, act)
+        if len(spans) < 2:
+            continue  # nothing to discriminate between
+
+        want = quantize(*gold.coordinate)
+        target = [
+            (a, b) for a, b in spans
+            if f"<x:{want[0]}>" in tokens[a:b] and f"<y:{want[1]}>" in tokens[a:b]
+        ]
+        if len(target) != 1:
+            continue  # ambiguous or absent; the ceiling already counts these
+
+        # The coordinate is emitted one step after `<act>` names the kind.
+        query = min(act + 1, len(example.ids) - 1)
+        record: list[Tensor] = []
+        model.hidden(example.ids[: query + 1], record)
+
+        width = len(example.ids[: query + 1])
+        row = [w.data[query * width : (query + 1) * width] for w in record]
+        first, last = target[0]
+        on_target += sum(sum(r[first:last]) for r in row) / len(row)
+        uniform += (last - first) / max(act - obs, 1)
+        counted += 1
+
+    if not counted:
+        return Attention()
+    return Attention(on_target / counted, uniform / counted, counted)
+
+
+# --------------------------------------------------------------------------- #
 # Reporting
 # --------------------------------------------------------------------------- #
 
@@ -444,7 +543,10 @@ def _pct(hit: int, seen: int) -> str:
 
 
 def format_diagnosis(
-    limit: Ceiling, floor: Sequence[Baseline], scores: FieldScores
+    limit: Ceiling,
+    floor: Sequence[Baseline],
+    scores: FieldScores,
+    gaze: Attention | None = None,
 ) -> str:
     """The three readings as one block, ceiling first and score last."""
     lines = ["", "  ceiling — answers present in their own context"]
@@ -472,5 +574,15 @@ def format_diagnosis(
         lines.append(
             f"    missed clicks: median {scores.median_miss:.0f} cells away, "
             f"{near} within two"
+        )
+
+    if gaze is not None and gaze.examples:
+        lines += ["", "  where it looked when emitting a coordinate"]
+        lines.append(f"    {'on the target control':<24}{gaze.on_target:6.3f}")
+        lines.append(f"    {'if spread evenly':<24}{gaze.if_uniform:6.3f}")
+        lines.append(
+            f"    {'ratio':<24}{gaze.ratio:6.2f}   "
+            f"{'above 1 is looking at the right control' if gaze.ratio > 1 else 'at or below 1 is not'}"
+            f"  ({gaze.examples} decisions)"
         )
     return "\n".join(lines)
