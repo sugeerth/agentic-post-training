@@ -277,7 +277,15 @@ def _cmd_learn(args: argparse.Namespace) -> int:
 
 def _cmd_pretrain(args: argparse.Namespace) -> int:
     """Train a transformer on interaction tokens; score it by execution."""
+    from computer_use.diagnose import (
+        baselines,
+        ceiling,
+        field_scores,
+        format_diagnosis,
+        predictions,
+    )
     from computer_use.pretrain import (
+        DEFAULT_CORPUS,
         build_corpus,
         evaluate,
         format_report,
@@ -291,8 +299,11 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
         test=range(HELD_OUT_OFFSET, HELD_OUT_OFFSET + args.test_worlds),
         per_world=args.per_environment,
     )
-    corpus = build_corpus(train_tasks)
-    held = build_corpus(test_tasks)
+    from dataclasses import replace
+
+    corpus_config = replace(DEFAULT_CORPUS, label_first=args.label_first)
+    corpus = build_corpus(train_tasks, config=corpus_config)
+    held = build_corpus(test_tasks, config=corpus_config)
     longest = max(len(e) for e in (*corpus, *held))
     config = ModelConfig(
         d_model=args.d_model,
@@ -334,21 +345,41 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
     if args.out:
         save_model(model, args.out)
 
-    results = [evaluate(model, test_tasks, label="trained (apps never seen)")]
+    results = [evaluate(model, test_tasks, config=corpus_config,
+                        label="trained (apps never seen)")]
     if not args.skip_control:
         control = GPT(config, seed=args.seed + 977)
-        results.append(evaluate(control, test_tasks, label="untrained, same shape"))
+        results.append(evaluate(control, test_tasks, config=corpus_config,
+                                label="untrained, same shape"))
+
+    # The score is not interpretable on its own, so it is never printed on its
+    # own: the ceiling says how much of it was available, and the floor says
+    # what it had to beat to mean anything.
+    limit = ceiling(held)
+    floor = baselines(held)
+    fields = field_scores(predictions(model, held))
 
     if args.json:
         print(json.dumps({
             "train": report.to_dict(),
             "results": [r.to_dict() for r in results],
+            "ceiling": {"per_kind": limit.per_kind, "reasons": limit.reasons},
+            "baselines": [
+                {"name": b.name, "correct": b.correct, "total": b.total}
+                for b in floor
+            ],
+            "fields": {
+                "kind": fields.kind, "column": fields.column, "row": fields.row,
+                "point": fields.point, "characters": fields.characters,
+                "text_exact": fields.text_exact, "malformed": fields.malformed,
+            },
             "config": {"d_model": config.d_model, "n_layers": config.n_layers,
                        "n_heads": config.n_heads, "max_len": config.max_len},
         }, indent=2))
         return 0
     print()
     print(format_report(report, results))
+    print(format_diagnosis(limit, floor, fields))
     return 0
 
 
@@ -482,6 +513,11 @@ def main(argv: list[str] | None = None) -> int:
     p_pretrain.add_argument("--heads", type=int, default=3)
     p_pretrain.add_argument("--layers", type=int, default=2)
     p_pretrain.add_argument("--seed", type=int, default=0)
+    p_pretrain.add_argument(
+        "--label-first", action="store_true",
+        help="encode each control as label-then-coordinate, so copying the "
+             "answer runs forwards through the context instead of backwards",
+    )
     p_pretrain.add_argument("--out", type=str, default="",
                             help="write the checkpoint here after every epoch")
     p_pretrain.add_argument("--skip-control", action="store_true",

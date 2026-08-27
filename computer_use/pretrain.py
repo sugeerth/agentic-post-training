@@ -95,6 +95,10 @@ class CorpusConfig:
     label_chars: int = LABEL_CHARS
     max_elements: int = MAX_ELEMENTS
     vocab: Vocabulary = VOCAB
+    #: Put each control's label before its coordinate. See `encode_screen`:
+    #: it decides whether copying the answer runs forwards through the
+    #: context or backwards, which is the direction attention is good at.
+    label_first: bool = False
 
 
 #: The default corpus shape, as a singleton. Frozen, so sharing it is safe —
@@ -126,7 +130,10 @@ def context_tokens(
     tokens: list[str] = [BOS]
     tokens += [f"<c:{c}>" for c in instruction.upper()[: config.instruction_chars]]
     tokens += encode_screen(
-        screen, limit=config.max_elements, label_chars=config.label_chars
+        screen,
+        limit=config.max_elements,
+        label_chars=config.label_chars,
+        label_first=config.label_first,
     )
     tokens.append(ACT)
     return tokens

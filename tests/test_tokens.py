@@ -40,6 +40,7 @@ from computer_use.tokens import (
     decode_actions,
     dequantize,
     encode_action,
+    encode_screen,
     encode_trajectory,
     quantize,
     to_token_batch,
@@ -165,6 +166,67 @@ class TestActions(unittest.TestCase):
         self.assertEqual(
             len(encode_action(Action(ActionKind.LEFT_CLICK, coordinate=(1, 1)))), 3,
         )
+
+
+class TestScreenFieldOrder(unittest.TestCase):
+    """The two element encodings, which differ in exactly one thing.
+
+    `label_first` exists to test a claim about attention — that copying an
+    answer that *follows* its cue is easier than copying one that precedes it.
+    The claim is only testable if the two encodings are otherwise identical, so
+    that is what these check: same controls, same tokens, different order.
+    """
+
+    def _screen(self):
+        from computer_use.perception import Box, Element
+
+        class Screen:
+            width, height = 1280, 720
+            elements = (
+                Element(
+                    label="SAVE", kind="button",
+                    box=Box(x=100, y=200, width=80, height=40, color=(20, 20, 20)),
+                    text_run=None, click=(140, 220),
+                ),
+            )
+
+        return Screen()
+
+    def test_the_default_puts_the_coordinate_before_the_label(self):
+        tokens = encode_screen(self._screen())
+
+        self.assertLess(tokens.index("<x:7>"), tokens.index("<c:S>"))
+
+    def test_label_first_puts_the_label_before_the_coordinate(self):
+        tokens = encode_screen(self._screen(), label_first=True)
+
+        self.assertLess(tokens.index("<c:S>"), tokens.index("<x:7>"))
+
+    def test_the_two_orders_carry_exactly_the_same_tokens(self):
+        """Any difference beyond order would confound the comparison."""
+        default = encode_screen(self._screen())
+        flipped = encode_screen(self._screen(), label_first=True)
+
+        self.assertEqual(sorted(default), sorted(flipped))
+        self.assertNotEqual(default, flipped)
+
+    def test_state_stays_beside_the_coordinate_in_both_orders(self):
+        """A toggle's state qualifies the control, not its name."""
+        from computer_use.perception import Box, Element
+
+        class Screen:
+            width, height = 1280, 720
+            elements = (
+                Element(
+                    label="ON", kind="toggle",
+                    box=Box(x=100, y=200, width=80, height=40, color=(20, 20, 20)),
+                    text_run=None, click=(140, 220), checked=True,
+                ),
+            )
+
+        flipped = encode_screen(Screen(), label_first=True)
+
+        self.assertEqual(flipped.index("<s:on>"), flipped.index("<y:11>") + 1)
 
 
 class TestTrajectories(unittest.TestCase):

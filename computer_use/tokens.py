@@ -219,13 +219,31 @@ def decode_action(
 # --------------------------------------------------------------------------- #
 
 
-def encode_screen(screen: Any, *, limit: int = 24, label_chars: int = 24) -> list[str]:
+def encode_screen(
+    screen: Any,
+    *,
+    limit: int = 24,
+    label_chars: int = 24,
+    label_first: bool = False,
+) -> list[str]:
     """A parsed screen as tokens: what is on it and where.
 
     The point of spending tokens on the observation is that a policy trained on
     actions alone learns a fixed sequence, while one that sees the screen can
     learn to *look*. Elements come in reading order and are truncated rather
     than sampled, so the encoding is deterministic.
+
+    `label_first` moves each control's coordinate to *after* its label. The
+    field order is not cosmetic: the model's job is to find the label the
+    instruction names and emit the coordinate attached to it, and an attention
+    head matches a pattern and then copies what *follows* the match. With the
+    coordinate first, the answer sits behind the thing that identifies it, and
+    the copy has to run backwards. With the label first, it runs forwards —
+    which is the operation two layers implement without being taught.
+
+    Both orders are kept because the difference is an empirical question, and
+    `pretrain` trains under either so the answer can be measured rather than
+    asserted.
     """
     out: list[str] = [OBS]
     for element in list(getattr(screen, "elements", ()))[:limit]:
@@ -233,13 +251,18 @@ def encode_screen(screen: Any, *, limit: int = 24, label_chars: int = 24) -> lis
             continue
         cx, cy = quantize(*element.click,
                           width=screen.width, height=screen.height)
-        out += [f"<x:{cx}>", f"<y:{cy}>"]
+        point = [f"<x:{cx}>", f"<y:{cy}>"]
+        state: list[str] = []
         checked = getattr(element, "checked", None)
         if checked is not None:
-            out.append(f"<s:{'on' if checked else 'off'}>")
+            state.append(f"<s:{'on' if checked else 'off'}>")
         if getattr(element, "focused", False):
-            out.append("<s:focus>")
-        out += [f"<c:{c}>" for c in element.label.upper()[:label_chars]]
+            state.append("<s:focus>")
+        label = [f"<c:{c}>" for c in element.label.upper()[:label_chars]]
+        # State stays next to the coordinate in both orders: it qualifies the
+        # control, not the name, and splitting it from the point would make the
+        # two encodings differ in more than the one thing under test.
+        out += [*label, *point, *state] if label_first else [*point, *state, *label]
         out.append(SEP)
     return out
 
