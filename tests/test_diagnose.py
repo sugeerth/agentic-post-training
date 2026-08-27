@@ -389,7 +389,29 @@ class TestAttention:
         result = attention_to_target(self._model(example), [example])
 
         assert 0.0 <= result.on_target <= 1.0
+        assert 0.0 <= result.on_screen <= 1.0
         assert result.ratio == pytest.approx(result.on_target / result.if_uniform)
+
+    def test_looking_at_the_screen_and_looking_at_the_right_control_are_split(
+        self,
+    ) -> None:
+        """Both sides of the ratio have to be shares of the same thing.
+
+        `on_target` is conditioned on the observation, so a model that barely
+        consults the screen but distributes what little it spends correctly
+        still reads as looking in the right place — and `on_screen` is what
+        says it barely looked. Folding them together would let a low
+        `on_screen` masquerade as bad grounding, which is a different bug with
+        a different fix.
+        """
+        example = self._example()
+
+        result = attention_to_target(self._model(example), [example])
+
+        # Three controls, so an even gaze *within* the screen is a third,
+        # regardless of how much of the total gaze reached the screen at all.
+        assert result.if_uniform == pytest.approx(1 / 3, abs=0.08)
+        assert result.on_screen < 1.0  # some mass always goes to the prefix
 
     def test_a_screen_with_one_control_is_skipped(self) -> None:
         """With nothing to choose between, where the model looked says nothing."""

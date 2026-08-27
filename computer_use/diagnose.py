@@ -455,13 +455,17 @@ class Attention:
     visible here whether or not the accuracy moved.
     """
 
-    #: Mass on the target control's span, summed over layers and heads then
-    #: averaged over examples.
+    #: Of the attention the model spends on the screen, the share landing on
+    #: the control it needs. Conditioned on the observation deliberately: the
+    #: unconditional mass would confound *whether* it consults the screen with
+    #: *where* it looks once it does, and those are separate failures.
     on_target: float = 0.0
-    #: What the same measurement would give if attention were spread evenly
-    #: over the observation. The number `on_target` has to beat to mean
-    #: anything — the target's share of the span is not small.
+    #: The same share if attention were spread evenly across the observation —
+    #: the target's proportion of those tokens. What `on_target` has to beat,
+    #: and on a three-control screen it is about a third, not something small.
     if_uniform: float = 0.0
+    #: How much of the model's attention reached the screen at all.
+    on_screen: float = 0.0
     examples: int = 0
 
     @property
@@ -493,7 +497,7 @@ def attention_to_target(
     producing a wrong one, which would confound looking in the wrong place with
     being in the wrong state.
     """
-    on_target = uniform = 0.0
+    on_target = uniform = on_screen = 0.0
     counted = 0
 
     for example in examples:
@@ -522,15 +526,28 @@ def attention_to_target(
         model.hidden(example.ids[: query + 1], record)
 
         width = len(example.ids[: query + 1])
-        row = [w.data[query * width : (query + 1) * width] for w in record]
+        rows = [w.data[query * width : (query + 1) * width] for w in record]
         first, last = target[0]
-        on_target += sum(sum(r[first:last]) for r in row) / len(row)
+
+        # Each row is a distribution over positions, so the two sums below are
+        # a share of the screen and a share of everything, and the ratio of
+        # them is the quantity this function is named for.
+        screen = [sum(r[obs:act]) for r in rows]
+        if not any(screen):
+            continue
+        hits = [sum(r[first:last]) for r in rows]
+        on_target += sum(
+            h / s for h, s in zip(hits, screen, strict=True) if s
+        ) / max(sum(1 for s in screen if s), 1)
+        on_screen += sum(screen) / len(screen)
         uniform += (last - first) / max(act - obs, 1)
         counted += 1
 
     if not counted:
         return Attention()
-    return Attention(on_target / counted, uniform / counted, counted)
+    return Attention(
+        on_target / counted, uniform / counted, on_screen / counted, counted
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -578,7 +595,8 @@ def format_diagnosis(
 
     if gaze is not None and gaze.examples:
         lines += ["", "  where it looked when emitting a coordinate"]
-        lines.append(f"    {'on the target control':<24}{gaze.on_target:6.3f}")
+        lines.append(f"    {'attention on the screen':<24}{gaze.on_screen:6.3f}")
+        lines.append(f"    {'of that, on the target':<24}{gaze.on_target:6.3f}")
         lines.append(f"    {'if spread evenly':<24}{gaze.if_uniform:6.3f}")
         lines.append(
             f"    {'ratio':<24}{gaze.ratio:6.2f}   "

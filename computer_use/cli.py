@@ -372,7 +372,8 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
             ],
             "attention": {
                 "on_target": gaze.on_target, "if_uniform": gaze.if_uniform,
-                "ratio": gaze.ratio, "examples": gaze.examples,
+                "on_screen": gaze.on_screen, "ratio": gaze.ratio,
+                "examples": gaze.examples,
             },
             "fields": {
                 "kind": fields.kind, "column": fields.column, "row": fields.row,
