@@ -449,8 +449,15 @@ def step_accuracy(
     path actually reached — which isolates grounding from error compounding.
 
     Returns `{action kind: (correct, total)}`, plus an `"all"` entry. Split by
-    kind because the kinds are not equally hard: a click has to name one of a
-    dozen cells, and a `type` has to emit a fifteen-character string exactly.
+    kind because the kinds are not equally hard, though not in the proportion
+    it first looks: the median generated screen offers *three* controls, so a
+    click is a choice among a handful and chance is around a third, while a
+    `type` has to emit a fifteen-character string exactly and chance is nil.
+    Reporting them together averages those two together and hides both.
+
+    The number this returns means nothing on its own. `diagnose.baselines`
+    scores the same decisions under policies that do not learn, and that is
+    what it has to be read against — see `diagnose` for why.
     """
     stop = vocab.id(EOS)
     tally: dict[str, list[int]] = {}

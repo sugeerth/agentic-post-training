@@ -242,6 +242,7 @@ print(result.value, result.ci_low, result.ci_high)
 | `nn.*` | A reverse-mode autograd at matrix granularity — 16 ops, every one finite-difference checked. No numpy, no torch. |
 | `transformer.*` | A decoder-only transformer over interaction tokens: ~56k parameters, two layers, tied output. |
 | `pretrain.*` | Builds the corpus, trains the model, and scores it by executing what it generates against the task's own verifier. |
+| `diagnose.*` | Brackets a score from both sides: whether the answer was in the context at all, what policies that do not learn get on the same decisions, and which field of a prediction was wrong. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
@@ -712,9 +713,49 @@ the screen its own previous action produced, and the task's verifier decides.
   untrained          56,352     0/112    0.0%     0/32    0%
 ```
 
-**The signal is real: 0% → 37.5%.** Same architecture, same features, random
-weights — nothing. The pipeline's own output is enough to teach a model to
-ground an instruction in a screen it has never seen.
+**That 0% is the wrong null, and the comparison against it was not evidence.**
+A randomly initialized model emits token soup, so it scores zero for a reason
+that has nothing to do with grounding — beating it proves only that training
+happened. `computer_use/diagnose.py` replaces it with two readings that bracket
+the score from both sides, on exactly the same held-out decisions:
+
+```
+  ceiling — answers present in their own context
+    all                      112/112  100.0%
+    left_click                93/93   100.0%
+    type                      16/16   100.0%
+    scroll                     3/3    100.0%
+
+  floor — policies that do not learn (93 held-out clicks)
+    uniform over controls     29/93    31.2%
+    always the first control  18/93    19.4%
+    label overlapping the instruction
+                              44/93    47.3%
+```
+
+**The ceiling is 100%, so every point dropped is a learning failure.** Nothing
+held out asks the model for something its context does not contain — which is
+what `snap_to_screen` was for, and this is the check that says it worked.
+
+**The floor is where the result changes.** The 24-app model gets 19 of those
+93 clicks — 20.4%, Wilson 95% CI **[13.5%, 29.7%]**. The uniform policy's
+31.2% is not a sample and needs no interval: it is the exact expected value of
+picking at random among the controls actually on each screen. It sits *above*
+the model's upper bound. **On its own training scale the transformer is
+significantly worse than guessing**, and the ten-line label-overlap heuristic —
+47.3% — is better than both.
+
+Two things made the old framing easy to believe. The prose said a click has to
+name "one of a dozen cells"; the median generated screen offers **three**
+controls, so chance is high, not negligible. And the 0% control could not
+possibly score otherwise, which made any positive number look like progress.
+
+**The 48-app run is the one still standing, and it is not yet cleared.** Its
+42/112 is over every kind, while the floor above is over clicks only, so the
+two are not the same denominator and cannot be compared directly. Its click
+breakdown was not recorded before `diagnose` existed. `agentic-gui pretrain`
+now prints the ceiling and the floor beside every score it reports, so no
+future run can be quoted without them.
 
 **Data diversity is the binding constraint, not capacity.** Doubling the
 applications at an identical parameter count nearly doubled step accuracy and
