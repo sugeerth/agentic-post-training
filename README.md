@@ -767,8 +767,85 @@ harder — held-out loss bottomed at 1.18 and rose, while the 48-app run reached
 **Closed-loop is much harder than per-step, and that gap is the honest part.**
 At 37.5% per decision, a three-step task is unlikely to survive: one wrong
 click and every later step is taken from a screen the gold path never visited.
-`type` is 0/16 in every run — emitting `ada@example.com` means fifteen exact
-character tokens, and nothing about that is partial credit.
+
+#### What it actually learned, which is not what the encoding assumed
+
+Splitting a prediction into the parts that can fail on their own says what the
+score cannot. On the 24-app model:
+
+```
+  the model, by field
+    action kind               94/112   83.9%
+    column | kind             37/89    41.6%
+    row | kind                31/89    34.8%
+    both | kind               20/89    22.5%
+    missed clicks: median 11 cells away, 5 within two
+
+  where it looked when emitting a coordinate
+    attention on the screen  0.483
+    of that, on the target   0.298
+    if spread evenly         0.295
+    ratio                     1.01
+```
+
+**It learned the action grammar and not the grounding.** The verb is right
+five times in six. The coordinate is then close to a guess, and not a near
+one — the median missed click is *eleven cells* from the target, with only
+five of the misses within two. Column and row are each individually above
+chance while the pair is not, which is what fitting the marginal distribution
+of where controls sit looks like, as opposed to conditioning on the
+instruction.
+
+**The attention says the same thing directly, and it is the sharper result.**
+At the moment it emits a coordinate, 0.298 of the model's screen-directed
+attention lands on the control the instruction names — against 0.295 for a
+gaze spread evenly across the observation. A ratio of **1.01**. The premise
+this whole encoding rests on is that emitting a click is a *copy*: find the
+label the instruction names, take the cell beside it. The model never learned
+to point. That is a mechanism, not an inference from a score, and it explains
+the score.
+
+**`type` is not exact-match strictness hiding a near miss.** The obvious
+defence of 0/16 is that fifteen character tokens have to be right at once, so
+a model that got fourteen would read as zero. Measured, character-level
+recall is 13/48 — **27.1%**. It is not close.
+
+#### One experiment on the encoding, which failed as predicted and succeeded elsewhere
+
+If emitting a coordinate is a copy, field order should matter. An attention
+head matches a pattern and copies what *follows* the match, and this encoding
+puts each control's coordinate *before* the label that identifies it — so the
+copy has to run backwards. `--label-first` flips it. Same seed, same corpus,
+same 313 decisions, one difference:
+
+```
+                          coordinate-first        label-first
+  held-out clicks         19/93  20.4%            16/93  17.2%
+    95% CI                [13.5%, 29.7%]          [10.9%, 26.1%]
+  attention ratio         1.01                    1.10
+  action kind             94/112 83.9%            94/112 83.9%
+  typed characters        13/48  27.1%            50/66  75.8%
+    95% CI                [16.6%, 41.0%]          [64.2%, 84.5%]
+```
+
+**The prediction was wrong.** Clicks did not improve — 17.2% against 20.4%,
+intervals overlapping, both far below the 31.2% floor. Attention moved from
+1.01 to 1.10, which is a nudge and not a mechanism appearing. Field order does
+not buy grounding, so backwards-copying was not what was stopping it.
+
+**Something unpredicted did move, and a lot.** Character-level recall on
+`type` went from 27.1% to 75.8%, with non-overlapping intervals, and whole
+strings from 0 to 2. Changing the *screen* encoding substantially improved
+copying into the *action* — and the mechanism for that is not established
+here. Characters within a string are not independent draws, so the interval
+above is optimistic; the effect is much larger than the caveat.
+
+**What both runs agree on is the finding.** Action-kind accuracy is 94/112 in
+both, to the decision. The grammar is learned, robustly and identically; the
+grounding is not learned in either. Doubling the applications moved the score
+before, and the reading here says why that is the lever: nothing about the
+model's attention suggests capacity or field order is what stands between it
+and pointing.
 
 **A zero is only evidence if a perfect policy would not score zero.** Replaying
 each task's own gold actions through the same verifier the evaluation uses
