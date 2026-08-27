@@ -239,7 +239,16 @@ def _words(text: str) -> set[str]:
 
 
 def _overlap(label: str, instruction: str) -> int:
-    """How much of a control's label the instruction names."""
+    """How much of a control's label the instruction names.
+
+    Scored by characters of the shared words rather than by count, so naming
+    one long word beats incidentally sharing two short ones. Ties break to the
+    first control in reading order — which matters, because on a screen where
+    no label overlaps at all *every* control ties at zero and the rule quietly
+    becomes "take the first". That is a fair heuristic and a fully specified
+    one, but it means this baseline inherits some of the first-control
+    baseline's score rather than being independent of it.
+    """
     shared = _words(label) & _words(instruction)
     return sum(len(w) for w in shared)
 
