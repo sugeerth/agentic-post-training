@@ -30,6 +30,7 @@ from computer_use import (
 )
 from computer_use.tasks import SUITE
 from computer_use.tokens import (
+    MAX_MARKS,
     PAD,
     VOCAB,
     X_BINS,
@@ -166,6 +167,40 @@ class TestActions(unittest.TestCase):
         self.assertEqual(
             len(encode_action(Action(ActionKind.LEFT_CLICK, coordinate=(1, 1)))), 3,
         )
+
+
+class TestVocabularyStability(unittest.TestCase):
+    """New symbols must not renumber the old ones.
+
+    A checkpoint addresses its embedding rows by token id. Inserting a block
+    of symbols into the middle of the vocabulary shifts every id after it and
+    silently repoints a trained model's rows at symbols it never saw — nothing
+    raises, the model just becomes a different model. This happened once, when
+    the mark tokens were first added between the scroll amounts and the
+    characters, and it invalidated two trained checkpoints without a single
+    test failing.
+    """
+
+    def test_marks_are_appended_not_inserted(self):
+        tokens = list(VOCAB.tokens)
+        marks = [t for t in tokens if t.startswith("<m:")]
+
+        self.assertEqual(tokens[-len(marks):], marks)
+
+    def test_every_non_mark_token_precedes_every_mark(self):
+        """The property that keeps pre-mark ids valid, stated directly."""
+        tokens = list(VOCAB.tokens)
+        first_mark = min(i for i, t in enumerate(tokens) if t.startswith("<m:"))
+
+        self.assertTrue(
+            all(not t.startswith("<m:") for t in tokens[:first_mark])
+        )
+        self.assertEqual(first_mark, len(tokens) - MAX_MARKS)
+
+    def test_the_character_block_sits_where_it_always_did(self):
+        """A canary on the largest block, which is what shifted last time."""
+        self.assertLess(VOCAB.id("<c:A>"), VOCAB.id("<m:0>"))
+        self.assertLess(VOCAB.id("<c:?unk>"), VOCAB.id("<m:0>"))
 
 
 class TestScreenFieldOrder(unittest.TestCase):

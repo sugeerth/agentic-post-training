@@ -82,9 +82,14 @@ def _vocabulary() -> tuple[str, ...]:
     tokens += [f"<s:{s}>" for s in STATES]
     tokens += [f"<d:{d}>" for d in SCROLL_DIRECTIONS]
     tokens += [f"<n:{n}>" for n in range(MAX_SCROLL + 1)]
-    tokens += [f"<m:{i}>" for i in range(MAX_MARKS)]
     tokens += [f"<c:{c}>" for c in CHARS]
     tokens.append("<c:?unk>")
+    # Marks are appended, never inserted. Everything above has a stable id, and
+    # a checkpoint's embedding rows are addressed by id — so slotting a new
+    # block into the middle silently renumbers every token after it and
+    # repoints a trained model's rows at symbols it never saw. Nothing raises;
+    # the model simply becomes a different model. New symbols go on the end.
+    tokens += [f"<m:{i}>" for i in range(MAX_MARKS)]
     return tuple(tokens)
 
 
