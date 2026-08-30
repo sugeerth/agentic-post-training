@@ -52,7 +52,7 @@ agentic-gui = "computer_use.cli:main"
 [tool.setuptools.packages.find]
 include = [
     "core*", "agents*", "techniques*", "optimization*",
-    "pipeline*", "backends*", "computer_use*",
+    "pipeline*", "backends*", "computer_use*", "inference*",
 ]
 
 [project.entry-points."agentic_post_training.techniques"]
@@ -81,7 +81,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["core", "techniques/_base", "computer_use"]
+files = ["core", "techniques/_base", "computer_use", "inference"]
 # The repo root ships an `__init__.py`, so mypy would otherwise try to read the
 # checkout directory itself as a package and choke on the dash in its name.
 mypy_path = "."

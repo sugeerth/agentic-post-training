@@ -242,11 +242,97 @@ print(result.value, result.ci_low, result.ci_high)
 | `nn.*` | A reverse-mode autograd at matrix granularity — 16 ops, every one finite-difference checked. No numpy, no torch. |
 | `transformer.*` | A decoder-only transformer over interaction tokens: ~56k parameters, two layers, tied output. |
 | `pretrain.*` | Builds the corpus, trains the model, and scores it by executing what it generates against the task's own verifier. |
+| `inference.*` | The sampling half of the loop: KV-cached decoding, radix prefix reuse across a GRPO group, policy-version stamping, and rollouts assembled into `RolloutBatch`. |
 | `diagnose.*` | Brackets a score from both sides: whether the answer was in the context at all, what policies that do not learn get on the same decisions, and which field of a prediction was wrong. |
 | `metrics.*` | Unbiased pass@k and Wilson score intervals. |
 | `dataset.*` | Trajectories → `PreferencePair` / `RolloutBatch` / `TrainingExample`. |
 | `ComputerUseAgent` | The whole thing as an agent on the message bus. |
 | `agentic-gui` | CLI: `tasks`, `bench`, `collect`, `learn`, `evolve`, `pretrain` — over the curated suite, `--synthetic` tasks, or `--worlds` apps. |
+
+### Inference infrastructure
+
+Post-training an agent spends most of its wall clock **generating rollouts**,
+not computing gradients. A GRPO step needs *k* trajectories per prompt, each a
+multi-turn episode against an environment. Until now this repo had the
+gradient half and not the sampling half: `RolloutBatch` arrived fully formed
+and where it came from was out of scope. `inference/` is that other half.
+
+**The sampler must agree with its trainer, exactly.** `transformer.generate`
+recomputes the whole sequence for every token it emits, and allocates an
+autograd graph on a path that never calls `backward()`. The inference runtime
+computes each position's keys and values once and carries no graph. The bar is
+not that it is faster — it is that it is faster *and indistinguishable*:
+
+```
+  logits, inference path vs GPT.logits    214/214 bit-identical
+  max |difference|                        0.000e+00
+  greedy decode, 12 real GUI decisions    12/12 identical tokens
+  speed, same decisions                   26.7s → 4.4s     6.1x
+```
+
+A sampler that merely *rounds differently* from its trainer generates rollouts
+for a policy that does not exist, and nothing downstream would fail — the loss
+still falls, the reward still rises. So `tests/test_inference.py` asserts `==`,
+not `approx`.
+
+**A GRPO group is one prompt sampled *k* times.** That is 87.5% redundant work
+at group size 8, and a radix trie over token ids removes it. Measured on the
+generated GUI corpus:
+
+```
+  GRPO group, 57-token prompt sampled 8x
+    prompt tokens requested        456
+    actually computed               57
+    saved by prefix reuse          399   87.5%
+
+  40 multi-turn decisions from 8 apps
+    saved by prefix reuse          992   33.0%
+    requests finding a usable prefix     70%
+```
+
+Reuse is **block-aligned**, at 16 positions, for the reason a paged engine's
+is: storing a snapshot at every depth is quadratic memory to save linear work.
+An identical prompt reuses all of it; a divergent branch lands on the deepest
+block boundary inside what it shares. Storing only at the terminal node — the
+first thing I wrote — reports a 0% hit rate on exactly the multi-turn case
+this exists for, and a test now says so.
+
+**On-policy is a property of the sample, not of the wall clock.** GRPO's
+advantage is only meaningful relative to the policy that drew the sample. The
+moment a trainer steps, every rollout still in flight came from a policy that
+no longer exists — and nothing crashes. The loss falls, the curve rises, and
+the run optimizes something other than the objective. So every completion is
+stamped with the version that produced it, weight snapshots are copies rather
+than references, and a batch mixing versions raises `StalenessError` unless
+the caller passes `max_staleness` to say the drift is intended.
+
+**Two bugs worth naming, both found by running it.**
+
+*The cache reported hits it did not have.* Covered above — terminal-only
+storage, silently zero on divergent branches.
+
+*Ragged log-probs cannot become a tensor.* Samples in a group stop at
+different lengths — `[12, 12, 12, 12, 12, 12, 12, 7]` is a normal group — and
+GRPO reads `log_probs` as `(B, G, T)`. Unpadded that raises inside the trainer,
+on a GPU machine, after the expensive sampling is already paid for. Padding is
+`0.0`, which is a *log*-probability of 1.0, so a sum without the mask hands
+free probability mass to whichever samples stopped early. `response_mask` and
+`response_lengths` ship in the batch metadata for that reason.
+
+**What is verified and what is not.** The runtime, cache, versioning, admission
+control and batch assembly all run here, in CI, with no GPU — 31 tests. What is
+*not* verified is the far side of the seam: torch is not installed in this
+environment, so `GRPOTechnique.step()` cannot take its real path and the batch
+is checked for shape rather than consumption. A vLLM or SGLang engine
+implements the same `Engine` protocol, and neither has been run.
+
+```python
+from inference import LocalEngine, PolicyWeights, GroupSpec, sample_group, to_rollout_batch
+
+engine = LocalEngine(PolicyWeights.snapshot(model, version=trainer.step))
+group = sample_group(engine, GroupSpec(prompt=ids, size=8, temperature=0.9), verifier)
+batch, report = to_rollout_batch([group])     # -> techniques.grpo, with log-probs
+```
 
 ### Reward design
 
