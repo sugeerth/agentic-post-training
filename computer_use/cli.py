@@ -302,7 +302,9 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
     )
     from dataclasses import replace
 
-    corpus_config = replace(DEFAULT_CORPUS, label_first=args.label_first)
+    corpus_config = replace(
+        DEFAULT_CORPUS, label_first=args.label_first, marks=args.marks
+    )
     corpus = build_corpus(train_tasks, config=corpus_config)
     held = build_corpus(test_tasks, config=corpus_config)
     longest = max(len(e) for e in (*corpus, *held))
@@ -520,6 +522,11 @@ def main(argv: list[str] | None = None) -> int:
     p_pretrain.add_argument("--heads", type=int, default=3)
     p_pretrain.add_argument("--layers", type=int, default=2)
     p_pretrain.add_argument("--seed", type=int, default=0)
+    p_pretrain.add_argument(
+        "--marks", action="store_true",
+        help="emit a click as the index of the control it lands on, rather "
+             "than as a coordinate pair the model has to copy",
+    )
     p_pretrain.add_argument(
         "--label-first", action="store_true",
         help="encode each control as label-then-coordinate, so copying the "

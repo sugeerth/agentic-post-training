@@ -53,12 +53,14 @@ from computer_use.tokens import (
     BOS,
     EOS,
     OBS,
+    SEP,
     VOCAB,
     Vocabulary,
     decode_action,
     encode_action,
     encode_screen,
     quantize,
+    resolve_marks,
 )
 from computer_use.transformer import GPT, ModelConfig, generate
 from computer_use.types import Action, Trajectory, TrajectoryStatus
@@ -99,6 +101,14 @@ class CorpusConfig:
     #: it decides whether copying the answer runs forwards through the
     #: context or backwards, which is the direction attention is good at.
     label_first: bool = False
+    #: Emit a click as the *index of the control it lands on* rather than as a
+    #: coordinate pair. The GUI-grounding literature converges on this — the
+    #: failure mode of coordinate generation is that spatial positions are
+    #: treated as ordinary language tokens, so `<x:8>` and `<x:9>` start as
+    #: unrelated as `<x:8>` and `<k:type>`, and nothing in the objective says
+    #: otherwise. Naming a mark makes the decision a choice among the controls
+    #: actually on screen instead of a two-hop copy of a number.
+    marks: bool = False
 
 
 #: The default corpus shape, as a singleton. Frozen, so sharing it is safe —
@@ -118,6 +128,10 @@ class Example:
     task: str
     world_seed: int | None = None
     action: Action | None = None
+    #: The cell of each control this example's observation showed, in order.
+    #: Present only under a mark encoding, where a generated `<m:i>` has to be
+    #: resolved against the screen that produced it to mean anything.
+    marks: tuple[tuple[int, int], ...] | None = None
 
     def __len__(self) -> int:
         return len(self.ids)
@@ -139,6 +153,26 @@ def context_tokens(
     return tokens
 
 
+def screen_marks(
+    screen: object, config: CorpusConfig = DEFAULT_CORPUS
+) -> list[tuple[int, int]]:
+    """The cell of each control, in the order the observation lists them.
+
+    Read off the same elements `encode_screen` encodes, and truncated by the
+    same limit, so a mark index always refers to a control the model can see.
+    A mark pointing at a control that was cropped out of the context would be
+    an answer the model has no way to give.
+    """
+    out: list[tuple[int, int]] = []
+    width = getattr(screen, "width", 1280)
+    height = getattr(screen, "height", 720)
+    for element in list(getattr(screen, "elements", ()))[: config.max_elements]:
+        if element.box is None:
+            continue
+        out.append(quantize(*element.click, width=width, height=height))
+    return out
+
+
 def make_example(
     instruction: str,
     screen: object,
@@ -149,7 +183,8 @@ def make_example(
 ) -> Example:
     """Context plus the action that followed it, with the loss mask."""
     prompt = context_tokens(instruction, screen, config)
-    tokens = [*prompt, *encode_action(action), EOS]
+    marks = screen_marks(screen, config) if config.marks else None
+    tokens = [*prompt, *encode_action(action, marks=marks), EOS]
     ids = config.vocab.encode(tokens)
     # A position is supervised when the token *after* it is part of the answer.
     # That runs from the `<act>` marker (whose successor is the action kind)
@@ -163,6 +198,7 @@ def make_example(
         task=instruction,
         world_seed=world_seed,
         action=action,
+        marks=tuple(marks) if marks is not None else None,
     )
 
 
@@ -418,9 +454,21 @@ def same_action(left: Action, right: Action) -> bool:
     return True
 
 
-def decode_generated(ids: Sequence[int], *, vocab: Vocabulary = VOCAB) -> Action | None:
-    """The action a generation describes, or None if it is not one."""
-    tokens = [t for t in vocab.decode(ids) if t not in (EOS, BOS, ACT, OBS)]
+def decode_generated(
+    ids: Sequence[int],
+    *,
+    vocab: Vocabulary = VOCAB,
+    marks: Sequence[tuple[int, int]] | None = None,
+) -> Action | None:
+    """The action a generation describes, or None if it is not one.
+
+    `marks` is the screen the generation was conditioned on. A mark only means
+    anything against that screen, so it is resolved here rather than carried
+    around as a coordinate-shaped thing that is not a coordinate.
+    """
+    tokens = [t for t in vocab.decode(ids) if t not in (EOS, BOS, ACT, OBS, SEP)]
+    if marks is not None:
+        tokens = resolve_marks(tokens, marks)
     if not tokens:
         return None
     try:
@@ -468,7 +516,7 @@ def step_accuracy(
         produced = generate(
             model, example.ids[: example.prompt_length], max_new=24, stop=(stop,)
         )
-        predicted = decode_generated(produced, vocab=vocab)
+        predicted = decode_generated(produced, vocab=vocab, marks=example.marks)
         hit = predicted is not None and same_action(predicted, gold)
         for key in (gold.kind.value, "all"):
             slot = tally.setdefault(key, [0, 0])
@@ -504,13 +552,17 @@ async def _run_task(
 
     for index in range(step_budget):
         shot = await env.screenshot()
+        screen = parse_screen(shot.data)
         prompt = config.vocab.encode(
-            context_tokens(task.instruction, parse_screen(shot.data), config)
+            context_tokens(task.instruction, screen, config)
         )
         if len(prompt) >= model.config.max_len:
             break
         produced = generate(model, prompt, max_new=24, stop=(stop,))
-        action = decode_generated(produced)
+        action = decode_generated(
+            produced,
+            marks=screen_marks(screen, config) if config.marks else None,
+        )
         steps += 1
         if action is None:
             invalid += 1

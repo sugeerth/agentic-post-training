@@ -28,10 +28,17 @@ one that produces a plausible-looking curve either way.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-__all__ = ["StalenessError", "StalenessReport", "check_staleness"]
+__all__ = [
+    "RatioReport",
+    "StalenessError",
+    "StalenessReport",
+    "check_staleness",
+    "importance_ratios",
+]
 
 
 class StalenessError(RuntimeError):
@@ -106,3 +113,115 @@ def check_staleness(
             "correct for it."
         )
     return report
+
+
+# --------------------------------------------------------------------------- #
+# The importance ratio, and why it has two halves
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class RatioReport:
+    """Importance-ratio diagnostics for one batch of sampled tokens.
+
+    The asynchronous-RL literature decomposes the total ratio a PPO-style
+    objective needs into two semantically different factors, and warns that
+    entangling them makes clipping thresholds interact in ways nobody
+    intended:
+
+    1. **Training–inference discrepancy** — the sampler and the trainer
+       disagree about the probability of the *same token* under the *same
+       weights*, because they are different implementations. This is not
+       benign numerical noise; it is documented as a first-order cause of
+       collapse in real runs, which is why bitwise-consistent sampling is
+       something frameworks now build on purpose.
+    2. **Policy staleness** — the weights genuinely moved between sampling
+       and updating. That is the drift `check_staleness` measures.
+
+    This package's sampler is bit-identical to its trainer by construction and
+    by test, so factor 1 is exactly 1.0 and needs no repair. That is a real
+    property of running both halves on the same arithmetic rather than a claim
+    about being careful, and `discrepancy_free` reports it from the numbers
+    rather than asserting it.
+    """
+
+    #: exp(current - behaviour), per token, over unmasked positions only.
+    ratios: tuple[float, ...]
+    clip: float
+
+    @property
+    def mean(self) -> float:
+        return sum(self.ratios) / len(self.ratios) if self.ratios else 1.0
+
+    @property
+    def clipped_fraction(self) -> float:
+        """Share of tokens outside the trust region.
+
+        The number to watch. A ratio distribution that drifts wide means the
+        gradient is increasingly made of clipped, and therefore truncated,
+        contributions — the run is quietly training on less than it thinks.
+        """
+        if not self.ratios:
+            return 0.0
+        outside = sum(
+            1 for r in self.ratios if r > self.clip or r < 1.0 / self.clip
+        )
+        return outside / len(self.ratios)
+
+    @property
+    def discrepancy_free(self) -> bool:
+        """True when every ratio is exactly 1 — sampler and trainer agree bitwise."""
+        return all(r == 1.0 for r in self.ratios)
+
+    def to_dict(self) -> dict[str, float | bool | int]:
+        return {
+            "tokens": len(self.ratios),
+            "mean_ratio": round(self.mean, 6),
+            "max_ratio": round(max(self.ratios), 6) if self.ratios else 1.0,
+            "min_ratio": round(min(self.ratios), 6) if self.ratios else 1.0,
+            "clipped_fraction": round(self.clipped_fraction, 4),
+            "discrepancy_free": self.discrepancy_free,
+        }
+
+
+def importance_ratios(
+    behaviour: Sequence[Sequence[float]],
+    current: Sequence[Sequence[float]],
+    *,
+    mask: Sequence[Sequence[float]] | None = None,
+    clip: float = 5.0,
+) -> RatioReport:
+    """Per-token `exp(current - behaviour)` over the positions that are real.
+
+    `behaviour` is what the sampler reported when it drew each token — which
+    is why the engine returns log-probs instead of leaving them to be
+    recomputed. Recomputing them is the failure this guards against: a second
+    forward pass measures the *current* policy, so the ratio it produces is
+    identically 1 and the correction it feeds silently does nothing.
+
+    `mask` must be supplied whenever the log-probs were padded. Padding is 0.0
+    in log space, so an unmasked padded position contributes a ratio of
+    exactly 1 and drags the diagnostics toward looking healthier than the run
+    is — most for the shortest samples, which is a bias with a direction.
+    """
+    if clip <= 1.0:
+        raise ValueError(f"clip must be > 1, got {clip}")
+    if len(behaviour) != len(current):
+        raise ValueError(
+            f"{len(behaviour)} behaviour rows against {len(current)} current "
+            "rows: these are not the same batch"
+        )
+
+    kept: list[float] = []
+    for index, (old_row, new_row) in enumerate(zip(behaviour, current, strict=True)):
+        if len(old_row) != len(new_row):
+            raise ValueError(
+                f"row {index} has {len(old_row)} behaviour log-probs against "
+                f"{len(new_row)} current ones. Ragged rows mean the batch was "
+                "assembled without padding; see `rollout.to_rollout_batch`"
+            )
+        weights = mask[index] if mask is not None else [1.0] * len(old_row)
+        for old, new, keep in zip(old_row, new_row, weights, strict=True):
+            if keep:
+                kept.append(math.exp(new - old))
+    return RatioReport(ratios=tuple(kept), clip=clip)

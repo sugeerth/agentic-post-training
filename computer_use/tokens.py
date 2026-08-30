@@ -67,6 +67,11 @@ SCROLL_DIRECTIONS: tuple[str, ...] = ("up", "down", "left", "right")
 #: Scroll amounts are small integers in practice; larger ones clamp.
 MAX_SCROLL = 8
 
+#: How many controls a screen can be marked with. One more than the element
+#: limit any corpus uses, so a mark index is never silently clamped onto a
+#: different control.
+MAX_MARKS = 16
+
 
 def _vocabulary() -> tuple[str, ...]:
     """Every token, in a fixed order so ids are stable across processes."""
@@ -77,6 +82,7 @@ def _vocabulary() -> tuple[str, ...]:
     tokens += [f"<s:{s}>" for s in STATES]
     tokens += [f"<d:{d}>" for d in SCROLL_DIRECTIONS]
     tokens += [f"<n:{n}>" for n in range(MAX_SCROLL + 1)]
+    tokens += [f"<m:{i}>" for i in range(MAX_MARKS)]
     tokens += [f"<c:{c}>" for c in CHARS]
     tokens.append("<c:?unk>")
     return tuple(tokens)
@@ -149,9 +155,49 @@ def dequantize(cx: int, cy: int, *, width: int = 1280, height: int = 720) -> tup
 # --------------------------------------------------------------------------- #
 
 
-def encode_action(action: Action, *, width: int = 1280, height: int = 720) -> list[str]:
-    """One interaction as tokens: kind, then only the fields that kind uses."""
+def mark_of(
+    action: Action, marks: Sequence[tuple[int, int]], *,
+    width: int = 1280, height: int = 720,
+) -> int | None:
+    """Which marked control this action clicks, if any.
+
+    `marks` is the quantized cell of each control on screen, in the order the
+    observation lists them. Matching is done on the cell rather than the pixel
+    because that is the resolution the model works at either way.
+    """
+    if action.coordinate is None or action.scroll_direction is not None:
+        return None
+    cell = quantize(*action.coordinate, width=width, height=height)
+    for index, candidate in enumerate(marks):
+        if candidate == cell and index < MAX_MARKS:
+            return index
+    return None
+
+
+def encode_action(
+    action: Action, *, width: int = 1280, height: int = 720,
+    marks: Sequence[tuple[int, int]] | None = None,
+) -> list[str]:
+    """One interaction as tokens: kind, then only the fields that kind uses.
+
+    With `marks`, a click on a marked control is emitted as a single `<m:i>`
+    naming that control, instead of the `<x:..> <y:..>` pair naming a cell.
+
+    The difference is not notation. Emitting a coordinate makes the model
+    perform a two-hop copy — find the label the instruction names, then reach
+    back for the number beside it — over tokens that carry no spatial meaning
+    of their own; `<x:8>` and `<x:9>` are as unrelated in the embedding as
+    `<x:8>` and `<k:type>` until something teaches otherwise. Naming a mark
+    turns the same decision into a choice among the handful of controls that
+    are actually on the screen. A click that lands on no marked control still
+    falls back to coordinates, so the encoding never loses an action it could
+    previously express.
+    """
     out = [f"<k:{action.kind.value}>"]
+    if marks is not None:
+        index = mark_of(action, marks, width=width, height=height)
+        if index is not None:
+            return [*out, f"<m:{index}>"]
     if action.start_coordinate is not None:
         cx, cy = quantize(*action.start_coordinate, width=width, height=height)
         out += [f"<x:{cx}>", f"<y:{cy}>"]
@@ -164,6 +210,31 @@ def encode_action(action: Action, *, width: int = 1280, height: int = 720) -> li
         out.append(f"<n:{min(int(action.scroll_amount), MAX_SCROLL)}>")
     if action.text:
         out += [f"<c:{c}>" for c in action.text]
+    return out
+
+
+def resolve_marks(
+    tokens: Sequence[str], marks: Sequence[tuple[int, int]]
+) -> list[str]:
+    """Rewrite `<m:i>` back into the cell it names, using the screen it named it on.
+
+    A mark is only meaningful against the observation that produced it, so
+    resolution happens where that observation is in hand rather than inside
+    `decode_action`, which has no screen. An index past the end of `marks` —
+    the model naming a control that is not there — is dropped rather than
+    clamped onto whichever control happens to be last: a click on the wrong
+    control scores as a wrong click, while a malformed action scores as
+    malformed, and those are different failures worth telling apart.
+    """
+    out: list[str] = []
+    for token in tokens:
+        if not token.startswith("<m:"):
+            out.append(token)
+            continue
+        index = int(token[3:-1])
+        if index < len(marks):
+            cx, cy = marks[index]
+            out += [f"<x:{cx}>", f"<y:{cy}>"]
     return out
 
 
@@ -416,6 +487,7 @@ __all__ = [
     "BOS",
     "CHARS",
     "EOS",
+    "MAX_MARKS",
     "OBS",
     "PAD",
     "SEP",
@@ -432,6 +504,8 @@ __all__ = [
     "encode_action",
     "encode_screen",
     "encode_trajectory",
+    "mark_of",
     "quantize",
+    "resolve_marks",
     "to_token_batch",
 ]

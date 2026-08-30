@@ -343,7 +343,9 @@ def predictions(
         produced = generate(
             model, example.ids[: example.prompt_length], max_new=24, stop=(stop,)
         )
-        out.append((example, decode_generated(produced, vocab=vocab)))
+        out.append(
+            (example, decode_generated(produced, vocab=vocab, marks=example.marks))
+        )
     return out
 
 

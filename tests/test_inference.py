@@ -13,6 +13,7 @@ having neither — both make a broken run look healthy.
 
 from __future__ import annotations
 
+import math
 import random
 
 import pytest
@@ -22,7 +23,11 @@ from inference.cache import RadixCache
 from inference.engine import LocalEngine, Request, RequestRejected
 from inference.rollout import GroupSpec, sample_group, to_rollout_batch
 from inference.runtime import KVCache, PolicyWeights, logits_at, prefill, step
-from inference.version import StalenessError, check_staleness
+from inference.version import (
+    StalenessError,
+    check_staleness,
+    importance_ratios,
+)
 
 
 def _model(max_len: int = 64, seed: int = 7) -> GPT:
@@ -225,6 +230,60 @@ class TestStaleness:
     def test_an_empty_batch_is_refused_rather_than_passing_vacuously(self) -> None:
         with pytest.raises(ValueError, match="no samples"):
             check_staleness([], trainer_version=1)
+
+
+class TestImportanceRatios:
+    """The correction the async-RL literature says a stale batch needs.
+
+    The decomposition matters: a PPO-style ratio confounds two things — the
+    sampler and trainer disagreeing about the same weights, and the weights
+    having genuinely moved. This package's sampler is bit-identical to its
+    trainer, so the first term is exactly 1 and only the second is real. These
+    check that the instrument says so from the numbers.
+    """
+
+    def test_identical_log_probs_give_a_ratio_of_exactly_one(self) -> None:
+        """The bitwise-consistency property, read off the ratio itself."""
+        rows = [[-0.5, -1.25, -0.125]]
+
+        report = importance_ratios(rows, rows)
+
+        assert report.discrepancy_free
+        assert report.mean == 1.0
+        assert report.clipped_fraction == 0.0
+
+    def test_a_moved_policy_shows_up_as_a_ratio_away_from_one(self) -> None:
+        report = importance_ratios([[-1.0, -1.0]], [[-0.5, -2.0]])
+
+        assert not report.discrepancy_free
+        assert report.to_dict()["max_ratio"] == pytest.approx(math.exp(0.5), rel=1e-6)
+
+    def test_tokens_outside_the_trust_region_are_counted(self) -> None:
+        report = importance_ratios([[-6.0, -1.0]], [[-0.5, -1.0]], clip=2.0)
+
+        assert report.clipped_fraction == pytest.approx(0.5)
+
+    def test_padding_is_excluded_when_a_mask_is_given(self) -> None:
+        """Padded positions have equal log-probs, so unmasked they contribute
+        a free ratio of 1 and flatter the diagnostics — most for the shortest
+        samples, which is a bias with a direction."""
+        behaviour = [[-1.0, -1.0, 0.0, 0.0]]
+        current = [[-3.0, -1.0, 0.0, 0.0]]
+
+        masked = importance_ratios(behaviour, current, mask=[[1.0, 1.0, 0.0, 0.0]])
+        unmasked = importance_ratios(behaviour, current)
+
+        assert len(masked.ratios) == 2
+        assert len(unmasked.ratios) == 4
+        assert masked.mean < unmasked.mean
+
+    def test_ragged_rows_are_refused_rather_than_silently_zipped(self) -> None:
+        with pytest.raises(ValueError, match="assembled without padding"):
+            importance_ratios([[-1.0, -1.0]], [[-1.0]])
+
+    def test_a_clip_of_one_or_less_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="clip must be"):
+            importance_ratios([[-1.0]], [[-1.0]], clip=1.0)
 
 
 # --------------------------------------------------------------------------- #
