@@ -160,6 +160,72 @@ class TestGradients:
         check_gradients(lambda: _scalarize(nn.add(nn.relu(x), nn.scale(x, 2.0))), [x])
 
 
+class TestPolicyGradient:
+    """The RL objective, and the sign that decides which way it learns."""
+
+    def test_gradient_matches_finite_difference(self) -> None:
+        rng = random.Random(21)
+        logits = _tensor(4, 6, rng)
+        actions = [0, 3, 5, 1]
+        advantages = [1.2, -0.7, 0.0, -0.4]
+
+        check_gradients(
+            lambda: nn.policy_gradient(logits, actions, advantages), [logits]
+        )
+
+    def test_a_positive_advantage_raises_that_action_s_probability(self) -> None:
+        """The sign convention, pinned. Backwards, this trains a policy to
+        reproduce its own worst samples — and the loss curve looks normal
+        the whole time."""
+        logits = Tensor([0.0] * 4, (1, 4), requires_grad=True)
+        before = _probability(logits, action=2)
+
+        for _ in range(40):
+            logits.zero_grad()
+            nn.policy_gradient(logits, [2], [1.0]).backward()
+            for i in range(len(logits.data)):
+                logits.data[i] -= 0.5 * (logits.grad or [0.0] * 4)[i]
+
+        assert _probability(logits, action=2) > before
+
+    def test_a_negative_advantage_lowers_it(self) -> None:
+        logits = Tensor([0.0] * 4, (1, 4), requires_grad=True)
+        before = _probability(logits, action=2)
+
+        for _ in range(40):
+            logits.zero_grad()
+            nn.policy_gradient(logits, [2], [-1.0]).backward()
+            for i in range(len(logits.data)):
+                logits.data[i] -= 0.5 * (logits.grad or [0.0] * 4)[i]
+
+        assert _probability(logits, action=2) < before
+
+    def test_a_zero_advantage_moves_nothing(self) -> None:
+        """A group where every sample scored alike teaches nothing, and has to
+        contribute nothing rather than a small arbitrary push."""
+        rng = random.Random(23)
+        logits = _tensor(3, 5, rng)
+        logits.zero_grad()
+
+        nn.policy_gradient(logits, [0, 1, 2], [0.0, 0.0, 0.0]).backward()
+
+        assert all(g == 0.0 for g in (logits.grad or []))
+
+    def test_mismatched_batch_shapes_are_refused(self) -> None:
+        rng = random.Random(24)
+        logits = _tensor(3, 5, rng)
+
+        with pytest.raises(ValueError, match="different batches"):
+            nn.policy_gradient(logits, [0, 1], [1.0, 1.0])
+
+
+def _probability(logits: Tensor, *, action: int) -> float:
+    row = logits.data
+    top = max(row)
+    exps = [math.exp(v - top) for v in row]
+    return exps[action] / sum(exps)
+
+
 class TestSemantics:
     """Forward values, not just their derivatives."""
 

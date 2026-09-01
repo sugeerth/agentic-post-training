@@ -42,6 +42,7 @@ __all__ = [
     "layer_norm",
     "matmul",
     "parameter",
+    "policy_gradient",
     "relu",
     "scale",
     "select_rows",
@@ -577,6 +578,66 @@ def cross_entropy(
             w = weights[i] * seed
             dl[off : off + vocab] = [w * v for v in p]
             dl[off + targets[i]] -= w
+        logits._accumulate(dl)
+
+    result._backward = _backward
+    return result
+
+
+def policy_gradient(
+    logits: Tensor, actions: Sequence[int], advantages: Sequence[float]
+) -> Tensor:
+    """`-mean(advantage * log p(action))` — the objective RL updates on.
+
+    Not expressible through `cross_entropy` with a mask, which is the obvious
+    thing to try. That divides by the sum of its weights, and an advantage is
+    signed and centred on its group: the weights sum to roughly zero, so the
+    normalizer explodes or flips sign and the update becomes noise pointed in
+    an arbitrary direction. The division here is by the *count*, which is what
+    a policy-gradient estimator actually averages over.
+
+    The sign convention is the one that bites. A positive advantage means the
+    sampled action did better than its group, so its probability should rise,
+    so the loss must *fall* as that log-probability rises — hence the negation.
+    Getting this backwards trains a policy to reproduce its own worst samples,
+    and the loss curve looks entirely normal while it happens.
+    """
+    rows, vocab = logits.shape
+    if len(actions) != rows or len(advantages) != rows:
+        raise ValueError(
+            f"{rows} rows of logits against {len(actions)} actions and "
+            f"{len(advantages)} advantages: these describe different batches"
+        )
+    if not rows:
+        raise ValueError("policy_gradient needs at least one sampled action")
+
+    probs: list[list[float]] = []
+    loss = 0.0
+    for i in range(rows):
+        off = i * vocab
+        row = logits.data[off : off + vocab]
+        top = max(row)
+        exps = [math.exp(v - top) for v in row]
+        total = sum(exps)
+        p = [e / total for e in exps]
+        probs.append(p)
+        loss -= advantages[i] * math.log(max(p[actions[i]], 1e-12))
+    result = Tensor([loss / rows], (1, 1), parents=(logits,))
+
+    def _backward() -> None:
+        g = result.grad
+        assert g is not None
+        if not logits.requires_grad:
+            return
+        seed = g[0] / rows
+        dl = [0.0] * len(logits.data)
+        for i in range(rows):
+            if advantages[i] == 0.0:
+                continue
+            off = i * vocab
+            w = advantages[i] * seed
+            dl[off : off + vocab] = [w * v for v in probs[i]]
+            dl[off + actions[i]] -= w
         logits._accumulate(dl)
 
     result._backward = _backward
