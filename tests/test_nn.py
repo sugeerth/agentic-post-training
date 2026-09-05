@@ -160,6 +160,50 @@ class TestGradients:
         check_gradients(lambda: _scalarize(nn.add(nn.relu(x), nn.scale(x, 2.0))), [x])
 
 
+class TestScatter:
+    """The op that lets continuous features enter a token sequence."""
+
+    def test_gradient_matches_finite_difference(self) -> None:
+        rng = random.Random(31)
+        base, rows = _tensor(5, 4, rng), _tensor(2, 4, rng)
+
+        check_gradients(
+            lambda: _scalarize(nn.add_rows_at(base, rows, [1, 3])), [base, rows]
+        )
+
+    def test_it_adds_rather_than_replaces(self) -> None:
+        """The placeholder's own embedding and its position must survive, or
+        the model stops knowing where in the sequence it is looking."""
+        base = Tensor([1.0] * 6, (3, 2), requires_grad=True)
+        rows = Tensor([10.0, 20.0], (1, 2), requires_grad=True)
+
+        out = nn.add_rows_at(base, rows, [1])
+
+        assert out.data == [1.0, 1.0, 11.0, 21.0, 1.0, 1.0]
+
+    def test_the_same_position_twice_accumulates(self) -> None:
+        base = Tensor([0.0] * 4, (2, 2), requires_grad=True)
+        rows = Tensor([1.0, 2.0, 3.0, 4.0], (2, 2), requires_grad=True)
+
+        out = nn.add_rows_at(base, rows, [0, 0])
+
+        assert out.data == [4.0, 6.0, 0.0, 0.0]
+
+    def test_a_position_outside_the_base_is_refused(self) -> None:
+        base = Tensor([0.0] * 4, (2, 2), requires_grad=True)
+        rows = Tensor([1.0, 2.0], (1, 2), requires_grad=True)
+
+        with pytest.raises(ValueError, match="outside a 2-row base"):
+            nn.add_rows_at(base, rows, [5])
+
+    def test_mismatched_widths_are_refused(self) -> None:
+        base = Tensor([0.0] * 4, (2, 2), requires_grad=True)
+        rows = Tensor([1.0, 2.0, 3.0], (1, 3), requires_grad=True)
+
+        with pytest.raises(ValueError, match="cannot add"):
+            nn.add_rows_at(base, rows, [0])
+
+
 class TestPolicyGradient:
     """The RL objective, and the sign that decides which way it learns."""
 

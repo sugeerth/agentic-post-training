@@ -341,7 +341,8 @@ def predictions(
         if example.action is None:
             continue
         produced = generate(
-            model, example.ids[: example.prompt_length], max_new=24, stop=(stop,)
+            model, example.ids[: example.prompt_length], max_new=24, stop=(stop,),
+            visual=[(p, list(f)) for p, f in example.visual] or None,
         )
         out.append(
             (example, decode_generated(produced, vocab=vocab, marks=example.marks))

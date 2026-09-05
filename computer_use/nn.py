@@ -36,6 +36,7 @@ __all__ = [
     "Tensor",
     "add",
     "add_bias",
+    "add_rows_at",
     "concat_cols",
     "cross_entropy",
     "embed",
@@ -579,6 +580,53 @@ def cross_entropy(
             dl[off : off + vocab] = [w * v for v in p]
             dl[off + targets[i]] -= w
         logits._accumulate(dl)
+
+    result._backward = _backward
+    return result
+
+
+def add_rows_at(base: Tensor, rows: Tensor, positions: Sequence[int]) -> Tensor:
+    """`base` with `rows[i]` added into `base[positions[i]]`.
+
+    The scatter that `select_rows` is the gather for, and what lets continuous
+    features enter a sequence of discrete tokens: a vision projection produces
+    one vector per image region, and those vectors have to land at the
+    positions their placeholder tokens occupy. Adding rather than replacing
+    keeps the placeholder's own embedding and its positional encoding intact,
+    so the model still knows *where* in the sequence it is looking as well as
+    *what* it is looking at.
+    """
+    if rows.rows != len(positions):
+        raise ValueError(
+            f"{rows.rows} rows to scatter into {len(positions)} positions"
+        )
+    if rows.cols != base.cols:
+        raise ValueError(
+            f"rows are {rows.cols} wide, base is {base.cols}: cannot add"
+        )
+    for p in positions:
+        if not 0 <= p < base.rows:
+            raise ValueError(f"position {p} is outside a {base.rows}-row base")
+
+    out = list(base.data)
+    width = base.cols
+    for index, position in enumerate(positions):
+        off, src = position * width, index * width
+        for c in range(width):
+            out[off + c] += rows.data[src + c]
+    result = Tensor(out, base.shape, parents=(base, rows))
+
+    def _backward() -> None:
+        g = result.grad
+        assert g is not None
+        if base.requires_grad:
+            base._accumulate(list(g))
+        if rows.requires_grad:
+            dr = [0.0] * len(rows.data)
+            for index, position in enumerate(positions):
+                off, dst = position * width, index * width
+                dr[dst : dst + width] = g[off : off + width]
+            rows._accumulate(dr)
 
     result._backward = _backward
     return result

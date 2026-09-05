@@ -40,6 +40,11 @@ from computer_use.types import Action, ActionKind, Trajectory
 #: Reserved ids. PAD is 0 so a zero-filled matrix is a batch of empty rows.
 PAD, BOS, EOS, SEP = "<pad>", "<bos>", "<eos>", "<sep>"
 OBS, ACT = "<obs>", "<act>"
+#: Placeholder for a control's caption *as pixels*. Its own embedding is
+#: learned like any token's; the visual projection adds to it rather than
+#: replacing it, so the model still knows this is a caption slot even before
+#: it can make anything of what is in the slot.
+IMG = "<img>"
 SPECIALS: tuple[str, ...] = (PAD, BOS, EOS, SEP, OBS, ACT)
 
 #: Coordinate resolution. 1280x720 into 64x36 cells is 20px square — chosen
@@ -90,6 +95,7 @@ def _vocabulary() -> tuple[str, ...]:
     # repoints a trained model's rows at symbols it never saw. Nothing raises;
     # the model simply becomes a different model. New symbols go on the end.
     tokens += [f"<m:{i}>" for i in range(MAX_MARKS)]
+    tokens.append(IMG)
     return tuple(tokens)
 
 
@@ -301,6 +307,7 @@ def encode_screen(
     limit: int = 24,
     label_chars: int = 24,
     label_first: bool = False,
+    image_slots: bool = False,
 ) -> list[str]:
     """A parsed screen as tokens: what is on it and where.
 
@@ -334,7 +341,10 @@ def encode_screen(
             state.append(f"<s:{'on' if checked else 'off'}>")
         if getattr(element, "focused", False):
             state.append("<s:focus>")
-        label = [f"<c:{c}>" for c in element.label.upper()[:label_chars]]
+        label = (
+            [IMG] if image_slots
+            else [f"<c:{c}>" for c in element.label.upper()[:label_chars]]
+        )
         # State stays next to the coordinate in both orders: it qualifies the
         # control, not the name, and splitting it from the point would make the
         # two encodings differ in more than the one thing under test.
@@ -492,6 +502,7 @@ __all__ = [
     "BOS",
     "CHARS",
     "EOS",
+    "IMG",
     "MAX_MARKS",
     "OBS",
     "PAD",

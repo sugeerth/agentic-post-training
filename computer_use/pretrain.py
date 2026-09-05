@@ -46,12 +46,13 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 
 from computer_use.nn import Adam
-from computer_use.perception import parse_screen
+from computer_use.perception import Raster, decode_png, parse_screen
 from computer_use.tasks import GUITask
 from computer_use.tokens import (
     ACT,
     BOS,
     EOS,
+    IMG,
     OBS,
     SEP,
     VOCAB,
@@ -109,6 +110,12 @@ class CorpusConfig:
     #: otherwise. Naming a mark makes the decision a choice among the controls
     #: actually on screen instead of a two-hop copy of a number.
     marks: bool = False
+    #: Replace each control's decoded label with the pixels it was drawn from.
+    #: `perception`'s font matcher is the largest hand-written prior between
+    #: the screen and the policy, and this is the switch that removes it: the
+    #: model must associate rendered glyph shapes with the instruction's own
+    #: characters instead of being handed the answer as a string.
+    vision: bool = False
 
 
 #: The default corpus shape, as a singleton. Frozen, so sharing it is safe —
@@ -128,6 +135,9 @@ class Example:
     task: str
     world_seed: int | None = None
     action: Action | None = None
+    #: Caption pixels for each `<img>` slot, as (position, features). Empty
+    #: under a text encoding.
+    visual: tuple[tuple[int, tuple[float, ...]], ...] = ()
     #: The cell of each control this example's observation showed, in order.
     #: Present only under a mark encoding, where a generated `<m:i>` has to be
     #: resolved against the screen that produced it to mean anything.
@@ -146,11 +156,37 @@ def context_tokens(
     tokens += encode_screen(
         screen,
         limit=config.max_elements,
-        label_chars=config.label_chars,
+        label_chars=0 if config.vision else config.label_chars,
         label_first=config.label_first,
+        image_slots=config.vision,
     )
     tokens.append(ACT)
     return tokens
+
+
+def visual_features(
+    raster: Raster, screen: object, tokens: Sequence[str],
+    config: CorpusConfig = DEFAULT_CORPUS,
+) -> list[tuple[int, list[float]]]:
+    """The caption pixels for each `<img>` slot, paired with its position.
+
+    Slots and elements are matched by order, which is the same order
+    `encode_screen` walked and the same order it skipped boxless elements in.
+    Pairing them by position in the token stream rather than by index into the
+    element list is what keeps the two from drifting apart when the encoder
+    drops one.
+    """
+    from computer_use.vision import caption_patch
+
+    slots = [i for i, t in enumerate(tokens) if t == IMG]
+    usable = [
+        e for e in list(getattr(screen, "elements", ()))[: config.max_elements]
+        if e.box is not None
+    ]
+    return [
+        (slot, caption_patch(raster, element))
+        for slot, element in zip(slots, usable, strict=False)
+    ]
 
 
 def screen_marks(
@@ -180,9 +216,25 @@ def make_example(
     *,
     config: CorpusConfig = DEFAULT_CORPUS,
     world_seed: int | None = None,
+    raster: Raster | None = None,
 ) -> Example:
-    """Context plus the action that followed it, with the loss mask."""
+    """Context plus the action that followed it, with the loss mask.
+
+    `raster` is the decoded frame, needed only under a vision encoding — the
+    caption pixels come from it. Omitting it there yields an example with
+    `<img>` slots and no features behind them, which would train the model on
+    a constant, so it is refused rather than allowed through.
+    """
     prompt = context_tokens(instruction, screen, config)
+    visual: list[tuple[int, list[float]]] = []
+    if config.vision:
+        if raster is None:
+            raise ValueError(
+                "a vision corpus needs the decoded frame: <img> slots with no "
+                "features behind them are a constant, and training on one "
+                "would look exactly like training on pixels"
+            )
+        visual = visual_features(raster, screen, prompt, config)
     marks = screen_marks(screen, config) if config.marks else None
     tokens = [*prompt, *encode_action(action, marks=marks), EOS]
     ids = config.vocab.encode(tokens)
@@ -199,6 +251,7 @@ def make_example(
         world_seed=world_seed,
         action=action,
         marks=tuple(marks) if marks is not None else None,
+        visual=tuple((p, tuple(f)) for p, f in visual),
     )
 
 
@@ -247,6 +300,7 @@ async def _walk(
         out.append(make_example(
             task.instruction, screen, chosen,
             config=config, world_seed=task.metadata.get("world_seed"),
+            raster=decode_png(shot.data) if config.vision else None,
         ))
         await env.execute(chosen)
     episode = Trajectory(
@@ -309,13 +363,22 @@ class TrainReport:
         }
 
 
+def _visual(example: Example) -> list[tuple[int, Sequence[float]]] | None:
+    """An example's caption features in the shape the model wants, or None."""
+    if not example.visual:
+        return None
+    return [(p, list(f)) for p, f in example.visual]
+
+
 def mean_loss(model: GPT, examples: Sequence[Example]) -> float:
     """Average loss without touching gradients — the held-out curve."""
     if not examples:
         return float("nan")
     total = 0.0
     for example in examples:
-        total += model.loss(example.ids, example.supervised).data[0]
+        total += model.loss(
+            example.ids, example.supervised, visual=_visual(example)
+        ).data[0]
     return total / len(examples)
 
 
@@ -359,7 +422,7 @@ def train(
             batch_loss = 0.0
             for index in chunk:
                 example = examples[index]
-                loss = model.loss(example.ids, example.supervised)
+                loss = model.loss(example.ids, example.supervised, visual=_visual(example))
                 batch_loss += loss.data[0]
                 loss.backward()
             # Gradients accumulated across the chunk are a *sum*; the step
@@ -514,7 +577,8 @@ def step_accuracy(
         if gold is None:
             continue
         produced = generate(
-            model, example.ids[: example.prompt_length], max_new=24, stop=(stop,)
+            model, example.ids[: example.prompt_length], max_new=24, stop=(stop,),
+            visual=_visual(example),
         )
         predicted = decode_generated(produced, vocab=vocab, marks=example.marks)
         hit = predicted is not None and same_action(predicted, gold)
@@ -558,7 +622,15 @@ async def _run_task(
         )
         if len(prompt) >= model.config.max_len:
             break
-        produced = generate(model, prompt, max_new=24, stop=(stop,))
+        produced = generate(
+            model, prompt, max_new=24, stop=(stop,),
+            visual=(
+                [(p, list(f)) for p, f in visual_features(
+                    decode_png(shot.data), screen, config.vocab.decode(prompt), config
+                )]
+                if config.vision else None
+            ),
+        )
         action = decode_generated(
             produced,
             marks=screen_marks(screen, config) if config.marks else None,

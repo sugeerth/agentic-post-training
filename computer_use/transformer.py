@@ -54,6 +54,10 @@ class ModelConfig:
     n_layers: int = 2
     d_ff: int = 96
     max_len: int = 208
+    #: Width of an injected visual feature, or 0 for a text-only model. When
+    #: set, the model carries a projection from that width into `d_model` and
+    #: `hidden` will accept features to add at chosen positions.
+    visual_dim: int = 0
 
     def __post_init__(self) -> None:
         if self.d_model % self.n_heads:
@@ -142,11 +146,22 @@ class GPT:
         self.blocks = [Block(self.config, rng) for _ in range(self.config.n_layers)]
         self.ln_g = Tensor([1.0] * d, (1, d), requires_grad=True)
         self.ln_b = Tensor([0.0] * d, (1, d), requires_grad=True)
+        # Scaled well down: a visual feature enters the residual stream on top
+        # of an embedding that is already the right size, and a projection
+        # initialised at the usual scale swamps it for the first few hundred
+        # steps — the model spends that time recovering from its own eyes.
+        self.w_vis = (
+            nn.parameter(self.config.visual_dim, d, rng, scale_=0.02)
+            if self.config.visual_dim
+            else None
+        )
 
     # -- plumbing ---------------------------------------------------------- #
 
     def params(self) -> list[Tensor]:
         out = [self.tok, self.pos, self.ln_g, self.ln_b]
+        if self.w_vis is not None:
+            out.append(self.w_vis)
         for block in self.blocks:
             out.extend(block.params())
         return out
@@ -162,7 +177,10 @@ class GPT:
     # -- forward ----------------------------------------------------------- #
 
     def hidden(
-        self, ids: Sequence[int], record: list[Tensor] | None = None
+        self,
+        ids: Sequence[int],
+        record: list[Tensor] | None = None,
+        visual: Sequence[tuple[int, Sequence[float]]] | None = None,
     ) -> Tensor:
         """Final-layer states for every position.
 
@@ -178,22 +196,51 @@ class GPT:
                 "clipped example is a mislabelled one"
             )
         x = nn.add(nn.embed(self.tok, ids), nn.embed(self.pos, range(len(ids))))
+        if visual:
+            if self.w_vis is None:
+                raise ValueError(
+                    "visual features were supplied to a model built without "
+                    "visual_dim; the projection that would read them does not "
+                    "exist, and silently ignoring them would train a blind "
+                    "model that reports as a seeing one"
+                )
+            positions = [p for p, _ in visual]
+            flat: list[float] = []
+            for _, feature in visual:
+                if len(feature) != self.config.visual_dim:
+                    raise ValueError(
+                        f"visual feature of {len(feature)} against "
+                        f"visual_dim={self.config.visual_dim}"
+                    )
+                flat.extend(feature)
+            features = Tensor(flat, (len(visual), self.config.visual_dim))
+            x = nn.add_rows_at(x, nn.matmul(features, self.w_vis), positions)
         for block in self.blocks:
             x = block(x, record)
         return nn.layer_norm(x, self.ln_g, self.ln_b)
 
-    def logits(self, ids: Sequence[int], positions: Sequence[int] | None = None) -> Tensor:
+    def logits(
+        self,
+        ids: Sequence[int],
+        positions: Sequence[int] | None = None,
+        visual: Sequence[tuple[int, Sequence[float]]] | None = None,
+    ) -> Tensor:
         """Vocabulary scores, at `positions` only if given.
 
         Restricting the projection is not an approximation — the rows it drops
         are the ones nothing reads.
         """
-        states = self.hidden(ids)
+        states = self.hidden(ids, visual=visual)
         if positions is not None:
             states = nn.select_rows(states, positions)
         return nn.matmul(states, nn.transpose(self.tok))
 
-    def loss(self, ids: Sequence[int], supervised: Sequence[int]) -> Tensor:
+    def loss(
+        self,
+        ids: Sequence[int],
+        supervised: Sequence[int],
+        visual: Sequence[tuple[int, Sequence[float]]] | None = None,
+    ) -> Tensor:
         """Next-token loss, charged only at `supervised` positions.
 
         `supervised` holds positions *whose next token* is scored, so each one
@@ -201,7 +248,7 @@ class GPT:
         """
         if not supervised:
             raise ValueError("nothing to train on: no supervised positions")
-        scores = self.logits(ids, supervised)
+        scores = self.logits(ids, supervised, visual=visual)
         targets = [ids[p + 1] for p in supervised]
         return nn.cross_entropy(scores, targets)
 
@@ -214,6 +261,7 @@ def generate(
     stop: Sequence[int] = (),
     temperature: float = 0.0,
     rng: random.Random | None = None,
+    visual: Sequence[tuple[int, Sequence[float]]] | None = None,
 ) -> list[int]:
     """Continue `prefix`, returning only the new ids.
 
@@ -228,7 +276,7 @@ def generate(
     for _ in range(max_new):
         if len(ids) >= limit:
             break
-        row = model.logits(ids, [len(ids) - 1]).data
+        row = model.logits(ids, [len(ids) - 1], visual=visual).data
         if temperature <= 0.0:
             nxt = max(range(len(row)), key=row.__getitem__)
         else:

@@ -303,12 +303,16 @@ def _cmd_pretrain(args: argparse.Namespace) -> int:
     from dataclasses import replace
 
     corpus_config = replace(
-        DEFAULT_CORPUS, label_first=args.label_first, marks=args.marks
+        DEFAULT_CORPUS, label_first=args.label_first, marks=args.marks,
+        vision=args.vision,
     )
     corpus = build_corpus(train_tasks, config=corpus_config)
     held = build_corpus(test_tasks, config=corpus_config)
     longest = max(len(e) for e in (*corpus, *held))
+    from computer_use.vision import VISUAL_DIM
+
     config = ModelConfig(
+        visual_dim=VISUAL_DIM if args.vision else 0,
         d_model=args.d_model,
         n_heads=args.heads,
         n_layers=args.layers,
@@ -522,6 +526,12 @@ def main(argv: list[str] | None = None) -> int:
     p_pretrain.add_argument("--heads", type=int, default=3)
     p_pretrain.add_argument("--layers", type=int, default=2)
     p_pretrain.add_argument("--seed", type=int, default=0)
+    p_pretrain.add_argument(
+        "--vision", action="store_true",
+        help="replace each control's decoded label with the pixels it was "
+             "drawn from, so the model reads glyph shapes rather than being "
+             "handed the parser's transcription",
+    )
     p_pretrain.add_argument(
         "--marks", action="store_true",
         help="emit a click as the index of the control it lands on, rather "
