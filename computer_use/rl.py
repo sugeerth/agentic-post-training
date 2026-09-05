@@ -94,6 +94,12 @@ class RLConfig:
     #: slightly, and a large penalty here teaches the model to stay silent.
     malformed_penalty: float = -0.1
     seed: int = 0
+    #: Decisions held fixed for reporting, sampled once. Reward on a fresh
+    #: random subset each round is not comparable round to round — a dip can
+    #: be a harder sample rather than a worse policy, and a trend line drawn
+    #: through such points measures the sampler. The probe is the same
+    #: decisions every time, so its series says something about the model.
+    probe_size: int = 12
     vocab: Vocabulary = VOCAB
     corpus: CorpusConfig = DEFAULT_CORPUS
 
@@ -142,6 +148,8 @@ class Round:
     loss: float
     prefix_saved: int
     seconds: float
+    #: Reward on the fixed probe — the only series comparable across rounds.
+    probe_reward: float = 0.0
 
     def to_dict(self) -> dict[str, float | int]:
         return {
@@ -151,6 +159,7 @@ class Round:
             "samples": self.samples,
             "degenerate_groups": self.degenerate,
             "loss": round(self.loss, 4),
+            "probe_reward": round(self.probe_reward, 4),
             "prefix_tokens_saved": self.prefix_saved,
             "seconds": round(self.seconds, 1),
         }
@@ -163,6 +172,12 @@ class RLReport:
     rounds: list[Round] = field(default_factory=list)
     groups_total: int = 0
     groups_degenerate: int = 0
+    #: Which round scored best on the probe. The returned model is that one,
+    #: not the last — RL is not monotone, and taking whatever the final step
+    #: produced is how a run that peaked in the middle gets reported as a
+    #: failure.
+    best_round: int = 0
+    best_probe: float = float("-inf")
 
     @property
     def degenerate_share(self) -> float:
@@ -224,6 +239,8 @@ def train_rl(
     usable = [e for e in corpus if e.action is not None]
     if not usable:
         raise ValueError("no examples with a gold action to score against")
+    probe = rng.sample(usable, min(config.probe_size, len(usable)))
+    best_params: list[list[float]] | None = None
 
     for index in range(config.rounds):
         started = time.monotonic()
@@ -262,6 +279,11 @@ def train_rl(
                     rows.append((example, completion.tokens, advantage))
 
         loss = _update(model, opt, rows, config) if rows else 0.0
+        probe_reward = _probe(model, probe, config, stop, seed=config.seed)
+        if probe_reward > report.best_probe:
+            report.best_probe = probe_reward
+            report.best_round = index + 1
+            best_params = [list(p.data) for p in model.params()]
         samples = len(batch) * config.group_size
         report.rounds.append(Round(
             index=index + 1,
@@ -272,10 +294,45 @@ def train_rl(
             loss=loss,
             prefix_saved=engine.cache.stats.tokens_saved,
             seconds=time.monotonic() - started,
+            probe_reward=probe_reward,
         ))
         if callable(on_round):
             on_round(index, report)
+
+    if best_params is not None:
+        for tensor, values in zip(model.params(), best_params, strict=True):
+            tensor.data = list(values)
     return model, report
+
+
+def _probe(
+    model: GPT,
+    probe: Sequence[Example],
+    config: RLConfig,
+    stop: tuple[int, ...],
+    *,
+    seed: int,
+) -> float:
+    """Mean reward on the fixed probe, sampled the same way every round.
+
+    Greedy would be cheaper and would measure a different thing: the policy's
+    mode rather than the distribution the update is actually shifting. A run
+    can sharpen its best action while getting worse on average, and greedy
+    scoring would call that progress.
+    """
+    weights = PolicyWeights.snapshot(model)
+    engine = LocalEngine(weights, seed=seed)
+    total = 0.0
+    for example in probe:
+        prompt = list(example.ids[: example.prompt_length])
+        if len(prompt) + config.max_new > model.config.max_len:
+            continue
+        completion = engine.generate([Request(
+            prompt=prompt, max_new=config.max_new, stop=stop,
+            temperature=config.temperature,
+        )])[0]
+        total += reward_for(completion.tokens, example, config=config)
+    return total / max(1, len(probe))
 
 
 def _update(
@@ -316,15 +373,25 @@ def _update(
 
 def format_report(report: RLReport) -> str:
     """The run as a table, with the number that says whether it is learning."""
-    lines = ["", "  round   reward   solved   degenerate   loss"]
+    lines = ["", "  round   reward   probe   solved   degenerate   loss"]
     for r in report.rounds:
+        star = " *" if r.index == report.best_round else "  "
         lines.append(
-            f"  {r.index:>5}   {r.reward:6.3f}   {r.solved:>3}/{r.samples:<4}"
-            f"   {r.degenerate:>4}        {r.loss:7.3f}"
+            f"  {r.index:>5}   {r.reward:6.3f}  {r.probe_reward:6.3f}"
+            f"   {r.solved:>3}/{r.samples:<4}   {r.degenerate:>4}    "
+            f"{r.loss:7.3f}{star}"
         )
     lines.append("")
     lines.append(
+        f"  best probe at round {report.best_round} ({report.best_probe:.3f}); "
+        "that is the model returned"
+    )
+    lines.append(
         f"  {report.degenerate_share * 100:.0f}% of groups were unanimous and "
         "carried no gradient"
+    )
+    lines.append(
+        "  `reward` scores a fresh subset each round and is not comparable "
+        "across rows; `probe` is."
     )
     return "\n".join(lines)
