@@ -30,6 +30,7 @@ exact equality rather than closeness for that reason.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from computer_use.transformer import GPT, ModelConfig
@@ -77,6 +78,10 @@ class PolicyWeights:
     blocks: tuple[LayerWeights, ...]
     ln_g: list[float]
     ln_b: list[float]
+    #: Projection from a visual feature into the residual stream. None for a
+    #: text-only policy. A vision policy served without it is not slower or
+    #: less accurate — it is blind, and it does not say so.
+    w_vis: list[float] | None = None
     #: Which trainer step produced these weights. Stamped onto every sample.
     version: int = 0
 
@@ -100,6 +105,7 @@ class PolicyWeights:
             ),
             ln_g=list(model.ln_g.data),
             ln_b=list(model.ln_b.data),
+            w_vis=list(model.w_vis.data) if model.w_vis is not None else None,
             version=version,
         )
 
@@ -241,13 +247,23 @@ def _block(
 # --------------------------------------------------------------------------- #
 
 
-def step(weights: PolicyWeights, cache: KVCache, token: int) -> list[float]:
+def step(
+    weights: PolicyWeights,
+    cache: KVCache,
+    token: int,
+    feature: Sequence[float] | None = None,
+) -> list[float]:
     """Push one token through, returning its final hidden state.
 
     The cache's current length *is* the position, which is what makes a
     prefix reusable: a cache truncated to `n` and then extended describes the
     same sequence as one built from scratch, so two requests sharing a prefix
     can share the work that produced it.
+
+    `feature` is a visual vector to add at this position — the serving side of
+    the `<img>` placeholder. It is added rather than substituted, matching the
+    training path exactly, because the placeholder's own embedding and its
+    position both still carry information.
     """
     config = weights.config
     d = config.d_model
@@ -260,19 +276,50 @@ def step(weights: PolicyWeights, cache: KVCache, token: int) -> list[float]:
     x = [
         weights.tok[token * d + i] + weights.pos[position * d + i] for i in range(d)
     ]
+    if feature is not None:
+        if weights.w_vis is None:
+            raise ValueError(
+                "a visual feature was supplied to a policy with no visual "
+                "projection. Serving it without one would answer from the "
+                "placeholder embedding alone — a blind policy reporting as a "
+                "seeing one, which no output would reveal"
+            )
+        if len(feature) != weights.config.visual_dim:
+            raise ValueError(
+                f"visual feature of {len(feature)} against "
+                f"visual_dim={weights.config.visual_dim}"
+            )
+        projected = _row_mm(list(feature), weights.w_vis, len(feature), d)
+        x = [a + b for a, b in zip(x, projected, strict=True)]
     for layer, block in enumerate(weights.blocks):
         x = _block(x, block, cache, layer, config)
     cache.length += 1
     return _layer_norm(x, weights.ln_g, weights.ln_b)
 
 
-def prefill(weights: PolicyWeights, cache: KVCache, ids: list[int]) -> list[float]:
-    """Push a whole prompt through. Returns the last position's hidden state."""
+def prefill(
+    weights: PolicyWeights,
+    cache: KVCache,
+    ids: list[int],
+    visual: Mapping[int, Sequence[float]] | None = None,
+) -> list[float]:
+    """Push a whole prompt through. Returns the last position's hidden state.
+
+    `visual` maps a position within `ids` to the feature belonging there. A
+    mapping rather than a list because the positions are sparse — a screen of
+    seven controls puts seven features into a prompt of ninety tokens — and
+    because resuming from a cached prefix means only the tail's positions are
+    still to be filled.
+    """
     if not ids:
         raise ValueError("nothing to prefill")
     state: list[float] = []
-    for token in ids:
-        state = step(weights, cache, token)
+    for offset, token in enumerate(ids):
+        position = cache.length
+        feature = None
+        if visual:
+            feature = visual.get(position, visual.get(offset))
+        state = step(weights, cache, token, feature)
     return state
 
 

@@ -28,20 +28,66 @@ than an assertion.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from inference.runtime import KVCache, PolicyWeights, prefill
 
-__all__ = ["CacheStats", "RadixCache"]
+__all__ = ["CacheStats", "Key", "RadixCache", "cache_keys", "content_digest"]
+
+
+#: A position's cache key: its token id, plus a digest of whatever continuous
+#: content sits at that position. Zero when there is none.
+Key = tuple[int, int]
+
+
+def content_digest(feature: Sequence[float]) -> int:
+    """A stable digest of a visual feature, for keying the cache.
+
+    Explicit rather than `hash()`: the built-in is deterministic for floats
+    within a process but its guarantees are not the ones a cache key needs,
+    and a digest that changed between processes would turn a persisted or
+    shared cache into a silent correctness bug rather than a miss.
+
+    Values are quantized before hashing. Two captures of the same static
+    screen can differ in the last bits of a luma computation without differing
+    in anything a model could see, and a key that splits on that would drop
+    the hit rate to nothing while claiming to be exact.
+    """
+    digest = 0x811C9DC5
+    for value in feature:
+        bucket = round(value * 1024.0)
+        digest = ((digest ^ (bucket & 0xFFFFFFFF)) * 0x01000193) & 0xFFFFFFFF
+    return digest
+
+
+def cache_keys(
+    ids: Sequence[int], visual: Mapping[int, Sequence[float]] | None = None
+) -> list[Key]:
+    """Per-position keys for a request.
+
+    This is the fix for a bug that does not announce itself. A placeholder
+    token is identical no matter what image stands behind it, so two requests
+    showing *different screens* can carry byte-identical token ids — and a
+    cache keyed on ids alone will serve the first screen's keys and values for
+    the second one's request. Nothing raises. The model simply answers about a
+    screen it was never shown.
+    """
+    if not visual:
+        return [(token, 0) for token in ids]
+    return [
+        (token, content_digest(visual[index]) if index in visual else 0)
+        for index, token in enumerate(ids)
+    ]
 
 
 @dataclass
 class _Node:
-    """One trie node: the tokens along this edge, and the KV that ends it."""
+    """One trie node: the key along this edge, and the KV that ends it."""
 
-    token: int
+    token: Key
     depth: int
-    children: dict[int, _Node] = field(default_factory=dict)
+    children: dict[Key, _Node] = field(default_factory=dict)
     cache: KVCache | None = None
     #: Monotonic counter, for least-recently-used eviction.
     touched: int = 0
@@ -107,18 +153,18 @@ class RadixCache:
         self.weights = weights
         self.capacity = capacity
         self.stats = CacheStats()
-        self._root = _Node(token=-1, depth=0)
+        self._root = _Node(token=(-1, 0), depth=0)
         self._clock = 0
         self._stored = 0
 
     # -- lookup ----------------------------------------------------------- #
 
-    def _descend(self, ids: list[int]) -> tuple[_Node | None, int]:
-        """The deepest node holding a cache along `ids`, and its depth."""
+    def _descend(self, keys: list[Key]) -> tuple[_Node | None, int]:
+        """The deepest node holding a cache along `keys`, and its depth."""
         node = self._root
         best: _Node | None = None
         best_depth = 0
-        for index, token in enumerate(ids):
+        for index, token in enumerate(keys):
             child = node.children.get(token)
             if child is None:
                 break
@@ -127,7 +173,11 @@ class RadixCache:
                 best, best_depth = node, index + 1
         return best, best_depth
 
-    def acquire(self, ids: list[int]) -> tuple[KVCache, int]:
+    def acquire(
+        self,
+        ids: list[int],
+        visual: Mapping[int, Sequence[float]] | None = None,
+    ) -> tuple[KVCache, int]:
         """A cache primed for `ids`, plus how many tokens came for free.
 
         The returned cache is always private to the caller. Never hand out the
@@ -137,13 +187,14 @@ class RadixCache:
         """
         self.stats.requests += 1
         self.stats.tokens_requested += len(ids)
+        keys = cache_keys(ids, visual)
 
-        node, depth = self._descend(ids)
+        node, depth = self._descend(keys)
         if node is None or depth == 0:
             cache = KVCache(self.weights.config.n_layers, self.weights.config.d_model)
-            prefill(self.weights, cache, ids)
+            prefill(self.weights, cache, ids, visual)
             self.stats.tokens_computed += len(ids)
-            self._insert(ids, cache)
+            self._insert(keys, cache)
             return cache.fork(), 0
 
         self._clock += 1
@@ -154,14 +205,18 @@ class RadixCache:
         cache = node.cache.fork()
         remainder = ids[depth:]
         if remainder:
-            prefill(self.weights, cache, remainder)
+            # Positions are absolute in the original request, so the tail's
+            # features are looked up by their original index — `prefill`
+            # resolves them against the cache's length, which is already
+            # `depth`.
+            prefill(self.weights, cache, remainder, visual)
             self.stats.tokens_computed += len(remainder)
-            self._insert(ids, cache)
+            self._insert(keys, cache)
         return cache.fork(), depth
 
     # -- storage ---------------------------------------------------------- #
 
-    def _insert(self, ids: list[int], cache: KVCache) -> None:
+    def _insert(self, keys: list[Key], cache: KVCache) -> None:
         """Store the sequence, checkpointing at block boundaries and the end.
 
         The terminal node is always stored, so an identical prompt — a GRPO
@@ -172,14 +227,14 @@ class RadixCache:
         """
         self._clock += 1
         node = self._root
-        for index, token in enumerate(ids):
+        for index, token in enumerate(keys):
             child = node.children.get(token)
             if child is None:
                 child = _Node(token=token, depth=node.depth + 1)
                 node.children[token] = child
             node = child
             depth = index + 1
-            if depth % self.BLOCK and depth != len(ids):
+            if depth % self.BLOCK and depth != len(keys):
                 continue
             if node.cache is None:
                 self._stored += 1
@@ -214,9 +269,9 @@ class RadixCache:
     def rebind(self, weights: PolicyWeights) -> None:
         """Point at new weights and drop everything computed under the old ones."""
         self.weights = weights
-        self._root = _Node(token=-1, depth=0)
+        self._root = _Node(token=(-1, 0), depth=0)
         self._stored = 0
 
     def clear(self) -> None:
-        self._root = _Node(token=-1, depth=0)
+        self._root = _Node(token=(-1, 0), depth=0)
         self._stored = 0

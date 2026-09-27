@@ -19,7 +19,7 @@ import random
 import pytest
 
 from computer_use.transformer import GPT, ModelConfig, generate
-from inference.cache import RadixCache
+from inference.cache import RadixCache, cache_keys, content_digest
 from inference.engine import LocalEngine, Request, RequestRejected
 from inference.rollout import GroupSpec, sample_group, to_rollout_batch
 from inference.runtime import KVCache, PolicyWeights, logits_at, prefill, step
@@ -473,3 +473,115 @@ def _group_with_lengths(engine: LocalEngine, lengths) -> object:
         spec=spec, completions=completions,
         rewards=tuple(float(len(c)) for c in completions), version=engine.version,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Serving a model that looks at pixels
+# --------------------------------------------------------------------------- #
+
+
+class TestVisualServing:
+    """A placeholder token is the same token whatever image stands behind it.
+
+    That one fact is a correctness bug in every cache keyed on token ids
+    alone: two requests showing *different screens* can carry byte-identical
+    ids, and the second one gets served the first one's keys and values.
+    Nothing raises — the model answers about a screen it was never shown.
+    """
+
+    def _vision_model(self, dim: int = 6, max_len: int = 32) -> GPT:
+        return GPT(ModelConfig(max_len=max_len, visual_dim=dim), seed=5)
+
+    def test_serving_matches_the_training_path_exactly(self) -> None:
+        """The same bit-identity the text path has, now with an image in it."""
+        model = self._vision_model()
+        weights = PolicyWeights.snapshot(model)
+        ids = _ids(10, model.config.vocab_size, seed=41)
+        feature = [0.25, -0.5, 1.0, 0.0, -0.75, 0.5]
+
+        reference = model.logits(ids, [len(ids) - 1], visual=[(3, feature)]).data
+        cache = KVCache(model.config.n_layers, model.config.d_model)
+        produced = logits_at(
+            weights, prefill(weights, cache, ids, {3: feature})
+        )
+
+        assert produced == reference
+
+    def test_two_screens_with_the_same_tokens_do_not_collide(self) -> None:
+        """The bug, stated as a test. Both requests are identical as ids."""
+        model = self._vision_model()
+        weights = PolicyWeights.snapshot(model)
+        cache = RadixCache(weights)
+        ids = _ids(20, model.config.vocab_size, seed=43)
+        screen_a = {4: [1.0] * 6}
+        screen_b = {4: [-1.0] * 6}
+
+        cache.acquire(list(ids), screen_a)
+        _, hit = cache.acquire(list(ids), screen_b)
+
+        assert hit == 0, "a different screen must not reuse the first one's KV"
+
+    def test_the_same_screen_still_reuses_everything(self) -> None:
+        """Keying on content must not cost the hit it exists to make safe."""
+        model = self._vision_model()
+        weights = PolicyWeights.snapshot(model)
+        cache = RadixCache(weights)
+        ids = _ids(20, model.config.vocab_size, seed=47)
+        screen = {4: [0.5] * 6}
+
+        cache.acquire(list(ids), screen)
+        _, hit = cache.acquire(list(ids), dict(screen))
+
+        assert hit == len(ids)
+
+    def test_a_reused_visual_prefix_gives_the_same_logits_as_a_cold_one(self) -> None:
+        model = self._vision_model(max_len=40)
+        weights = PolicyWeights.snapshot(model)
+        ids = _ids(18, model.config.vocab_size, seed=53)
+        screen = {2: [0.3] * 6, 9: [-0.2] * 6}
+
+        cold = KVCache(model.config.n_layers, model.config.d_model)
+        expected = logits_at(weights, prefill(weights, cold, ids, screen))
+
+        cache = RadixCache(weights)
+        cache.acquire(list(ids), screen)
+        warm, hit = cache.acquire(list(ids), screen)
+        warm.truncate(len(ids) - 1)
+        produced = logits_at(weights, step(weights, warm, ids[-1], screen.get(len(ids) - 1)))
+
+        assert hit == len(ids)
+        assert produced == expected
+
+    def test_a_blind_policy_refuses_a_feature_rather_than_ignoring_it(self) -> None:
+        """Serving it anyway answers from the placeholder embedding alone — a
+        blind policy reporting as a seeing one, which no output reveals."""
+        model = GPT(ModelConfig(max_len=32), seed=5)
+        weights = PolicyWeights.snapshot(model)
+        cache = KVCache(model.config.n_layers, model.config.d_model)
+
+        with pytest.raises(ValueError, match="blind policy reporting"):
+            prefill(weights, cache, [1, 2, 3], {1: [0.5] * 6})
+
+    def test_a_feature_of_the_wrong_width_is_refused(self) -> None:
+        model = self._vision_model()
+        weights = PolicyWeights.snapshot(model)
+        cache = KVCache(model.config.n_layers, model.config.d_model)
+
+        with pytest.raises(ValueError, match="visual_dim"):
+            prefill(weights, cache, [1, 2, 3], {1: [0.5] * 99})
+
+    def test_the_digest_is_stable_and_discriminating(self) -> None:
+        assert content_digest([0.1, 0.2]) == content_digest([0.1, 0.2])
+        assert content_digest([0.1, 0.2]) != content_digest([0.2, 0.1])
+
+    def test_imperceptible_jitter_does_not_split_the_key(self) -> None:
+        """Two captures of one static screen can differ in the last bits of a
+        luma computation. A key that split on that would drop the hit rate to
+        nothing while claiming to be exact."""
+        base = [0.5, -0.25, 0.125]
+        jittered = [v + 1e-9 for v in base]
+
+        assert content_digest(base) == content_digest(jittered)
+
+    def test_keys_are_plain_token_ids_when_there_is_no_image(self) -> None:
+        assert cache_keys([7, 8, 9]) == [(7, 0), (8, 0), (9, 0)]

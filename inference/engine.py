@@ -54,6 +54,10 @@ class Request:
     """One thing to sample."""
 
     prompt: list[int]
+    #: Visual features by position within `prompt` — the serving side of an
+    #: `<img>` placeholder. Carried on the request rather than looked up
+    #: elsewhere so the cache can key on what is actually in them.
+    visual: tuple[tuple[int, tuple[float, ...]], ...] = ()
     max_new: int = 32
     stop: tuple[int, ...] = ()
     temperature: float = 0.0
@@ -207,8 +211,9 @@ class LocalEngine:
 
     def _one(self, request: Request) -> Completion:
         cache: KVCache
-        cache, hit = self.cache.acquire(list(request.prompt))
-        state = self._replay_tail(cache, request.prompt)
+        features = {p: list(f) for p, f in request.visual}
+        cache, hit = self.cache.acquire(list(request.prompt), features or None)
+        state = self._replay_tail(cache, request.prompt, features)
 
         tokens: list[int] = []
         logprobs: list[float] = []
@@ -236,7 +241,12 @@ class LocalEngine:
             prefix_hit=hit, stopped=stopped, tag=request.tag,
         )
 
-    def _replay_tail(self, cache: KVCache, prompt: Sequence[int]) -> list[float]:
+    def _replay_tail(
+        self,
+        cache: KVCache,
+        prompt: Sequence[int],
+        features: dict[int, list[float]] | None = None,
+    ) -> list[float]:
         """The hidden state at the prompt's last position.
 
         `RadixCache.acquire` returns a cache holding the whole prompt, but the
@@ -245,8 +255,12 @@ class LocalEngine:
         prefix, the last position alone is recomputed, which is one position's
         work regardless of how long the prompt was.
         """
-        cache.truncate(len(prompt) - 1)
-        return step(self._weights, cache, prompt[-1])
+        last = len(prompt) - 1
+        cache.truncate(last)
+        return step(
+            self._weights, cache, prompt[-1],
+            (features or {}).get(last),
+        )
 
     def generate(self, requests: Sequence[Request]) -> list[Completion]:
         """Sample every request, ordered so the prefix cache pays.
@@ -261,7 +275,13 @@ class LocalEngine:
         for request in requests:
             self._admit(request)
 
-        order = sorted(range(len(requests)), key=lambda i: requests[i].prompt)
+        # Sorted by prompt *and* by what is in its image slots, so requests
+        # that genuinely share a prefix land together and ones that only look
+        # alike do not.
+        order = sorted(
+            range(len(requests)),
+            key=lambda i: (requests[i].prompt, requests[i].visual),
+        )
         out: list[Completion | None] = [None] * len(requests)
         for index in order:
             out[index] = self._one(requests[index])
