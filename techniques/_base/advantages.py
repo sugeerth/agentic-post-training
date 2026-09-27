@@ -11,10 +11,15 @@ def compute_group_advantages(rewards: Any, eps: float = 1e-8) -> Any:
     Accepts a torch tensor or a Python sequence. Returns the same type the
     caller passed in, so techniques can ignore the dispatch.
     """
+    # Annotated `Any` so the fallback assignment type-checks whether or not
+    # torch is installed in the checking environment.
+    torch: Any
     try:
-        import torch
+        import torch as _torch
     except ImportError:
-        torch = None  # type: ignore[assignment]
+        torch = None
+    else:
+        torch = _torch
 
     if torch is not None and isinstance(rewards, torch.Tensor):
         mean = rewards.mean()

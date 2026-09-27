@@ -25,6 +25,7 @@ AGENT_COLORS = {
     "trainer": "\033[1;36m",       # Bold Cyan
     "optimizer": "\033[1;33m",     # Bold Yellow
     "evaluator": "\033[1;32m",     # Bold Green
+    "operator": "\033[1;34m",      # Bold Blue — computer-use agent
     "default": "\033[1;37m",       # Bold White
 }
 RESET = "\033[0m"

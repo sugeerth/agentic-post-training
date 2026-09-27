@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 
 class ToolError(RuntimeError):
@@ -83,10 +84,10 @@ class ToolRegistry:
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=self.timeout_seconds
                 )
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as exc:
                 proc.kill()
                 await proc.wait()
-                raise ToolError(f"shell_run timed out after {self.timeout_seconds}s")
+                raise ToolError(f"shell_run timed out after {self.timeout_seconds}s") from exc
             return {
                 "exit_code": proc.returncode,
                 "stdout": stdout.decode(errors="replace"),
@@ -106,10 +107,10 @@ class ToolRegistry:
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=self.timeout_seconds
                 )
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as exc:
                 proc.kill()
                 await proc.wait()
-                raise ToolError(f"python_exec timed out after {self.timeout_seconds}s")
+                raise ToolError(f"python_exec timed out after {self.timeout_seconds}s") from exc
             return {
                 "exit_code": proc.returncode,
                 "stdout": stdout.decode(errors="replace"),
@@ -154,7 +155,7 @@ class ToolRegistry:
     def register(self, tool: Tool) -> None:
         self.tools[tool.name] = tool
 
-    def subset(self, names: list[str]) -> "ToolRegistry":
+    def subset(self, names: list[str]) -> ToolRegistry:
         sub = ToolRegistry(workspace_root=self.workspace_root, timeout_seconds=self.timeout_seconds)
         sub.tools = {n: self.tools[n] for n in names if n in self.tools}
         return sub

@@ -10,7 +10,10 @@ readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [{name = "Agentic Post-Training Contributors"}]
-keywords = ["llm", "post-training", "rlhf", "alignment", "agents", "grpo", "dpo", "ppo"]
+keywords = [
+    "llm", "post-training", "rlhf", "alignment", "agents", "grpo", "dpo", "ppo",
+    "computer-use", "gui-agents", "vlm", "vision-language-model",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -35,14 +38,22 @@ dependencies = [
 [project.optional-dependencies]
 quantization = ["auto-gptq>=0.7", "autoawq>=0.2"]
 eval = ["lm-eval>=0.4"]
-all = ["agentic-post-training[quantization,eval]"]
+# Computer use: the Anthropic SDK drives the vision model, Playwright supplies
+# a real browser environment. Neither is needed for the mock environment, which
+# is why the offline demo and the whole test suite run without them.
+computer-use = ["anthropic>=0.69", "playwright>=1.44"]
+all = ["agentic-post-training[quantization,eval,computer-use]"]
 dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.3", "mypy>=1.8", "pre-commit>=3.6"]
 
 [project.scripts]
 agentic-train = "pipeline.cli:main"
+agentic-gui = "computer_use.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["core*", "agents*", "techniques*", "optimization*", "pipeline*", "backends*"]
+include = [
+    "core*", "agents*", "techniques*", "optimization*",
+    "pipeline*", "backends*", "computer_use*", "inference*",
+]
 
 [project.entry-points."agentic_post_training.techniques"]
 # Built-in techniques register themselves via `@register_technique` on import.
@@ -70,8 +81,46 @@ ignore = [
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["core", "techniques/_base"]
+files = ["core", "techniques/_base", "computer_use", "inference"]
+# The repo root ships an `__init__.py`, so mypy would otherwise try to read the
+# checkout directory itself as a package and choke on the dash in its name.
+mypy_path = "."
+explicit_package_bases = true
 # The rest of the codebase migrates to strict typing incrementally in Phase 3.
+
+# Modules outside the strict set are pulled in as imports, not as targets:
+# report their errors when they are migrated, not when something else imports
+# them.
+[[tool.mypy.overrides]]
+module = ["agents.*", "optimization.*", "pipeline.*", "backends.*", "techniques.*"]
+follow_imports = "silent"
+
+# ...except the shared primitives, which are a checked target in their own right.
+[[tool.mypy.overrides]]
+module = ["techniques._base.*"]
+follow_imports = "normal"
+
+# Optional extras. Neither ships with the base install, so the type checker
+# must not require them to be present.
+[[tool.mypy.overrides]]
+module = [
+    "anthropic", "anthropic.*",
+    "playwright", "playwright.*",
+    "torch", "torch.*",
+    "pydantic", "pydantic.*",
+    "yaml",
+]
+ignore_missing_imports = true
+
+# `core.config` builds on pydantic's BaseModel. When the type-check
+# environment has pydantic installed these two checks pass on their own; when
+# it does not, BaseModel degrades to `Any` and strict mode flags correct code
+# for subclassing it and for returning its values. Relaxing them here keeps a
+# dependency-free `make mypy` meaningful instead of noisy.
+[[tool.mypy.overrides]]
+module = ["core.config"]
+disallow_subclassing_any = false
+warn_return_any = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

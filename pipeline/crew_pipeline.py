@@ -67,7 +67,7 @@ class CrewPipeline:
         # the event loop that the native agents use.
         return await asyncio.to_thread(self._run_crew_sync)
 
-    def _build_agents(self) -> dict[str, "CrewAgent"]:
+    def _build_agents(self) -> dict[str, CrewAgent]:
         trainer = CrewAgent(
             role="Post-training engineer",
             goal=f"Train the model with {self.config.technique.upper()} for {self.config.epochs} epochs",
