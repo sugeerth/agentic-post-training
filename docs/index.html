@@ -1,939 +1,450 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic Post-Training Framework</title>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9E38KPZZ7E"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-9E38KPZZ7E');
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0a0a1a;
-            --bg2: #111128;
-            --card: rgba(255,255,255,0.04);
-            --card-border: rgba(255,255,255,0.08);
-            --text: #e0e0f0;
-            --text-dim: #8888aa;
-            --accent1: #7c3aed;
-            --accent2: #3b82f6;
-            --accent3: #06b6d4;
-            --gradient: linear-gradient(135deg, #7c3aed, #3b82f6, #06b6d4);
-            --glow: 0 0 40px rgba(124,58,237,0.15);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-            overflow-x: hidden;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Post-Training Framework</title>
+<meta name="description" content="A modular multi-agent framework for LLM and agent post-training — supervisor-led pipelines, a closed training loop, reward-hacking audits, recipe bake-offs, and attention-budgeted reports.">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9E38KPZZ7E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9E38KPZZ7E');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07070f;
+  --bg2: #0d0d1e;
+  --card: rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.09);
+  --card-hover: rgba(255,255,255,0.07);
+  --text: #e6e6f2;
+  --text-dim: #9191b0;
+  --accent1: #7c3aed;
+  --accent2: #3b82f6;
+  --accent3: #06b6d4;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --gradient: linear-gradient(135deg, #7c3aed, #3b82f6, #06b6d4);
+  --mono: 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+/* ambient grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(124,58,237,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,58,237,0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, black 30%, transparent 75%);
+  pointer-events: none; z-index: 0;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; position: relative; z-index: 1; }
 
-        /* Grid background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image:
-                linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
-            z-index: 0;
-            pointer-events: none;
-        }
+/* ---------- nav ---------- */
+nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0; flex-wrap: wrap; gap: 10px;
+}
+nav .logo { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; }
+nav .logo span { background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+nav .links { display: flex; gap: 18px; flex-wrap: wrap; }
+nav a { color: var(--text-dim); text-decoration: none; font-size: 0.92rem; font-weight: 500; transition: color .2s; }
+nav a:hover { color: var(--text); }
 
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+/* ---------- hero ---------- */
+.hero { padding: 72px 0 48px; text-align: center; }
+.hero .badge {
+  display: inline-block; font-family: var(--mono); font-size: 0.78rem;
+  color: var(--accent3); border: 1px solid rgba(6,182,212,0.35);
+  padding: 5px 14px; border-radius: 999px; margin-bottom: 26px;
+  background: rgba(6,182,212,0.06);
+}
+.hero h1 {
+  font-size: clamp(2.1rem, 6vw, 3.6rem); font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1.12; margin-bottom: 20px;
+}
+.hero h1 .grad { background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p.sub {
+  max-width: 680px; margin: 0 auto 34px; color: var(--text-dim); font-size: 1.08rem;
+}
+.cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-block; padding: 12px 26px; border-radius: 10px; font-weight: 600;
+  font-size: 0.95rem; text-decoration: none; transition: transform .15s, box-shadow .15s;
+}
+.btn.primary { background: var(--gradient); color: white; box-shadow: 0 8px 30px rgba(124,58,237,0.35); }
+.btn.primary:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(124,58,237,0.45); }
+.btn.ghost { border: 1px solid var(--card-border); color: var(--text); background: var(--card); }
+.btn.ghost:hover { background: var(--card-hover); transform: translateY(-2px); }
 
-        /* Nav */
-        nav {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-            background: rgba(10,10,26,0.85);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--card-border);
-            padding: 16px 0;
-        }
-        nav .container { display: flex; justify-content: space-between; align-items: center; }
-        nav .logo { font-weight: 700; font-size: 1.1rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        nav .links { display: flex; gap: 28px; }
-        nav .links a { color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
-        nav .links a:hover { color: var(--text); }
+/* terminal card */
+.terminal {
+  max-width: 760px; margin: 52px auto 0; text-align: left;
+  background: #0b0b18; border: 1px solid var(--card-border); border-radius: 14px;
+  overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+}
+.terminal .bar { display: flex; gap: 7px; padding: 12px 16px; border-bottom: 1px solid var(--card-border); }
+.terminal .dot { width: 11px; height: 11px; border-radius: 50%; }
+.terminal pre {
+  padding: 18px 20px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.75;
+  overflow-x: auto; color: var(--text-dim);
+}
+.terminal .c { color: var(--accent3); }
+.terminal .g { color: var(--ok); }
+.terminal .y { color: var(--warn); }
+.terminal .w { color: var(--text); }
 
-        /* Hero */
-        .hero {
-            padding: 160px 0 100px;
-            text-align: center;
-            position: relative;
-        }
-        .hero h1 {
-            font-size: 3.5rem;
-            font-weight: 800;
-            background: var(--gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
-            line-height: 1.2;
-        }
-        .hero .subtitle {
-            font-size: 1.25rem;
-            color: var(--text-dim);
-            max-width: 600px;
-            margin: 0 auto 40px;
-        }
-        .hero .buttons { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
-        .btn {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 12px 28px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            text-decoration: none;
-            transition: all 0.3s;
-            cursor: pointer;
-            border: none;
-        }
-        .btn-primary {
-            background: var(--gradient);
-            color: white;
-            box-shadow: 0 4px 20px rgba(124,58,237,0.3);
-        }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(124,58,237,0.4); }
-        .btn-secondary {
-            background: var(--card);
-            color: var(--text);
-            border: 1px solid var(--card-border);
-        }
-        .btn-secondary:hover { border-color: var(--accent2); }
+/* ---------- sections ---------- */
+section { padding: 72px 0; }
+.sec-label {
+  font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--accent3); margin-bottom: 12px;
+}
+h2 { font-size: clamp(1.5rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 14px; }
+.sec-sub { color: var(--text-dim); max-width: 700px; margin-bottom: 40px; }
 
-        /* Code block */
-        .code-block {
-            background: var(--bg2);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 20px 24px;
-            max-width: 600px;
-            margin: 40px auto 0;
-            text-align: left;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            overflow-x: auto;
-        }
-        .code-block .comment { color: #6b7280; }
-        .code-block .keyword { color: #c084fc; }
-        .code-block .string { color: #34d399; }
-        .code-block .func { color: #60a5fa; }
+/* loop diagram */
+.loop-box {
+  background: var(--bg2); border: 1px solid var(--card-border); border-radius: 16px;
+  padding: 28px 16px; overflow-x: auto;
+}
+.loop-box pre {
+  font-family: var(--mono); font-size: 0.82rem; line-height: 1.8; color: var(--text-dim);
+  min-width: 540px;
+}
+.loop-box .hl { color: var(--accent2); font-weight: 600; }
+.loop-box .ok { color: var(--ok); }
 
-        /* Section */
-        section { padding: 100px 0; }
-        .section-title {
-            font-size: 2.2rem;
-            font-weight: 700;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        .section-subtitle {
-            color: var(--text-dim);
-            text-align: center;
-            max-width: 600px;
-            margin: 0 auto 60px;
-        }
+/* cards grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; }
+.card {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 14px;
+  padding: 26px 24px; transition: background .2s, transform .2s;
+}
+.card:hover { background: var(--card-hover); transform: translateY(-3px); }
+.card .icon { font-size: 1.5rem; margin-bottom: 12px; }
+.card h3 { font-size: 1.02rem; font-weight: 700; margin-bottom: 8px; }
+.card p { color: var(--text-dim); font-size: 0.9rem; }
+.card code { font-family: var(--mono); font-size: 0.8em; color: var(--accent3); }
 
-        /* Architecture diagram */
-        .arch-diagram {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 24px;
-            margin: 40px 0;
-        }
-        .agent-node {
-            background: var(--card);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 24px 32px;
-            text-align: center;
-            position: relative;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s;
-        }
-        .agent-node:hover { border-color: var(--accent2); box-shadow: var(--glow); transform: translateY(-4px); }
-        .agent-node.coordinator {
-            background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(59,130,246,0.15));
-            border-color: rgba(124,58,237,0.3);
-        }
-        .agent-node h3 { font-size: 1.1rem; margin-bottom: 8px; }
-        .agent-node p { font-size: 0.85rem; color: var(--text-dim); }
-        .agent-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
-        .conn-line {
-            width: 2px; height: 40px;
-            background: linear-gradient(to bottom, var(--accent1), var(--accent2));
-            position: relative;
-        }
-        .conn-line::after {
-            content: '';
-            position: absolute;
-            bottom: -4px; left: -3px;
-            width: 8px; height: 8px;
-            background: var(--accent2);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+/* use-case rows */
+.usecase {
+  display: grid; grid-template-columns: 52px 1fr; gap: 18px; align-items: start;
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 14px;
+  padding: 22px 24px; margin-bottom: 14px;
+}
+.usecase .n {
+  font-family: var(--mono); font-weight: 600; color: var(--accent1); font-size: 1.15rem;
+  border: 1px solid rgba(124,58,237,0.4); border-radius: 10px; width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center; background: rgba(124,58,237,0.08);
+}
+.usecase h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+.usecase p { color: var(--text-dim); font-size: 0.9rem; }
+.usecase .who { font-family: var(--mono); font-size: 0.74rem; color: var(--accent3); margin-top: 8px; display: block; }
 
-        /* Technique cards */
-        .tech-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
-        .tech-card {
-            background: var(--card);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 28px;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        .tech-card:hover { border-color: var(--accent2); box-shadow: var(--glow); transform: translateY(-2px); }
-        .tech-card.priority-1::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: var(--gradient);
-        }
-        .tech-card.priority-2::before {
-            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, #3b82f6, #06b6d4);
-        }
-        .tech-card .badge {
-            display: inline-block;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 3px 10px;
-            border-radius: 20px;
-            margin-bottom: 12px;
-        }
-        .badge-core { background: rgba(124,58,237,0.2); color: #c084fc; }
-        .badge-advanced { background: rgba(59,130,246,0.2); color: #60a5fa; }
-        .badge-experimental { background: rgba(6,182,212,0.2); color: #22d3ee; }
-        .tech-card h3 { font-size: 1.2rem; margin-bottom: 8px; }
-        .tech-card .desc { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 16px; }
-        .tech-card .advantage { font-size: 0.85rem; color: #34d399; font-weight: 500; }
-        .tech-card .paper { font-size: 0.75rem; color: var(--text-dim); margin-top: 8px; font-style: italic; }
-        .tech-card .details {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease;
-        }
-        .tech-card.expanded .details { max-height: 500px; }
-        .tech-card .details-content {
-            padding-top: 16px;
-            margin-top: 16px;
-            border-top: 1px solid var(--card-border);
-            font-size: 0.85rem;
-        }
-        .tech-card .details-content ul { padding-left: 20px; margin: 8px 0; }
-        .tech-card .details-content li { margin: 4px 0; }
-        .pro { color: #34d399; }
-        .con { color: #f87171; }
-        .learn-more {
-            color: var(--accent2);
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            margin-top: 12px;
-        }
-        .learn-more .arrow { transition: transform 0.3s; }
-        .tech-card.expanded .learn-more .arrow { transform: rotate(90deg); }
+/* technique table */
+.tech-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 560px; }
+.tech-wrap { overflow-x: auto; border: 1px solid var(--card-border); border-radius: 14px; background: var(--bg2); }
+.tech-table th {
+  text-align: left; padding: 14px 18px; font-family: var(--mono); font-size: 0.72rem;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);
+  border-bottom: 1px solid var(--card-border);
+}
+.tech-table td { padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text-dim); }
+.tech-table td:first-child { color: var(--text); font-weight: 600; font-family: var(--mono); font-size: 0.82rem; }
+.tech-table tr:last-child td { border-bottom: none; }
+.pill {
+  display: inline-block; font-family: var(--mono); font-size: 0.68rem; padding: 2px 9px;
+  border-radius: 999px; border: 1px solid;
+}
+.pill.core { color: var(--ok); border-color: rgba(52,211,153,0.4); }
+.pill.agentic { color: var(--accent2); border-color: rgba(59,130,246,0.4); }
+.pill.auto { color: var(--warn); border-color: rgba(251,191,36,0.4); }
 
-        /* Filter buttons */
-        .filters {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 40px;
-            flex-wrap: wrap;
-        }
-        .filter-btn {
-            padding: 8px 20px;
-            border-radius: 20px;
-            border: 1px solid var(--card-border);
-            background: transparent;
-            color: var(--text-dim);
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: 'Inter', sans-serif;
-        }
-        .filter-btn:hover, .filter-btn.active {
-            border-color: var(--accent2);
-            color: var(--text);
-            background: rgba(59,130,246,0.1);
-        }
+/* honesty note */
+.note {
+  border: 1px solid rgba(251,191,36,0.3); background: rgba(251,191,36,0.05);
+  border-radius: 12px; padding: 18px 22px; font-size: 0.88rem; color: var(--text-dim);
+  margin-top: 36px;
+}
+.note strong { color: var(--warn); }
 
-        /* Pipeline */
-        .pipeline-steps {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 40px 0;
-        }
-        .pipeline-step {
-            background: var(--card);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 20px 24px;
-            text-align: center;
-            flex: 1;
-            min-width: 180px;
-            max-width: 220px;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-        .pipeline-step:hover { border-color: var(--accent2); transform: translateY(-4px); }
-        .pipeline-step .step-num {
-            font-size: 2rem;
-            font-weight: 800;
-            background: var(--gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .pipeline-step h4 { margin: 8px 0 4px; font-size: 0.95rem; }
-        .pipeline-step p { font-size: 0.8rem; color: var(--text-dim); }
-        .pipeline-arrow {
-            display: flex;
-            align-items: center;
-            color: var(--accent2);
-            font-size: 1.5rem;
-            animation: arrowPulse 1.5s infinite;
-        }
-        @keyframes arrowPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
-
-        /* Terminal demo */
-        .terminal {
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            overflow: hidden;
-            max-width: 800px;
-            margin: 40px auto;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-        }
-        .terminal-header {
-            background: #161b22;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
-        .dot-red { background: #ff5f57; }
-        .dot-yellow { background: #febc2e; }
-        .dot-green { background: #28c840; }
-        .terminal-title { color: #8b949e; font-size: 0.8rem; margin-left: 8px; }
-        .terminal-body {
-            padding: 20px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.82rem;
-            line-height: 1.8;
-            height: 400px;
-            overflow-y: auto;
-        }
-        .terminal-body .line { opacity: 0; animation: fadeIn 0.3s forwards; }
-        .terminal-body .time { color: #484f58; }
-        .terminal-body .coordinator { color: #d2a8ff; font-weight: 500; }
-        .terminal-body .trainer { color: #79c0ff; font-weight: 500; }
-        .terminal-body .optimizer { color: #e3b341; font-weight: 500; }
-        .terminal-body .evaluator { color: #56d364; font-weight: 500; }
-        .terminal-body .icon { margin-right: 4px; }
-        .terminal-body .msg { color: #c9d1d9; }
-        .terminal-body .metric { color: #7ee787; }
-        @keyframes fadeIn { to { opacity: 1; } }
-
-        /* Optimization section */
-        .opt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .opt-card {
-            background: var(--card);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 28px;
-            transition: all 0.3s;
-        }
-        .opt-card:hover { border-color: var(--accent3); }
-        .opt-card h3 { margin-bottom: 16px; }
-        .opt-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 10px 0;
-            font-size: 0.85rem;
-        }
-        .opt-bar .bar-bg {
-            flex: 1;
-            height: 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .opt-bar .bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 1s ease;
-        }
-
-        /* Install */
-        .install-section { background: var(--bg2); border-radius: 20px; padding: 60px 40px; margin: 0 auto; max-width: 900px; }
-        .install-cmd {
-            background: var(--bg);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 16px 20px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.9rem;
-            margin: 16px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .install-cmd .dollar { color: var(--accent3); margin-right: 8px; }
-
-        /* Footer */
-        footer {
-            padding: 60px 0;
-            border-top: 1px solid var(--card-border);
-            text-align: center;
-            color: var(--text-dim);
-            font-size: 0.85rem;
-        }
-        footer a { color: var(--accent2); text-decoration: none; }
-
-        /* Animations */
-        .fade-up {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.6s, transform 0.6s;
-        }
-        .fade-up.visible { opacity: 1; transform: translateY(0); }
-
-        @media (max-width: 768px) {
-            .hero h1 { font-size: 2.2rem; }
-            .tech-grid { grid-template-columns: 1fr; }
-            .pipeline-arrow { display: none; }
-            .pipeline-steps { flex-direction: column; align-items: center; }
-            nav .links { display: none; }
-        }
-    </style>
+/* footer */
+footer {
+  border-top: 1px solid var(--card-border); padding: 40px 0 56px; margin-top: 40px;
+  color: var(--text-dim); font-size: 0.86rem;
+}
+footer .cols { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+footer a { color: var(--text-dim); text-decoration: none; }
+footer a:hover { color: var(--text); }
+</style>
 </head>
 <body>
+<div class="wrap">
 
-<!-- Nav -->
 <nav>
-    <div class="container">
-        <div class="logo">Agentic Post-Training</div>
-        <div class="links">
-            <a href="#architecture">Architecture</a>
-            <a href="#techniques">Techniques</a>
-            <a href="#pipeline">Pipeline</a>
-            <a href="#agents-demo">Agent Demo</a>
-            <a href="#optimization">Optimization</a>
-            <a href="#install">Install</a>
-            <a href="demo.html" style="color:#06b6d4;">Demo</a>
-        </div>
-    </div>
+  <div class="logo"><span>◆</span> Agentic Post-Training</div>
+  <div class="links">
+    <a href="#loop">The Loop</a>
+    <a href="#agents">Agents</a>
+    <a href="#usecases">Use Cases</a>
+    <a href="#techniques">Techniques</a>
+    <a href="demo.html">Live Demo</a>
+    <a href="https://github.com/sugeerth/agentic-post-training">GitHub</a>
+  </div>
 </nav>
 
-<!-- Hero -->
-<section class="hero">
-    <div class="container">
-        <h1>Agentic Post-Training<br>Framework</h1>
-        <p class="subtitle">Orchestrating LLM alignment through autonomous agent collaboration. 11 techniques, modular pipeline, beautiful agent communication.</p>
-        <div class="buttons">
-            <a href="#install" class="btn btn-primary">Get Started</a>
-            <a href="#techniques" class="btn btn-secondary">View Techniques</a>
-            <a href="demo.html" class="btn btn-secondary">Interactive Demo</a>
-            <a href="https://colab.research.google.com/github/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_colab.ipynb" class="btn btn-secondary" target="_blank">Open in Colab (A100)</a>
-            <a href="https://www.kaggle.com/kernels/welcome?src=https://github.com/sugeerth/agentic-post-training/blob/main/notebooks/agentic_post_training_kaggle_t4x2.ipynb" class="btn btn-secondary" target="_blank">Kaggle (T4x2)</a>
-        </div>
-        <div class="code-block">
-            <span class="keyword">from</span> pipeline <span class="keyword">import</span> AgenticPipeline, PipelineConfig<br><br>
-            config = PipelineConfig(<span class="string">technique</span>=<span class="string">"grpo"</span>, <span class="string">model_name</span>=<span class="string">"gpt2"</span>)<br>
-            pipeline = AgenticPipeline(config)<br>
-            results = asyncio.<span class="func">run</span>(pipeline.<span class="func">run</span>()) <span class="comment"># Agents coordinate automatically</span>
-        </div>
+<div class="hero">
+  <div class="badge">supervisor-led · closed-loop · open source</div>
+  <h1>Post-training, run by a<br><span class="grad">team of agents</span></h1>
+  <p class="sub">
+    A modular framework where a supervisor and specialist agents plan, execute,
+    audit, and report an entire post-training pipeline — from trajectory
+    collection through GRPO-style updates to regression-checked reports a
+    human can read in ten seconds.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/sugeerth/agentic-post-training">Get the code →</a>
+    <a class="btn ghost" href="demo.html">Interactive demo</a>
+  </div>
+
+  <div class="terminal">
+    <div class="bar">
+      <div class="dot" style="background:#ff5f57"></div>
+      <div class="dot" style="background:#febc2e"></div>
+      <div class="dot" style="background:#28c840"></div>
     </div>
+    <pre><span class="c">$</span> <span class="w">python3 examples/run_autonomous.py --target-success 0.85 --budget 2000</span>
+
+<span class="w">Autonomous loop · target 85% · budget 2000 rollouts</span>
+  round 1 | skill 0.15→0.27 | success 38% | <span class="c">continue: improving</span>
+  round 2 | skill 0.27→0.45 | success 62% | <span class="c">continue: improving</span>
+  round 3 | skill 0.45→0.59 | success 79% | <span class="c">continue: improving</span>
+  round 4 | skill 0.59→0.69 | success 79% | <span class="c">continue: improving</span>
+  round 5 | skill 0.69→0.77 | success 88% | <span class="y">stop: target met</span>
+
+<span class="g">🎯 target met: 88% ≥ 85% — 5 rounds, 440/2000 rollouts</span>  <span class="w">(simulated demo env)</span></pre>
+  </div>
+</div>
+
+<section id="loop">
+  <div class="sec-label">The core</div>
+  <h2>A training loop that closes</h2>
+  <p class="sec-sub">
+    Fixed pipelines run stages and stop. Here, the policy that collects each
+    round's data is the policy the previous round improved — expert iteration
+    with a supervisor in the loop. Decisions are grounded in fresh environment
+    probes, never the training curve.
+  </p>
+  <div class="loop-box">
+<pre>   ┌──────────────────────────────────────────────────────────┐
+   │                                                          │
+   │   <span class="hl">collect</span>(policy skill s) ──▶ <span class="hl">curate</span> ──▶ <span class="hl">train</span> ──▶ s'    │
+   │        ▲                                           │     │
+   │        └──────── next round collects with s' ──────┘     │
+   │                                                          │
+   │   <span class="hl">probe</span>  s' on fresh env rollouts   <span class="ok">← ground truth</span>     │
+   │   <span class="hl">audit</span>  reward vs measured success (hacking check)     │
+   │   <span class="hl">decide</span> continue / adjust / rollback / stop —          │
+   │          and the decision patch mutates the next round   │
+   └──────────────────────────────────────────────────────────┘</pre>
+  </div>
+  <div class="grid" style="margin-top:18px">
+    <div class="card"><div class="icon">🎯</div><h3>Goal-driven termination</h3>
+      <p>Runs until the target success rate is met, the rollout budget is spent
+      (checked <em>before</em> each round), or improvement genuinely plateaus.
+      Never "ran out of stages."</p></div>
+    <div class="card"><div class="icon">🛠️</div><h3>Real interventions</h3>
+      <p>Supervisor decisions carry config patches the loop applies: KL tightening
+      (hard-capped), rollback to the best checkpoint, exploration boosts.
+      Escalation is bounded — a broken run stops early instead of thrashing.</p></div>
+    <div class="card"><div class="icon">🔬</div><h3>Probe-grounded decisions</h3>
+      <p>Every decision reads fresh environment rollouts at the updated policy,
+      never the optimizer's own loss curve — the discipline that catches
+      reward hacking.</p></div>
+  </div>
 </section>
 
-<!-- Architecture -->
-<section id="architecture">
-    <div class="container">
-        <h2 class="section-title fade-up">Architecture</h2>
-        <p class="section-subtitle fade-up">Specialized agents coordinate via a structured message bus</p>
-
-        <div class="arch-diagram fade-up">
-            <div class="agent-node coordinator">
-                <h3>Coordinator Agent</h3>
-                <p>Orchestrates pipeline, assigns tasks, monitors health</p>
-            </div>
-            <div class="conn-line"></div>
-            <div style="color: var(--text-dim); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">Message Bus (pub/sub)</div>
-            <div class="conn-line"></div>
-            <div class="agent-row">
-                <div class="agent-node">
-                    <h3>Training Agent</h3>
-                    <p>PPO, GRPO, DPO, SPO, RLHF<br>KTO, ORPO, RLAIF, SPIN, SimPO, IPO</p>
-                </div>
-                <div class="agent-node">
-                    <h3>Optimization Agent</h3>
-                    <p>Quantization (GPTQ, AWQ, GGUF)<br>Pruning, Distillation</p>
-                </div>
-                <div class="agent-node">
-                    <h3>Evaluation Agent</h3>
-                    <p>MMLU, HumanEval, MT-Bench<br>GSM8K, TruthfulQA, ARC</p>
-                </div>
-            </div>
-        </div>
-    </div>
+<section id="agents">
+  <div class="sec-label">The crew</div>
+  <h2>Every agent owns one hard problem</h2>
+  <p class="sec-sub">All agents are registry-built — swap any specialist with one decorator, zero pipeline edits.</p>
+  <div class="grid">
+    <div class="card"><div class="icon">🧭</div><h3>Supervisor</h3>
+      <p>Picks the recipe from your goal, monitors every stage, and intervenes —
+      <code>continue / adjust / rollback / stop</code> — with patches that actually apply.</p></div>
+    <div class="card"><div class="icon">🛤️</div><h3>Trajectory Curator</h3>
+      <p>Rolls out multi-turn tool-use episodes against a real step-based
+      environment, then rejection-samples the set the trainer sees.</p></div>
+    <div class="card"><div class="icon">⚖️</div><h3>Reward Model</h3>
+      <p>Fits outcome or process reward models and reports <strong>calibration
+      (ECE)</strong> alongside accuracy — mis-calibration is where hacking starts.</p></div>
+    <div class="card"><div class="icon">🏋️</div><h3>Agentic Trainer</h3>
+      <p>Trajectory-level updates with credit assignment across turns and KL
+      control against a reference agent policy.</p></div>
+    <div class="card"><div class="icon">🕵️</div><h3>Reward-Hacking Detector</h3>
+      <p>Spearman ρ between reward and measured success, plus a gap check —
+      ten lines of auditable math, deliberately not a learned model.</p></div>
+    <div class="card"><div class="icon">🥊</div><h3>Bake-off Agent</h3>
+      <p>Runs recipes head-to-head and picks the winner <em>under a KL ceiling</em>,
+      with the pareto frontier of success vs drift.</p></div>
+    <div class="card"><div class="icon">📝</div><h3>Reporter</h3>
+      <p>Attention-budgeted TL;DR: six lines above the fold, sparkline curves,
+      deltas vs the last run, one next action. Anomalies only.</p></div>
+    <div class="card"><div class="icon">📚</div><h3>Paper Scout</h3>
+      <p>Daily arXiv scan extracts new technique names and claims, then generates
+      runnable stub files for bake-off comparison — reviewed via draft PR.</p></div>
+    <div class="card"><div class="icon">📈</div><h3>Evaluator</h3>
+      <p>Benchmark suite with baselines, per-benchmark deltas, and concrete
+      recommendations — terse by design.</p></div>
+  </div>
 </section>
 
-<!-- Techniques -->
+<section id="usecases">
+  <div class="sec-label">Use cases</div>
+  <h2>What people actually do with it</h2>
+  <p class="sec-sub">From solo research to team CI — the same pipeline, different entry points.</p>
+
+  <div class="usecase"><div class="n">01</div><div>
+    <h3>Prototype a post-training recipe before renting GPUs</h3>
+    <p>Sketch the full pipeline — curation, RM, RL update, eval — against the seeded
+    simulation environment. Validate the orchestration, intervention thresholds,
+    and reporting before a single GPU-hour is spent. Swap in a real trainer via
+    the registry when you're ready.</p>
+    <span class="who">→ RL researchers · ML engineers</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">02</div><div>
+    <h3>Bake off techniques head-to-head</h3>
+    <p>GRPO vs trajectory-DPO vs rejection-sampling FT on the same tasks, same
+    budget, same eval. Winner picked under a KL ceiling so a recipe that "won"
+    by drifting off-distribution doesn't ship.</p>
+    <span class="who">→ teams choosing a training strategy</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">03</div><div>
+    <h3>CI/CD for training pipelines</h3>
+    <p>Every push runs the pipelines and posts one TL;DR comment on the PR — all
+    plans, sparkline curves, deltas vs the last run. The autonomous loop runs as
+    a CI job and <em>fails the build</em> if the policy stops converging.</p>
+    <span class="who">→ anyone reviewing training changes in PRs</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">04</div><div>
+    <h3>Catch reward hacking before it ships</h3>
+    <p>The detector rank-correlates reward against measured task success each
+    round. Reward up while success is flat triggers a rollback to the best
+    checkpoint and a KL tighten — automatically, with the decision logged.</p>
+    <span class="who">→ alignment &amp; safety reviewers</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">05</div><div>
+    <h3>Regression detection across runs</h3>
+    <p>Every run persists to history. The reporter shows per-metric deltas vs the
+    last run of the same plan, and a &gt;5% success regression flips the next
+    action from "ship the checkpoint" to "revert or investigate."</p>
+    <span class="who">→ teams iterating on a recipe over weeks</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">06</div><div>
+    <h3>Stay current with the literature, automatically</h3>
+    <p>A daily job scans new arXiv abstracts on agent post-training, extracts
+    technique names and claims with auditable regex (not an unsupervised LLM),
+    and opens a draft PR with runnable stubs — a human reviews before merge.</p>
+    <span class="who">→ research leads · reading groups</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">07</div><div>
+    <h3>Teach RL post-training without a cluster</h3>
+    <p>The whole stack runs in seconds on a laptop: students watch credit
+    assignment, KL control, curation quality, and intervention logic play out
+    in readable logs and sparkline curves — no GPU, no API keys.</p>
+    <span class="who">→ courses · workshops · self-study</span>
+  </div></div>
+
+  <div class="usecase"><div class="n">08</div><div>
+    <h3>Build your own specialist</h3>
+    <p>Register a custom trainer, reward model, environment, or supervisor under
+    an existing role — one decorator, no fork. The message bus, reporting, and
+    CI integration come for free.</p>
+    <span class="who">→ framework extenders · plugin authors</span>
+  </div></div>
+</section>
+
 <section id="techniques">
-    <div class="container">
-        <h2 class="section-title fade-up">Post-Training Techniques</h2>
-        <p class="section-subtitle fade-up">11 techniques organized by priority. Core techniques shown first.</p>
+  <div class="sec-label">Techniques</div>
+  <h2>Classic + agentic + auto-generated</h2>
+  <p class="sec-sub">Single-turn techniques for base LLMs, trajectory-level techniques for agents, and daily auto-generated stubs from the literature.</p>
+  <div class="tech-wrap">
+  <table class="tech-table">
+    <tr><th>Technique</th><th>Tier</th><th>What it does</th></tr>
+    <tr><td>PPO / GRPO / DPO / RLHF / SPO</td><td><span class="pill core">core</span></td><td>Single-turn post-training staples — GRPO value-free (DeepSeek-R1 style)</td></tr>
+    <tr><td>KTO / ORPO / RLAIF / SPIN / SimPO / IPO</td><td><span class="pill core">core</span></td><td>Advanced &amp; experimental preference methods</td></tr>
+    <tr><td>multi_turn_grpo</td><td><span class="pill agentic">agentic</span></td><td>GRPO where the "response" is a whole trajectory; group-relative advantages across rollouts</td></tr>
+    <tr><td>trajectory_dpo</td><td><span class="pill agentic">agentic</span></td><td>DPO over (winning, losing) rollout pairs — no reward model needed</td></tr>
+    <tr><td>rejection_sampling_ft</td><td><span class="pill agentic">agentic</span></td><td>STaR-style: sample K, keep successes, fine-tune, repeat</td></tr>
+    <tr><td>process_reward_model</td><td><span class="pill agentic">agentic</span></td><td>Step-level rewards for long-horizon tool use</td></tr>
+    <tr><td>expert_iteration (autonomous loop)</td><td><span class="pill agentic">agentic</span></td><td>The closed collect→train→probe loop with supervisor decisions</td></tr>
+    <tr><td>techniques/mimics/*</td><td><span class="pill auto">auto</span></td><td>Daily-generated stubs from new arXiv papers, pending human implementation</td></tr>
+  </table>
+  </div>
 
-        <div class="filters fade-up">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="rl">RL-based</button>
-            <button class="filter-btn" data-filter="preference">Preference-based</button>
-            <button class="filter-btn" data-filter="self-play">Self-play</button>
-            <button class="filter-btn" data-filter="experimental">Advanced</button>
-        </div>
-
-        <div class="tech-grid" id="techGrid">
-            <!-- Priority 1 -->
-            <div class="tech-card priority-1 fade-up" data-tags="rl preference">
-                <span class="badge badge-core">Core</span>
-                <h3>PPO</h3>
-                <p class="desc">Proximal Policy Optimization — the backbone of RLHF alignment</p>
-                <p class="advantage">Stable RL with clipped surrogate objectives</p>
-                <p class="paper">Schulman et al., 2017</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
-                    Learn more <span class="arrow">&#9654;</span>
-                </div>
-                <div class="details"><div class="details-content">
-                    <p>PPO optimizes a clipped surrogate objective to prevent destructive policy updates. Used by OpenAI for ChatGPT alignment.</p>
-                    <p><strong>Pros:</strong></p>
-                    <ul><li class="pro">Well-understood, extensively validated</li><li class="pro">Stable training dynamics</li><li class="pro">Works with any reward signal</li></ul>
-                    <p><strong>Cons:</strong></p>
-                    <ul><li class="con">Requires separate reward model</li><li class="con">Memory intensive (4 models in memory)</li><li class="con">Sensitive to hyperparameters</li></ul>
-                </div></div>
-            </div>
-
-            <div class="tech-card priority-1 fade-up" data-tags="rl">
-                <span class="badge badge-core">Core</span>
-                <h3>GRPO</h3>
-                <p class="desc">Group Relative Policy Optimization — DeepSeek-R1's secret weapon</p>
-                <p class="advantage">No value model needed — 50% less memory than PPO</p>
-                <p class="paper">Shao et al., 2024 (DeepSeekMath / DeepSeek-R1)</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
-                    Learn more <span class="arrow">&#9654;</span>
-                </div>
-                <div class="details"><div class="details-content">
-                    <p>GRPO generates a group of responses per prompt, ranks them relative to each other, and uses group statistics as advantages. Eliminates the value model entirely.</p>
-                    <p><strong>Pros:</strong></p>
-                    <ul><li class="pro">No value model (massive memory savings)</li><li class="pro">Excellent for reasoning tasks</li><li class="pro">Scales well</li></ul>
-                    <p><strong>Cons:</strong></p>
-                    <ul><li class="con">Multiple samples per prompt needed</li><li class="con">Group size is sensitive</li></ul>
-                </div></div>
-            </div>
-
-            <div class="tech-card priority-1 fade-up" data-tags="preference">
-                <span class="badge badge-core">Core</span>
-                <h3>DPO</h3>
-                <p class="desc">Direct Preference Optimization — alignment without RL</p>
-                <p class="advantage">Simple classification loss, no reward model needed</p>
-                <p class="paper">Rafailov et al., 2023</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
-                    Learn more <span class="arrow">&#9654;</span>
-                </div>
-                <div class="details"><div class="details-content">
-                    <p>DPO reparameterizes the RLHF objective into a simple binary cross-entropy loss on preference pairs. The language model IS the reward model.</p>
-                    <p><strong>Pros:</strong></p>
-                    <ul><li class="pro">No reward model needed</li><li class="pro">Simple single-stage training</li><li class="pro">Very stable</li></ul>
-                    <p><strong>Cons:</strong></p>
-                    <ul><li class="con">Needs paired preference data</li><li class="con">Reference model still needed</li></ul>
-                </div></div>
-            </div>
-
-            <div class="tech-card priority-1 fade-up" data-tags="self-play">
-                <span class="badge badge-core">Core</span>
-                <h3>SPO</h3>
-                <p class="desc">Self-Play Optimization — iterative self-improvement</p>
-                <p class="advantage">Model improves by competing against itself</p>
-                <p class="paper">Wu et al., 2024</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
-                    Learn more <span class="arrow">&#9654;</span>
-                </div>
-                <div class="details"><div class="details-content">
-                    <p>SPO creates a competitive dynamic: the model acts as both generator and discriminator, continuously improving through self-play with ELO tracking.</p>
-                    <p><strong>Pros:</strong></p>
-                    <ul><li class="pro">Self-improving without external data</li><li class="pro">No reward model needed</li></ul>
-                    <p><strong>Cons:</strong></p>
-                    <ul><li class="con">Can overfit to self</li><li class="con">Computationally expensive</li></ul>
-                </div></div>
-            </div>
-
-            <div class="tech-card priority-1 fade-up" data-tags="rl preference">
-                <span class="badge badge-core">Core</span>
-                <h3>RLHF</h3>
-                <p class="desc">Classic RLHF — the full reward model + PPO pipeline</p>
-                <p class="advantage">Proven at scale (InstructGPT, ChatGPT)</p>
-                <p class="paper">Ouyang et al., 2022</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">
-                    Learn more <span class="arrow">&#9654;</span>
-                </div>
-                <div class="details"><div class="details-content">
-                    <p>The original: train a reward model on human preferences, then optimize the policy with PPO. Maximum control, maximum complexity.</p>
-                    <p><strong>Pros:</strong></p>
-                    <ul><li class="pro">Proven at scale by OpenAI/Anthropic</li><li class="pro">Maximum flexibility</li></ul>
-                    <p><strong>Cons:</strong></p>
-                    <ul><li class="con">Complex multi-stage pipeline</li><li class="con">Very memory intensive</li></ul>
-                </div></div>
-            </div>
-
-            <!-- Priority 2 -->
-            <div class="tech-card priority-2 fade-up" data-tags="preference experimental">
-                <span class="badge badge-advanced">Advanced</span>
-                <h3>KTO</h3>
-                <p class="desc">Kahneman-Tversky Optimization — alignment from thumbs up/down</p>
-                <p class="advantage">Works with unpaired binary feedback</p>
-                <p class="paper">Ethayarajh et al., 2024</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
-                <div class="details"><div class="details-content"><p>Uses asymmetric loss inspired by prospect theory. Only needs binary good/bad signals, not paired preferences.</p></div></div>
-            </div>
-
-            <div class="tech-card priority-2 fade-up" data-tags="preference experimental">
-                <span class="badge badge-advanced">Advanced</span>
-                <h3>ORPO</h3>
-                <p class="desc">Odds Ratio Preference Optimization — SFT + alignment in one</p>
-                <p class="advantage">No reference model, combined training</p>
-                <p class="paper">Hong et al., 2024</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
-                <div class="details"><div class="details-content"><p>Combines SFT and preference alignment in a single stage using odds ratio penalty. Very memory efficient.</p></div></div>
-            </div>
-
-            <div class="tech-card priority-2 fade-up" data-tags="rl experimental">
-                <span class="badge badge-advanced">Advanced</span>
-                <h3>RLAIF</h3>
-                <p class="desc">RL from AI Feedback — Constitutional AI approach</p>
-                <p class="advantage">No human labelers needed</p>
-                <p class="paper">Bai et al., 2022</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
-                <div class="details"><div class="details-content"><p>Uses AI-generated feedback based on constitutional principles. Scalable oversight without human labelers.</p></div></div>
-            </div>
-
-            <div class="tech-card priority-2 fade-up" data-tags="self-play experimental">
-                <span class="badge badge-advanced">Advanced</span>
-                <h3>SPIN</h3>
-                <p class="desc">Self-Play Fine-Tuning — distinguish human from LLM text</p>
-                <p class="advantage">Only needs SFT data</p>
-                <p class="paper">Chen et al., 2024</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
-                <div class="details"><div class="details-content"><p>Trains the model to discriminate its own outputs from human text, iteratively improving until convergence.</p></div></div>
-            </div>
-
-            <div class="tech-card priority-2 fade-up" data-tags="preference experimental">
-                <span class="badge badge-advanced">Advanced</span>
-                <h3>SimPO</h3>
-                <p class="desc">Simple Preference Optimization — reference-free + length-normalized</p>
-                <p class="advantage">No reference model, fair length comparison</p>
-                <p class="paper">Meng et al., 2024</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
-                <div class="details"><div class="details-content"><p>Uses length-normalized log probabilities as implicit reward. No reference model needed at all.</p></div></div>
-            </div>
-
-            <div class="tech-card fade-up" data-tags="preference experimental">
-                <span class="badge badge-experimental">Experimental</span>
-                <h3>IPO</h3>
-                <p class="desc">Identity Preference Optimization — regularized DPO</p>
-                <p class="advantage">Better regularization than standard DPO</p>
-                <p class="paper">Azar et al., 2023</p>
-                <div class="learn-more" onclick="this.closest('.tech-card').classList.toggle('expanded')">Learn more <span class="arrow">&#9654;</span></div>
-                <div class="details"><div class="details-content"><p>Adds regularization to address DPO's potential overfitting issues. Theoretically grounded improvement.</p></div></div>
-            </div>
-        </div>
-    </div>
+  <div class="note">
+    <strong>Honesty note:</strong> the numbers on this page and in the demo come from a
+    seeded simulation environment — a deterministic tool-use world built so the
+    orchestration, auditing, and reporting layers can be developed and tested
+    without GPUs. The framework's training interfaces are real; plug in your own
+    models, environments, and compute to produce real results.
+  </div>
 </section>
 
-<!-- Pipeline -->
-<section id="pipeline">
-    <div class="container">
-        <h2 class="section-title fade-up">Pipeline Stages</h2>
-        <p class="section-subtitle fade-up">Each stage is orchestrated by the coordinator agent</p>
-
-        <div class="pipeline-steps fade-up">
-            <div class="pipeline-step">
-                <div class="step-num">1</div>
-                <h4>Data Prep</h4>
-                <p>Validate & preprocess training data</p>
-            </div>
-            <div class="pipeline-arrow">&rarr;</div>
-            <div class="pipeline-step">
-                <div class="step-num">2</div>
-                <h4>Technique Selection</h4>
-                <p>Choose optimal alignment method</p>
-            </div>
-            <div class="pipeline-arrow">&rarr;</div>
-            <div class="pipeline-step">
-                <div class="step-num">3</div>
-                <h4>Training</h4>
-                <p>Execute post-training technique</p>
-            </div>
-            <div class="pipeline-arrow">&rarr;</div>
-            <div class="pipeline-step">
-                <div class="step-num">4</div>
-                <h4>Optimization</h4>
-                <p>Quantize, prune, distill</p>
-            </div>
-            <div class="pipeline-arrow">&rarr;</div>
-            <div class="pipeline-step">
-                <div class="step-num">5</div>
-                <h4>Evaluation</h4>
-                <p>Benchmark on MMLU, MT-Bench, etc.</p>
-            </div>
-        </div>
+<section>
+  <div class="sec-label">Quick start</div>
+  <h2>Running in under a minute</h2>
+  <div class="terminal" style="margin-top:28px; max-width:100%;">
+    <div class="bar">
+      <div class="dot" style="background:#ff5f57"></div>
+      <div class="dot" style="background:#febc2e"></div>
+      <div class="dot" style="background:#28c840"></div>
     </div>
-</section>
+    <pre><span class="c">$</span> <span class="w">pip install -e .</span>
 
-<!-- Agent Communication Demo -->
-<section id="agents-demo">
-    <div class="container">
-        <h2 class="section-title fade-up">Agent Communication</h2>
-        <p class="section-subtitle fade-up">Watch agents coordinate a GRPO training pipeline in real-time</p>
-
-        <div class="terminal fade-up">
-            <div class="terminal-header">
-                <div class="terminal-dot dot-red"></div>
-                <div class="terminal-dot dot-yellow"></div>
-                <div class="terminal-dot dot-green"></div>
-                <span class="terminal-title">agentic-post-training &mdash; agent_demo.py</span>
-            </div>
-            <div class="terminal-body" id="terminalBody"></div>
-        </div>
-    </div>
-</section>
-
-<!-- Optimization -->
-<section id="optimization">
-    <div class="container">
-        <h2 class="section-title fade-up">Optimization</h2>
-        <p class="section-subtitle fade-up">Compress and optimize trained models for deployment</p>
-
-        <div class="opt-grid fade-up">
-            <div class="opt-card">
-                <h3>Quantization</h3>
-                <div class="opt-bar">
-                    <span style="width:60px">GPTQ</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:99%;background:var(--gradient)"></div></div>
-                    <span>8x &bull; 99%</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:60px">AWQ</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:99.5%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div></div>
-                    <span>8x &bull; 99.5%</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:60px">GGUF</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:98%;background:linear-gradient(90deg,#06b6d4,#34d399)"></div></div>
-                    <span>8x &bull; 98%</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:60px">INT8</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:99.9%;background:linear-gradient(90deg,#7c3aed,#c084fc)"></div></div>
-                    <span>4x &bull; 99.9%</span>
-                </div>
-            </div>
-            <div class="opt-card">
-                <h3>Pruning</h3>
-                <div class="opt-bar">
-                    <span style="width:80px">Magnitude</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:95%;background:var(--gradient)"></div></div>
-                    <span>~95%</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:80px">Structured</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:92%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div></div>
-                    <span>~92%</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:80px">Movement</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:96%;background:linear-gradient(90deg,#06b6d4,#34d399)"></div></div>
-                    <span>~96%</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:80px">Wanda</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:94%;background:linear-gradient(90deg,#7c3aed,#c084fc)"></div></div>
-                    <span>~94%</span>
-                </div>
-            </div>
-            <div class="opt-card">
-                <h3>Knowledge Distillation</h3>
-                <p style="color:var(--text-dim);font-size:0.9rem;margin-bottom:16px;">Transfer knowledge from large teacher to smaller student model.</p>
-                <div class="opt-bar">
-                    <span style="width:80px">70B → 8B</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:92%;background:var(--gradient)"></div></div>
-                    <span>92% quality</span>
-                </div>
-                <div class="opt-bar">
-                    <span style="width:80px">8B → 1B</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:85%;background:linear-gradient(90deg,#3b82f6,#06b6d4)"></div></div>
-                    <span>85% quality</span>
-                </div>
-                <p style="font-size:0.8rem;color:var(--text-dim);margin-top:12px;">Methods: Logit-level, Feature-level, Progressive</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Install -->
-<section id="install">
-    <div class="container">
-        <div class="install-section fade-up">
-            <h2 class="section-title">Quick Start</h2>
-            <p class="section-subtitle" style="margin-bottom:30px">Get running in under a minute</p>
-
-            <div class="install-cmd">
-                <span><span class="dollar">$</span> pip install -e .</span>
-            </div>
-
-            <div class="install-cmd">
-                <span><span class="dollar">$</span> python3 examples/agent_demo.py</span>
-            </div>
-
-            <div class="install-cmd">
-                <span><span class="dollar">$</span> python3 examples/run_pipeline.py --technique grpo --model gpt2</span>
-            </div>
-
-            <div class="code-block" style="max-width:100%;margin-top:24px;">
-                <span class="comment"># Or use presets</span><br>
-                <span class="keyword">from</span> pipeline.config <span class="keyword">import</span> PipelineConfig<br><br>
-                <span class="comment"># Quick DPO, Full RLHF, Efficient GRPO, Production</span><br>
-                config = PipelineConfig.<span class="func">preset</span>(<span class="string">"production"</span>)<br>
-            </div>
-        </div>
-    </div>
+<span class="c">$</span> <span class="w">python3 examples/run_agentic_training.py --goal "agentic tool use"</span>   <span class="g"># supervisor picks the recipe</span>
+<span class="c">$</span> <span class="w">python3 examples/run_bakeoff.py</span>                                      <span class="g"># recipes head-to-head</span>
+<span class="c">$</span> <span class="w">python3 examples/run_autonomous.py --target-success 0.85</span>             <span class="g"># the closed loop</span>
+<span class="c">$</span> <span class="w">python3 examples/run_paper_scan.py</span>                                   <span class="g"># scan arXiv, generate stubs</span>
+<span class="c">$</span> <span class="w">python3 -m pytest tests/</span>                                             <span class="g"># 159 tests</span></pre>
+  </div>
 </section>
 
 <footer>
-    <div class="container">
-        <p>Built for the agentic AI era &mdash; Apache 2.0 License</p>
-        <p style="margin-top:8px;">
-            <a href="https://github.com">GitHub</a> &bull;
-            <a href="#techniques">Techniques</a> &bull;
-            <a href="#install">Install</a>
-        </p>
+  <div class="cols">
+    <div>
+      <strong style="color:var(--text)">Agentic Post-Training Framework</strong><br>
+      Apache 2.0 · built in the open
     </div>
+    <div style="display:flex; gap:22px; flex-wrap:wrap;">
+      <a href="https://github.com/sugeerth/agentic-post-training">GitHub</a>
+      <a href="demo.html">Demo</a>
+      <a href="https://github.com/sugeerth/agentic-post-training/blob/main/docs/AGENTIC_POST_TRAINING.md">Architecture docs</a>
+      <a href="https://github.com/sugeerth/agentic-post-training/blob/main/docs/PAPER_AUTOMATION.md">Paper automation</a>
+    </div>
+  </div>
 </footer>
 
-<script>
-// Intersection Observer for fade-up animations
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-        }
-    });
-}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
-document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
-
-// Filter buttons
-document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const filter = btn.dataset.filter;
-        document.querySelectorAll('.tech-card').forEach(card => {
-            if (filter === 'all') {
-                card.style.display = '';
-            } else {
-                const tags = card.dataset.tags || '';
-                card.style.display = tags.includes(filter) ? '' : 'none';
-            }
-        });
-    });
-});
-
-// Terminal demo animation
-const messages = [
-    { time: '14:23:01', icon: '🔗', agent: 'coordinator', name: 'Coordinator', msg: 'Initiating GRPO post-training pipeline...' },
-    { time: '14:23:01', icon: '📊', agent: 'coordinator', name: 'Coordinator', msg: 'Registered agents: Trainer, Optimizer, Evaluator' },
-    { time: '14:23:02', icon: '📋', agent: 'coordinator', name: 'Coordinator', msg: 'Starting stage: data_prep' },
-    { time: '14:23:02', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Validating training data... ✓' },
-    { time: '14:23:03', icon: '🔗', agent: 'coordinator', name: 'Coordinator', msg: 'Selected technique: <span class="metric">GRPO</span> (group_size=8, no value model)' },
-    { time: '14:23:03', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Loading model: <span class="metric">meta-llama/Llama-3.1-8B</span>' },
-    { time: '14:23:04', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Model loaded. Starting GRPO training...' },
-    { time: '14:23:05', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Epoch 1/3 | Loss: <span class="metric">1.8432</span> | Reward: <span class="metric">0.5700</span> | Group σ: 0.42' },
-    { time: '14:23:12', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Epoch 2/3 | Loss: <span class="metric">0.9821</span> | Reward: <span class="metric">0.7900</span> | Group σ: 0.31' },
-    { time: '14:23:19', icon: '📊', agent: 'trainer', name: 'Trainer', msg: 'Epoch 3/3 | Loss: <span class="metric">0.5513</span> | Reward: <span class="metric">0.8800</span> | Group σ: 0.18' },
-    { time: '14:23:20', icon: '✅', agent: 'trainer', name: 'Trainer', msg: 'Training complete! Final loss: <span class="metric">0.5513</span>' },
-    { time: '14:23:20', icon: '⚡', agent: 'optimizer', name: 'Optimizer', msg: 'Starting GPTQ quantization (4-bit, group_size=128)' },
-    { time: '14:23:21', icon: '⚡', agent: 'optimizer', name: 'Optimizer', msg: 'Running calibration dataset...' },
-    { time: '14:23:22', icon: '✅', agent: 'optimizer', name: 'Optimizer', msg: 'Quantization complete: <span class="metric">8.0x</span> compression, +0.15 perplexity' },
-    { time: '14:23:23', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'Starting evaluation suite: MMLU, MT-Bench, HumanEval' },
-    { time: '14:23:24', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'MMLU: <span class="metric">72.3</span>/100 (+8.2% from baseline)' },
-    { time: '14:23:25', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'MT-Bench: <span class="metric">8.4</span>/10 (+12.0% from baseline)' },
-    { time: '14:23:26', icon: '📈', agent: 'evaluator', name: 'Evaluator', msg: 'HumanEval: <span class="metric">51.2</span>/100 (+15.3% from baseline)' },
-    { time: '14:23:27', icon: '✅', agent: 'evaluator', name: 'Evaluator', msg: 'Overall improvement: <span class="metric">+11.8%</span>' },
-    { time: '14:23:27', icon: '🔗', agent: 'coordinator', name: 'Coordinator', msg: '🎉 Pipeline complete! 5/5 stages finished. 19 messages exchanged.' },
-];
-
-const terminalBody = document.getElementById('terminalBody');
-let msgIndex = 0;
-let terminalStarted = false;
-
-function addTerminalLine() {
-    if (msgIndex >= messages.length) {
-        // Loop after pause
-        setTimeout(() => {
-            terminalBody.innerHTML = '';
-            msgIndex = 0;
-            addTerminalLine();
-        }, 4000);
-        return;
-    }
-
-    const m = messages[msgIndex];
-    const line = document.createElement('div');
-    line.className = 'line';
-    line.style.animationDelay = '0s';
-    line.innerHTML = `<span class="time">[${m.time}]</span> <span class="icon">${m.icon}</span> <span class="${m.agent}">${m.name}</span> → <span class="msg">${m.msg}</span>`;
-    terminalBody.appendChild(line);
-    terminalBody.scrollTop = terminalBody.scrollHeight;
-
-    msgIndex++;
-    setTimeout(addTerminalLine, 600 + Math.random() * 400);
-}
-
-// Start terminal when visible
-const termObserver = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && !terminalStarted) {
-        terminalStarted = true;
-        setTimeout(addTerminalLine, 500);
-    }
-}, { threshold: 0.3 });
-termObserver.observe(document.querySelector('.terminal'));
-</script>
-
+</div>
 </body>
 </html>
