@@ -47,6 +47,7 @@ build/
 checkpoints/
 wandb/
 output/
+.runs/
 
 # Databases / vector stores
 chroma/
