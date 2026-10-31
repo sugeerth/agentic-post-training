@@ -1,0 +1,353 @@
+"""Tests for reading a GUI back out of its pixels.
+
+These are legibility tests as much as parser tests. If a label cannot be
+recovered from the frame then the frame does not carry it, and the claim that
+these screenshots are readable by a vision model is false — which would make
+every benchmark number a measurement of the renderer rather than the agent.
+
+The strong assertion is `test_every_control_is_located_typed_and_labelled`: for
+every control the environment says is on screen, the parser must find a box
+whose click point hit-tests back to that exact widget, with the right kind and
+the right words. It runs across generated worlds at two scroll positions, so it
+covers layouts nobody chose.
+"""
+
+import asyncio
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from computer_use import Action, ActionKind, MockComputer
+from computer_use.perception import (
+    DecodeError,
+    Screen,
+    boxes,
+    decode_png,
+    legibility,
+    parse_screen,
+    text_runs,
+)
+from computer_use.tokens import encode_screen
+from computer_use.worlds import generate
+
+#: Environment widget kind -> what the parser should call it from pixels alone.
+KINDS = {"field": "field", "checkbox": "toggle", "radio": "toggle", "button": "button"}
+
+SEEDS = range(10)
+
+
+def frame(env):
+    return asyncio.run(env.screenshot())
+
+
+def on_screen(env):
+    """The widgets actually drawn: `_visible` includes ones below the fold."""
+    out = []
+    for widget in env._visible:
+        y = widget.y - env._scroll_y
+        if widget.kind in KINDS and not (y + widget.height < 70 or y > env.height):
+            out.append(widget)
+    return out
+
+
+def scrolled(env, amount=3):
+    asyncio.run(env.execute(Action(
+        ActionKind.SCROLL, coordinate=(640, 400),
+        scroll_direction="down", scroll_amount=amount,
+    )))
+    return env
+
+
+class TestDecoder(unittest.TestCase):
+    def test_round_trips_the_renderers_own_output(self):
+        env = MockComputer.settings_form()
+        shot = asyncio.run(env.reset())
+        raster = decode_png(shot.data)
+        self.assertEqual((raster.width, raster.height), (shot.width, shot.height))
+        self.assertEqual(len(raster.pixels), shot.width * shot.height * 3)
+
+    def test_pixels_match_what_was_drawn(self):
+        env = MockComputer.settings_form()
+        raster = decode_png(asyncio.run(env.reset()).data)
+        # The window chrome is a solid band across the top; the panel is not.
+        self.assertEqual(raster.at(5, 5), raster.at(1200, 40))
+        self.assertNotEqual(raster.at(5, 5), raster.at(640, 400))
+
+    def test_rejects_things_that_are_not_readable_pngs(self):
+        with self.assertRaises(DecodeError):
+            decode_png(b"not a png at all")
+        with self.assertRaises(DecodeError):
+            decode_png(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+
+    def test_positions_finds_only_whole_pixels(self):
+        env = MockComputer.settings_form()
+        raster = decode_png(asyncio.run(env.reset()).data)
+        chrome = raster.at(5, 5)
+        for x, y in raster.positions(chrome):
+            self.assertEqual(raster.at(x, y), chrome)
+            break
+        else:
+            self.fail("no pixels of a color read straight out of the image")
+
+
+class TestTextRecovery(unittest.TestCase):
+    def test_reads_the_labels_off_a_form(self):
+        env = MockComputer.settings_form()
+        recovered = {run.text for run in text_runs(decode_png(asyncio.run(env.reset()).data))}
+        for expected in ("ACCOUNT SETTINGS", "EMAIL", "MAX RETRIES", "EMAIL ME ON FAILURE"):
+            self.assertIn(expected, recovered)
+
+    def test_every_generated_label_is_legible(self):
+        """A label that cannot be read back is noise on the screen."""
+        for seed in SEEDS:
+            world = generate(seed)
+            env = world.build()
+            asyncio.run(env.reset())
+            expected = [
+                w.label for w in on_screen(env) + [x for x in env._visible if x.kind == "label"]
+                if w.label and w.y - env._scroll_y + w.height <= env.height
+            ]
+            report = legibility(frame(env).data, expected)
+            self.assertEqual(report.missing, (), f"{world.name} lost {report.missing}")
+
+    def test_a_value_typed_into_a_field_can_be_read_back(self):
+        env = MockComputer.settings_form()
+        asyncio.run(env.reset())
+        asyncio.run(env.execute(Action(ActionKind.LEFT_CLICK, coordinate=(290, 218))))
+        asyncio.run(env.execute(Action(ActionKind.TYPE, text="ada@example.com")))
+        recovered = {run.text for run in text_runs(decode_png(frame(env).data))}
+        self.assertIn("ADA@EXAMPLE.COM", recovered)
+
+
+class TestControls(unittest.TestCase):
+    def test_every_control_is_located_typed_and_labelled(self):
+        environments = [
+            ("settings", MockComputer.settings_form()),
+            ("checkout", MockComputer.checkout_flow()),
+            ("files", MockComputer.file_manager()),
+        ]
+        environments += [(f"world{s:03d}", generate(s).build()) for s in SEEDS]
+
+        checked = 0
+        for name, env in environments:
+            asyncio.run(env.reset())
+            for view in (env, scrolled(env)):
+                screen = parse_screen(frame(view).data)
+                for widget in on_screen(view):
+                    match = next(
+                        (
+                            element for element in screen.elements
+                            if element.box is not None
+                            and (hit := view._hit_test(*element.click)) is not None
+                            and hit.id == widget.id
+                        ),
+                        None,
+                    )
+                    self.assertIsNotNone(
+                        match, f"{name}: nothing clickable found for {widget.id}",
+                    )
+                    self.assertEqual(
+                        match.kind, KINDS[widget.kind],
+                        f"{name}: {widget.id} read as {match.kind!r}",
+                    )
+                    if widget.label:
+                        self.assertIn(
+                            widget.label.upper(), match.label.upper(),
+                            f"{name}: {widget.id} read as {match.label!r}",
+                        )
+                    checked += 1
+        self.assertGreater(checked, 50, "the sweep stopped covering anything")
+
+    def test_no_phantom_controls(self):
+        """A box that hit-tests to nothing is a control the agent cannot use.
+
+        Stacked radio buttons produce one: the bottom edge of one and the top
+        edge of the next have the same width, so they pair into a rectangle
+        spanning the gap — sitting exactly over the label of a real control.
+        """
+        for seed in SEEDS:
+            env = generate(seed).build()
+            asyncio.run(env.reset())
+            screen = parse_screen(frame(env).data)
+            for element in screen.elements:
+                if element.box is None or element.box.width > 600:
+                    continue  # the content panel itself is not a control
+                self.assertIsNotNone(
+                    env._hit_test(*element.click),
+                    f"world{seed:03d}: phantom {element.kind} {element.label!r}",
+                )
+
+    def test_a_wide_button_is_not_read_as_a_field(self):
+        # A 200px CONTINUE is exactly as wide as a short input. Width cannot
+        # separate them; where the caption sits can, and getting it wrong
+        # leaves the agent with no way off the screen.
+        multi = next(generate(s) for s in range(40) if generate(s).spec.screens > 1)
+        env = multi.build()
+        asyncio.run(env.reset())
+        screen = parse_screen(frame(env).data)
+        nav = [e for e in screen.elements if e.label in ("CONTINUE", "NEXT")]
+        self.assertTrue(nav, f"{multi.name}: no navigation control found")
+        self.assertTrue(all(e.kind == "button" for e in nav))
+
+    def test_the_primary_action_looks_different(self):
+        # How a design says "this is the commit". The agent uses it to avoid
+        # pressing submit while looking for a way to the next screen, so it has
+        # to survive the trip through the pixels.
+        single = next(
+            generate(s) for s in range(40)
+            # One screen and no scrolling, so the action is on the first frame.
+            if generate(s).spec.screens == 1 and not generate(s).spec.scroll
+        )
+        env = single.build()
+        asyncio.run(env.reset())
+        screen = parse_screen(frame(env).data)
+        buttons = [e for e in screen.elements if e.kind == "button"]
+        self.assertTrue(buttons, f"{single.name}: no buttons parsed")
+        self.assertTrue(
+            any(e.filled for e in buttons),
+            f"{single.name}: no primary action stands out",
+        )
+
+    def test_scroll_position_is_read_from_the_frame(self):
+        env = MockComputer.settings_form()
+        asyncio.run(env.reset())
+        before = parse_screen(frame(env).data).scroll
+        after = parse_screen(frame(scrolled(env)).data).scroll
+        self.assertIsNotNone(before)
+        self.assertIsNotNone(after)
+        self.assertLess(before[0], after[0])
+        self.assertEqual(before[1], after[1])
+
+    def test_a_filled_button_does_not_contain_phantom_controls(self):
+        """The letters of a caption should not parse as controls.
+
+        A primary button is a solid block of accent with white text on it, and
+        each row of that text is a long horizontal run of one colour — so rows
+        pair into perfectly good rectangles *inside* the button. Wide enough to
+        be read as fields, they sit exactly on top of the one control the task
+        is usually about.
+        """
+        world = next(
+            generate(s, hard=True) for s in range(40)
+            if generate(s, hard=True).spec.screens == 1
+            and not generate(s, hard=True).spec.scroll
+        )
+        env = world.build()
+        asyncio.run(env.reset())
+        screen = parse_screen(frame(env).data)
+        buttons = [e for e in screen.elements if e.kind == "button" and e.filled]
+        self.assertTrue(buttons, f"{world.name}: no filled button to check")
+        for button in buttons:
+            inside = [
+                e for e in screen.elements
+                if e is not button and e.box is not None
+                and button.box.contains(*e.click)
+            ]
+            self.assertFalse(
+                inside,
+                f"{world.name}: {button.label!r} contains "
+                f"{[(e.kind, e.label) for e in inside]}",
+            )
+
+    def test_hard_worlds_stay_exactly_readable(self):
+        # Distractors are only a harder *task* if the screen is still read
+        # perfectly — otherwise the benchmark measures the parser.
+        for seed in range(8):
+            env = generate(seed, hard=True).build()
+            asyncio.run(env.reset())
+            screen = parse_screen(frame(env).data)
+            for widget in on_screen(env):
+                match = next(
+                    (
+                        e for e in screen.elements
+                        if e.box is not None
+                        and (hit := env._hit_test(*e.click)) is not None
+                        and hit.id == widget.id
+                    ),
+                    None,
+                )
+                self.assertIsNotNone(match, f"world{seed:03d}: lost {widget.id}")
+                if widget.label:
+                    self.assertIn(widget.label.upper(), match.label.upper())
+
+    def test_boxes_do_not_double_count_a_thick_border(self):
+        env = MockComputer.settings_form()
+        raster = decode_png(asyncio.run(env.reset()).data)
+        found = boxes(raster)
+        for i, a in enumerate(found):
+            for b in found[i + 1:]:
+                same = (
+                    abs(a.x - b.x) <= 4 and abs(a.y - b.y) <= 4
+                    and abs(a.width - b.width) <= 8 and abs(a.height - b.height) <= 8
+                )
+                self.assertFalse(same, f"{a} and {b} are the same control")
+
+
+class TestControlState(unittest.TestCase):
+    """State the renderer draws that the parser used to throw away.
+
+    Neither of these was visible as a bug until a model was trained on this
+    encoding and stopped improving. A screen encoded as position-and-label
+    alone is identical before and after a checkbox is flipped, and identical
+    before and after a field takes focus — so the same context carried two
+    different correct actions, which is unlearnable however long you train.
+    """
+
+    def _screen(self, env: MockComputer) -> Screen:
+        return parse_screen(asyncio.run(env.screenshot()).data)
+
+    def _click(self, env: MockComputer, point: tuple[int, int]) -> None:
+        asyncio.run(env.execute(Action(kind=ActionKind.LEFT_CLICK, coordinate=point)))
+
+    def test_toggles_start_unchecked_and_report_it(self) -> None:
+        env = MockComputer.settings_form()
+        toggles = [e for e in self._screen(env).elements if e.kind == "toggle"]
+        self.assertTrue(toggles, "no toggles on the settings form")
+        self.assertTrue(all(e.checked is False for e in toggles))
+
+    def test_clicking_a_toggle_reads_back_as_checked(self) -> None:
+        env = MockComputer.settings_form()
+        target = next(e for e in self._screen(env).elements if e.kind == "toggle")
+        self._click(env, target.click)
+
+        after = {e.label: e.checked for e in self._screen(env).elements if e.kind == "toggle"}
+        self.assertIs(after[target.label], True)
+        self.assertEqual(
+            sum(1 for v in after.values() if v), 1, "one click flipped more than one control"
+        )
+
+    def test_only_toggles_carry_a_checked_state(self) -> None:
+        env = MockComputer.settings_form()
+        for element in self._screen(env).elements:
+            if element.kind != "toggle":
+                self.assertIsNone(element.checked, f"{element.kind} {element.label!r}")
+
+    def test_focus_follows_the_clicked_field(self) -> None:
+        env = MockComputer.settings_form()
+        field = next(e for e in self._screen(env).elements if e.kind == "field")
+        self.assertFalse(any(e.focused for e in self._screen(env).elements))
+
+        self._click(env, field.click)
+        self.assertEqual([e.label for e in self._screen(env).elements if e.focused],
+                         [field.label])
+
+    def test_flipping_a_toggle_changes_the_encoded_screen(self) -> None:
+        """The property a training corpus actually needs from the encoding."""
+        env = MockComputer.settings_form()
+        toggle = next(e for e in self._screen(env).elements if e.kind == "toggle")
+        before = encode_screen(self._screen(env))
+        self._click(env, toggle.click)
+        self.assertNotEqual(encode_screen(self._screen(env)), before)
+
+    def test_focusing_a_field_changes_the_encoded_screen(self) -> None:
+        env = MockComputer.settings_form()
+        field = next(e for e in self._screen(env).elements if e.kind == "field")
+        before = encode_screen(self._screen(env))
+        self._click(env, field.click)
+        self.assertNotEqual(encode_screen(self._screen(env)), before)
+
+
+if __name__ == "__main__":
+    unittest.main()
