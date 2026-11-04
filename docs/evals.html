@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Behavior Evals</title>
+<meta name="description" content="Find agent failures, prove fixes with confidence intervals, and gate what ships: behavior evals for coding, tool use, long-horizon tasks, instruction following, and calibrated factuality.">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9E38KPZZ7E"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9E38KPZZ7E');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------ tokens */
+:root {
+  color-scheme: light;
+  --bg: #f4f4f1;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --border: #e2e1dc;
+  --grid: #e6e5e0;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #7a7974;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --accent: #2a78d6;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --good-tint: rgba(12,163,12,.10);
+  --warning-tint: rgba(250,178,25,.16);
+  --critical-tint: rgba(208,59,59,.10);
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.04);
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --border: #2f2f2c;
+    --grid: #2c2c2a;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --text-3: #8f8e86;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --accent: #3987e5;
+    --good-tint: rgba(12,163,12,.16);
+    --warning-tint: rgba(250,178,25,.14);
+    --critical-tint: rgba(208,59,59,.18);
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --border: #2f2f2c;
+  --grid: #2c2c2a;
+  --text: #f0efec;
+  --text-2: #c3c2b7;
+  --text-3: #8f8e86;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --accent: #3987e5;
+  --good-tint: rgba(12,163,12,.16);
+  --warning-tint: rgba(250,178,25,.14);
+  --critical-tint: rgba(208,59,59,.18);
+  --shadow: none;
+}
+
+/* ------------------------------------------------------------------ base */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: var(--mono); font-size: .86em; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+@media (min-width: 720px) { .wrap { padding: 0 28px; } }
+section { padding: 56px 0; }
+h2 { font-size: 1.7rem; letter-spacing: -.02em; line-height: 1.2; margin-bottom: 8px; }
+h3 { font-size: 1.05rem; letter-spacing: -.01em; margin-bottom: 4px; }
+.lede { color: var(--text-2); max-width: 680px; margin-bottom: 28px; }
+.eyebrow { font: 500 .72rem/1 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--text-3); margin-bottom: 10px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+
+/* ------------------------------------------------------------------ nav */
+nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+nav .wrap { display: flex; align-items: center; gap: 20px; height: 56px; }
+.brand { font-weight: 700; color: var(--text); white-space: nowrap; }
+.brand span { color: var(--text-3); font-weight: 500; }
+.navlinks { display: flex; gap: 18px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+.navlinks a { color: var(--text-2); font-size: .88rem; white-space: nowrap; }
+.navlinks a:hover { color: var(--text); text-decoration: none; }
+.theme-btn { background: none; border: 1px solid var(--border); color: var(--text-2); border-radius: 8px; width: 34px; height: 34px; cursor: pointer; flex: none; font-size: 15px; }
+@media (max-width: 640px) { .navlinks .opt, .brand span { display: none; } }
+
+/* ------------------------------------------------------------------ hero */
+.hero { padding: 72px 0 40px; }
+.hero h1 { font-size: clamp(2.1rem, 5.5vw, 3.6rem); line-height: 1.05; letter-spacing: -.035em; font-weight: 800; max-width: 820px; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { font-size: 1.1rem; color: var(--text-2); max-width: 660px; margin: 18px 0 28px; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 9px; font-weight: 600; font-size: .92rem; border: 1px solid var(--border); color: var(--text); background: var(--surface); }
+.btn:hover { text-decoration: none; border-color: var(--text-3); }
+.btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 44px; }
+@media (min-width: 720px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stat { padding: 16px 18px; }
+.stat b { display: block; font-size: 1.9rem; letter-spacing: -.03em; line-height: 1.1; }
+.stat span { color: var(--text-2); font-size: .85rem; }
+.note { display: flex; gap: 12px; padding: 14px 16px; margin-top: 20px; border-left: 3px solid var(--warning); background: var(--warning-tint); border-radius: 8px; color: var(--text-2); font-size: .9rem; }
+.note b { color: var(--text); }
+
+/* ------------------------------------------------------------------ loop */
+.loop { display: grid; grid-template-columns: 1fr; gap: 12px; counter-reset: step; }
+@media (min-width: 720px) { .loop { grid-template-columns: repeat(5, 1fr); } }
+.loop .card { padding: 18px; position: relative; }
+.loop .card::before { counter-increment: step; content: counter(step, decimal-leading-zero); font: 500 .75rem var(--mono); color: var(--accent); display: block; margin-bottom: 8px; }
+.loop p { color: var(--text-2); font-size: .88rem; }
+.loop code { color: var(--text); }
+
+/* ------------------------------------------------------------------ experiments */
+.tabs { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px; }
+@media (min-width: 720px) { .tabs { grid-template-columns: repeat(3, 1fr); } }
+.tab { text-align: left; padding: 14px 16px; cursor: pointer; font: inherit; color: inherit; transition: border-color .15s; }
+.tab[aria-selected="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tab .name { font: 500 .8rem var(--mono); color: var(--text-2); margin: 8px 0 2px; display: block; word-break: break-word; }
+.tab .hyp { font-size: .86rem; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font: 600 .74rem/1 Inter, sans-serif; letter-spacing: .04em; padding: 5px 9px 5px 7px; border-radius: 999px; color: var(--text); }
+.badge svg { width: 13px; height: 13px; }
+.badge.SHIP { background: var(--good-tint); } .badge.SHIP svg { color: var(--good); }
+.badge.HOLD { background: var(--warning-tint); } .badge.HOLD svg { color: #c98500; }
+.badge.BLOCK { background: var(--critical-tint); } .badge.BLOCK svg { color: var(--critical); }
+.verdict { padding: 20px; margin-bottom: 16px; }
+.verdict .top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.verdict .badge { font-size: .9rem; padding: 7px 12px 7px 9px; }
+.verdict .badge svg { width: 16px; height: 16px; }
+.verdict .meta { color: var(--text-3); font-size: .82rem; font-family: var(--mono); }
+.verdict blockquote { font-size: 1.02rem; margin-bottom: 12px; }
+.verdict ul { list-style: none; display: grid; gap: 4px; }
+.verdict li { color: var(--text-2); font-size: .9rem; padding-left: 16px; position: relative; }
+.verdict li::before { content: "›"; position: absolute; left: 2px; color: var(--text-3); }
+.grid2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+.chart { padding: 18px 18px 12px; min-width: 0; }
+.chart h3 { margin-bottom: 2px; }
+.chart .sub { color: var(--text-3); font-size: .82rem; margin-bottom: 12px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart svg text { font-family: Inter, sans-serif; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-2); margin-bottom: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.legend i.dash { width: 16px; height: 0; border-radius: 0; border-top: 2px dashed var(--text-3); vertical-align: 3px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile { background: var(--surface-2); border-radius: 10px; padding: 14px; }
+.tile .k { font-size: .78rem; color: var(--text-2); }
+.tile .v { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; }
+.tile .v small { display: block; font-size: .8rem; color: var(--text-3); font-weight: 500; letter-spacing: 0; }
+.tile .d { font-size: .8rem; color: var(--text-2); }
+details.table { margin-top: 16px; }
+details.table summary { cursor: pointer; color: var(--text-2); font-size: .88rem; padding: 6px 0; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 8px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--text-3); font-weight: 500; font-size: .78rem; }
+td.num { font-family: var(--mono); font-size: .8rem; }
+.pill { font: 500 .68rem var(--mono); padding: 2px 6px; border-radius: 5px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.empty { color: var(--text-3); font-size: .88rem; padding: 24px 0; text-align: center; }
+
+/* ------------------------------------------------------------------ envs */
+.envs { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 720px) { .envs { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .envs { grid-template-columns: repeat(3, 1fr); } }
+.env { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.env .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.env .hd code { font-weight: 500; color: var(--text); font-size: .9rem; }
+.env .hd span { color: var(--text-3); font-size: .8rem; white-space: nowrap; }
+.env p { color: var(--text-2); font-size: .9rem; }
+.env pre { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; color: var(--text-2); font-size: .78rem; line-height: 1.5; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.env.add { border-style: dashed; justify-content: center; box-shadow: none; background: transparent; }
+
+/* ------------------------------------------------------------------ gate */
+.rules { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 720px) { .rules { grid-template-columns: repeat(3, 1fr); } }
+.rule { padding: 18px; }
+.rule .badge { margin-bottom: 10px; }
+.rule p { color: var(--text-2); font-size: .9rem; }
+.rule code { color: var(--text); }
+
+/* ------------------------------------------------------------------ code */
+.codes { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) { .codes { grid-template-columns: 1fr 1fr; } }
+.code { overflow: hidden; }
+.code .hd { padding: 10px 14px; border-bottom: 1px solid var(--border); font: 500 .76rem var(--mono); color: var(--text-3); }
+.code pre { padding: 14px; overflow-x: auto; line-height: 1.6; color: var(--text); }
+.code .c { color: var(--text-3); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 0 40px; color: var(--text-3); font-size: .85rem; }
+footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+
+/* ------------------------------------------------------------------ tooltip */
+#tip { position: fixed; pointer-events: none; z-index: 50; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .8rem; box-shadow: 0 6px 24px rgba(0,0,0,.18); opacity: 0; transition: opacity .1s; max-width: 260px; }
+#tip b { display: block; margin-bottom: 2px; }
+#tip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--text-2); }
+#tip .row span:last-child { font-family: var(--mono); color: var(--text); }
+#tip i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-SHIP" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M4.8 8.2l2.1 2.1 4.3-4.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-HOLD" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M6.3 5v6M9.7 5v6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-BLOCK" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="index.html">Agentic Post-Training <span>/ evals</span></a>
+    <div class="navlinks">
+      <a href="#loop" class="opt">Loop</a>
+      <a href="#experiments">Experiments</a>
+      <a href="#environments" class="opt">Environments</a>
+      <a href="#gate" class="opt">Gate</a>
+      <a href="#use" class="opt">Use it</a>
+      <a href="https://github.com/sugeerth/agentic-post-training" class="opt">GitHub</a>
+    </div>
+    <button class="theme-btn" id="theme" aria-label="Toggle color theme" title="Toggle theme">◐</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Behavior evals for agentic models</div>
+    <h1>Find the failure. <em>Prove the fix.</em> Decide what ships.</h1>
+    <p>Small, deterministic environments for coding, tool use, long-horizon tasks, instruction following and calibrated factuality. Every change gets a hypothesis, paired confidence intervals and a three-rule ship gate. Every failure becomes training data.</p>
+    <div class="btns">
+      <a class="btn primary" href="#experiments">See the experiments</a>
+      <a class="btn" href="#use">Run it on your model</a>
+      <a class="btn" href="https://github.com/sugeerth/agentic-post-training/tree/main/evals">Source</a>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="note" role="note">
+      <span aria-hidden="true">⚠</span>
+      <div><b>About these numbers.</b> The shipped experiments use <code>SimulatedPolicy</code>, a test double that replays reference solutions and injects known defects at set rates. They show that the graders, statistics and gate work end to end. They say nothing about any real model. Plug in a real one with <code>CallablePolicy</code>.</div>
+    </div>
+  </div>
+</header>
+
+<section id="loop">
+  <div class="wrap">
+    <div class="eyebrow">The loop</div>
+    <h2>From a vague behavior problem to a ship decision</h2>
+    <p class="lede">One YAML file per hypothesis. The same artifacts come out of every run, so any result can be audited and reproduced from its manifest.</p>
+    <div class="loop">
+      <div class="card"><h3>Hypothesize</h3><p>Write what should change and where: <code>targets: [factuality]</code>.</p></div>
+      <div class="card"><h3>Run</h3><p>Baseline and candidate act in every environment, over several seeds and the same tasks.</p></div>
+      <div class="card"><h3>Grade</h3><p>Deterministic graders give each failure a stable tag: <code>missing_arg</code>, <code>hallucination</code>…</p></div>
+      <div class="card"><h3>Gate</h3><p>Paired bootstrap Δ per environment yields <b>SHIP</b>, <b>HOLD</b> or <b>BLOCK</b>. The exit code works as a CI gate.</p></div>
+      <div class="card"><h3>Train</h3><p>Failures become preference pairs: chosen = reference, rejected = model output. These feed DPO, ORPO or KTO.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="experiments">
+  <div class="wrap">
+    <div class="eyebrow">Experiments</div>
+    <h2>Three hypotheses, three verdicts</h2>
+    <p class="lede">Each run compares a baseline and a candidate across all five environments. Pick one to see how the gate reached its decision.</p>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="panel"><div class="card empty">Loading results…</div></div>
+  </div>
+</section>
+
+<section id="environments">
+  <div class="wrap">
+    <div class="eyebrow">Environments</div>
+    <h2>One file per behavior</h2>
+    <p class="lede">Each environment implements three methods (<code>tasks</code>, <code>respond</code>, <code>grade</code>) and runs through one shared episode loop. Single-turn function calls and 8-step tool chains go through identical code.</p>
+    <div class="envs" id="envs"></div>
+  </div>
+</section>
+
+<section id="gate">
+  <div class="wrap">
+    <div class="eyebrow">Readiness gate</div>
+    <h2>A gate you can recite</h2>
+    <p class="lede">The rules apply per environment, to the paired difference candidate − baseline on the same items. Pairing removes per-item difficulty from the variance, which matters when eval sets are small.</p>
+    <div class="rules">
+      <div class="card rule"><span class="badge BLOCK"><svg><use href="#i-BLOCK"/></svg>BLOCK</span><p>Any environment regresses significantly: <code>Δ &lt; −max_regression</code> and the whole CI is below zero.</p></div>
+      <div class="card rule"><span class="badge HOLD"><svg><use href="#i-HOLD"/></svg>HOLD</span><p>A target environment fails to clear the bar: <code>Δ &lt; min_gain</code> or the CI touches zero. Add tasks or seeds, or rethink the fix.</p></div>
+      <div class="card rule"><span class="badge SHIP"><svg><use href="#i-SHIP"/></svg>SHIP</span><p>Every target improved with CI &gt; 0 and nothing regressed. The candidate is ready to go into the next major run.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="use">
+  <div class="wrap">
+    <div class="eyebrow">Use it</div>
+    <h2>Run it on a real model in two files</h2>
+    <p class="lede">Any function from <code>Observation</code> to <code>Action</code> is a policy: an HF checkpoint, a vLLM server, an API, or a full production agent harness.</p>
+    <div class="codes">
+      <div class="card code"><div class="hd">my_model.py</div><pre><span class="c"># a policy is just a function</span>
+from evals import Action, Observation, ToolCall
+
+def act(obs: Observation) -> Action:
+    reply = call_your_model(obs.prompt, obs.tools, obs.history)
+    if reply.tool_call:
+        return Action(tool_call=ToolCall(reply.name, reply.args))
+    return Action(text=reply.text, confidence=reply.confidence)</pre></div>
+      <div class="card code"><div class="hd">experiments/my_run.yaml</div><pre>name: my_run
+hypothesis: New checkpoint improves tool use
+  without regressing instruction following.
+targets: [function_calling, multistep_tools]
+baseline:  {kind: callable, target: "my_model:act_v1"}
+candidate: {kind: callable, target: "my_model:act_v2"}
+
+<span class="c"># $ python -m evals run experiments/my_run.yaml</span>
+<span class="c"># → runs/my_run/report.md   exit 0 SHIP · 1 HOLD · 2 BLOCK</span></pre></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Agentic Post-Training · Apache 2.0</span>
+    <span><a href="index.html">Framework</a> · <a href="demo.html">Agent demo</a> · <a href="https://github.com/sugeerth/agentic-post-training">GitHub</a></span>
+  </div>
+</footer>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  const pct = x => (100 * x).toFixed(1) + "%";
+  const pts = x => (x >= 0 ? "+" : "−") + Math.abs(100 * x).toFixed(1) + "pt";
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const badge = v => `<span class="badge ${v}"><svg><use href="#i-${v}"/></svg>${v}</span>`;
+
+  // ---------------------------------------------------------------- theme
+  const root = document.documentElement;
+  try { const t = localStorage.getItem("evals-theme"); if (t) root.dataset.theme = t; } catch (_) {}
+  $("#theme").addEventListener("click", () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("evals-theme", root.dataset.theme); } catch (_) {}
+    render();
+  });
+
+  // ---------------------------------------------------------------- tooltip
+  const tip = $("#tip");
+  function showTip(e, html) {
+    tip.innerHTML = html; tip.style.opacity = 1;
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY + 14;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+    tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+  }
+  const hideTip = () => { tip.style.opacity = 0; };
+  const row = (k, v, color) => `<div class="row"><span>${color ? `<i style="background:${color}"></i>` : ""}${k}</span><span>${v}</span></div>`;
+
+  // ---------------------------------------------------------------- svg helpers
+  function svg(w, h) { const s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", `0 0 ${w} ${h}`); s.setAttribute("height", h); return s; }
+  function el(parent, tag, attrs = {}, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (text != null) n.textContent = text;
+    parent.appendChild(n); return n;
+  }
+  function hit(parent, attrs, html) {
+    const n = el(parent, "rect", { ...attrs, fill: "transparent", style: "cursor:default" });
+    n.addEventListener("mousemove", e => showTip(e, html));
+    n.addEventListener("mouseleave", hideTip);
+    return n;
+  }
+  const width = node => Math.max(280, node.clientWidth);
+
+  // ---------------------------------------------------------------- charts
+  // 1. Forest plot of paired deltas with gate thresholds.
+  function niceTicks(ext) {
+    const step = [0.05, 0.1, 0.2, 0.25, 0.5].find(st => ext / st <= 3) || 0.5;
+    const out = [];
+    for (let t = -Math.floor(ext / step) * step; t <= ext + 1e-9; t += step) out.push(Math.round(t * 100) / 100);
+    return out;
+  }
+  function forest(node, exp) {
+    const W = width(node), rowH = 34, top = 6, labelW = Math.min(170, W * 0.36), valW = 60;
+    const H = top + exp.envs.length * rowH + 24;
+    const s = svg(W, H);
+    const ext = Math.max(0.1, exp.gate.min_gain, ...exp.envs.flatMap(e => e.delta_ci.map(Math.abs))) * 1.1;
+    const x = v => labelW + (v + ext) / (2 * ext) * (W - labelW - valW);
+    const ink = css("--text"), ink2 = css("--text-2"), ink3 = css("--text-3"), grid = css("--grid"), s1 = css("--series-1"), surf = css("--surface");
+    for (const t of niceTicks(ext)) {
+      el(s, "line", { x1: x(t), x2: x(t), y1: top, y2: H - 20, stroke: grid });
+      el(s, "text", { x: x(t), y: H - 4, "text-anchor": "middle", "font-size": 11, fill: ink3 }, t === 0 ? "0" : pts(t).replace(".0pt", "pt"));
+    }
+    el(s, "line", { x1: x(0), x2: x(0), y1: top, y2: H - 20, stroke: ink3, "stroke-width": 1.5 });
+    for (const v of [exp.gate.min_gain, -exp.gate.max_regression])
+      el(s, "line", { x1: x(v), x2: x(v), y1: top, y2: H - 20, stroke: ink3, "stroke-dasharray": "4 3", "stroke-width": 1.2 });
+    exp.envs.forEach((e, i) => {
+      const cy = top + i * rowH + rowH / 2;
+      el(s, "text", { x: 0, y: cy + (e.target ? 0 : 4), "font-size": 12, fill: ink2, "font-family": "JetBrains Mono, monospace" }, e.env.length > 21 && W < 480 ? e.env.slice(0, 19) + "…" : e.env);
+      if (e.target) el(s, "text", { x: 0, y: cy + 13, "font-size": 9.5, fill: ink3, "letter-spacing": ".06em" }, "TARGET");
+      el(s, "line", { x1: x(e.delta_ci[0]), x2: x(e.delta_ci[1]), y1: cy, y2: cy, stroke: s1, "stroke-width": 2, "stroke-linecap": "round" });
+      el(s, "circle", { cx: x(e.delta), cy, r: 5.5, fill: s1, stroke: surf, "stroke-width": 2 });
+      el(s, "text", { x: W, y: cy + 4, "font-size": 11.5, fill: ink, "text-anchor": "end", "font-family": "JetBrains Mono, monospace" }, pts(e.delta));
+      hit(s, { x: 0, y: cy - rowH / 2, width: W, height: rowH },
+        `<b>${esc(e.env)}${e.target ? " · target" : ""}</b>${row("Δ pass rate", pts(e.delta))}${row("95% CI", `${pts(e.delta_ci[0])} … ${pts(e.delta_ci[1])}`)}${row("baseline", pct(e.baseline.mean), css("--series-1"))}${row("candidate", pct(e.candidate.mean), css("--series-2"))}`);
+    });
+    node.replaceChildren(s);
+  }
+
+  // 2. Dumbbell: baseline → candidate pass rate.
+  function dumbbell(node, exp) {
+    const W = width(node), rowH = 30, top = 6, labelW = Math.min(170, W * 0.38), right = 16;
+    const H = top + exp.envs.length * rowH + 24;
+    const s = svg(W, H);
+    const x = v => labelW + v * (W - labelW - right);
+    const ink2 = css("--text-2"), ink3 = css("--text-3"), grid = css("--grid"), s1 = css("--series-1"), s2 = css("--series-2"), surf = css("--surface");
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      el(s, "line", { x1: x(t), x2: x(t), y1: top, y2: H - 20, stroke: grid });
+      el(s, "text", { x: x(t), y: H - 4, "text-anchor": "middle", "font-size": 11, fill: ink3 }, (t * 100) + "%");
+    }
+    exp.envs.forEach((e, i) => {
+      const cy = top + i * rowH + rowH / 2, b = e.baseline.mean, c = e.candidate.mean;
+      el(s, "text", { x: 0, y: cy + 4, "font-size": 12, fill: ink2, "font-family": "JetBrains Mono, monospace" }, e.env.length > 21 && W < 480 ? e.env.slice(0, 19) + "…" : e.env);
+      el(s, "line", { x1: x(b), x2: x(c), y1: cy, y2: cy, stroke: ink3, "stroke-width": 2 });
+      el(s, "circle", { cx: x(b), cy, r: 5.5, fill: s1, stroke: surf, "stroke-width": 2 });
+      el(s, "circle", { cx: x(c), cy, r: 5.5, fill: s2, stroke: surf, "stroke-width": 2 });
+      hit(s, { x: 0, y: cy - rowH / 2, width: W, height: rowH },
+        `<b>${esc(e.env)}</b>${row("baseline", `${pct(b)}  [${pct(e.baseline.ci[0])}, ${pct(e.baseline.ci[1])}]`, s1)}${row("candidate", `${pct(c)}  [${pct(e.candidate.ci[0])}, ${pct(e.candidate.ci[1])}]`, s2)}`);
+    });
+    node.replaceChildren(s);
+  }
+
+  // 3. Failure modes: paired horizontal bars, top N by total.
+  function failures(node, exp) {
+    const rows = [];
+    for (const e of exp.envs) {
+      const tags = new Set([...Object.keys(e.baseline.failures), ...Object.keys(e.candidate.failures)]);
+      for (const t of tags) rows.push({ env: e.env, tag: t, b: e.baseline.failures[t] || 0, c: e.candidate.failures[t] || 0 });
+    }
+    rows.sort((a, z) => Math.abs(z.c - z.b) - Math.abs(a.c - a.b) || (z.b + z.c) - (a.b + a.c));
+    const top = rows.slice(0, 8);
+    if (!top.length) { node.innerHTML = `<div class="empty">No failures in either arm.</div>`; return; }
+    const W = width(node), bh = 9, gap = 2, rowH = 2 * bh + gap + 18, labelW = Math.min(200, W * 0.44), right = 30;
+    const H = top.length * rowH + 4;
+    const s = svg(W, H);
+    const max = Math.max(...top.map(r => Math.max(r.b, r.c)));
+    const x = v => (v / max) * (W - labelW - right);
+    const ink2 = css("--text-2"), ink3 = css("--text-3"), s1 = css("--series-1"), s2 = css("--series-2");
+    top.forEach((r, i) => {
+      const y0 = i * rowH + 4;
+      el(s, "text", { x: 0, y: y0 + bh + 4, "font-size": 11.5, fill: ink2, "font-family": "JetBrains Mono, monospace" }, r.tag.length > 22 ? r.tag.slice(0, 21) + "…" : r.tag);
+      el(s, "text", { x: 0, y: y0 + bh + 17, "font-size": 10, fill: ink3 }, r.env);
+      [[r.b, s1, 0], [r.c, s2, bh + gap]].forEach(([v, color, dy]) => {
+        const w = Math.max(v ? 2 : 0, x(v));
+        if (w) el(s, "path", { d: `M${labelW},${y0 + dy} h${Math.max(0, w - 4)} a4,4 0 0 1 4,4 v${bh - 8} a4,4 0 0 1 -4,4 h${-Math.max(0, w - 4)} z`, fill: color });
+        el(s, "text", { x: labelW + w + 5, y: y0 + dy + bh - 1, "font-size": 10.5, fill: ink2 }, v);
+      });
+      hit(s, { x: 0, y: y0 - 2, width: W, height: rowH }, `<b>${esc(r.tag)}</b><div class="row"><span>${esc(r.env)}</span><span></span></div>${row("baseline", r.b, s1)}${row("candidate", r.c, s2)}${row("change", (r.c - r.b > 0 ? "+" : "") + (r.c - r.b))}`);
+    });
+    node.replaceChildren(s);
+  }
+
+  // 4. Horizon curve: pass rate vs depth (multistep_tools slices).
+  function horizon(node, exp) {
+    const e = exp.envs.find(v => v.env === "multistep_tools");
+    const pick = a => Object.entries(a.slices).filter(([k]) => k.startsWith("depth=")).map(([k, v]) => [+k.slice(6), v.mean]).sort((p, q) => p[0] - q[0]);
+    if (!e) { node.innerHTML = `<div class="empty">multistep_tools not in this experiment.</div>`; return; }
+    const B = pick(e.baseline), C = pick(e.candidate), depths = B.map(p => p[0]);
+    const W = width(node), H = 210, L = 40, R = 14, T = 10, Bm = 30;
+    const s = svg(W, H);
+    const x = d => L + (d - depths[0]) / (depths.at(-1) - depths[0]) * (W - L - R);
+    const y = v => T + (1 - v) * (H - T - Bm);
+    const ink3 = css("--text-3"), grid = css("--grid"), s1 = css("--series-1"), s2 = css("--series-2"), surf = css("--surface");
+    for (const t of [0, 0.5, 1]) {
+      el(s, "line", { x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: grid });
+      el(s, "text", { x: L - 8, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: ink3 }, (t * 100) + "%");
+    }
+    for (const d of depths) el(s, "text", { x: x(d), y: H - 10, "text-anchor": "middle", "font-size": 11, fill: ink3 }, d);
+    const cross = el(s, "line", { x1: 0, x2: 0, y1: T, y2: H - Bm, stroke: ink3, "stroke-dasharray": "3 3", opacity: 0 });
+    [[B, s1], [C, s2]].forEach(([P, color]) => {
+      el(s, "path", { d: P.map((p, i) => `${i ? "L" : "M"}${x(p[0])},${y(p[1])}`).join(""), fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" });
+      P.forEach(p => el(s, "circle", { cx: x(p[0]), cy: y(p[1]), r: 4, fill: color, stroke: surf, "stroke-width": 2 }));
+    });
+    depths.forEach((d, i) => {
+      const half = i === 0 ? 0 : (x(d) - x(depths[i - 1])) / 2, half2 = i === depths.length - 1 ? R : (x(depths[i + 1]) - x(d)) / 2;
+      const r = hit(s, { x: x(d) - (half || L), y: T, width: (half || L) + half2, height: H - T - Bm },
+        `<b>depth ${d}</b>${row("baseline", pct(B[i][1]), s1)}${row("candidate", pct(C[i][1]), s2)}`);
+      r.addEventListener("mouseenter", () => { cross.setAttribute("x1", x(d)); cross.setAttribute("x2", x(d)); cross.setAttribute("opacity", 1); });
+      r.addEventListener("mouseleave", () => cross.setAttribute("opacity", 0));
+    });
+    node.replaceChildren(s);
+  }
+
+  function calibration(exp) {
+    const e = exp.envs.find(v => v.baseline.calibration);
+    if (!e) return "";
+    const tile = (k, key) => {
+      const b = e.baseline.calibration[key], c = e.candidate.calibration[key];
+      return `<div class="tile"><div class="k">${k} (lower is better)</div><div class="v">${c.toFixed(3)} <small>from ${b.toFixed(3)}</small></div><div class="d">${c < b ? "▼" : c > b ? "▲" : "■"} ${Math.abs(c - b).toFixed(3)} ${c < b ? "better" : c > b ? "worse" : "unchanged"}</div></div>`;
+    };
+    return `<div class="card chart"><h3>Calibration on ${esc(e.env)}</h3><div class="sub">Does stated confidence match how often it's right?</div><div class="tiles">${tile("ECE", "ece")}${tile("Brier score", "brier")}</div></div>`;
+  }
+
+  function table(exp) {
+    return `<details class="table"><summary>Show results as a table</summary><div class="scroll"><table>
+      <thead><tr><th>env</th><th>baseline</th><th>candidate</th><th>Δ</th><th>95% CI</th></tr></thead><tbody>
+      ${exp.envs.map(e => `<tr><td><code>${esc(e.env)}</code> ${e.target ? '<span class="pill">target</span>' : ""}</td>
+        <td class="num">${pct(e.baseline.mean)}</td><td class="num">${pct(e.candidate.mean)}</td>
+        <td class="num">${pts(e.delta)}</td><td class="num">${pts(e.delta_ci[0])} … ${pts(e.delta_ci[1])}</td></tr>`).join("")}
+      </tbody></table></div></details>`;
+  }
+
+  // ---------------------------------------------------------------- page
+  let DATA = null, current = 0;
+  const legend2 = `<div class="legend"><span><i style="background:var(--series-1)"></i>baseline</span><span><i style="background:var(--series-2)"></i>candidate</span></div>`;
+
+  function renderPanel() {
+    const exp = DATA.experiments[current];
+    $("#panel").innerHTML = `
+      <div class="card verdict">
+        <div class="top">${badge(exp.verdict)}<span class="meta">${esc(exp.name)} · seeds ${exp.seeds.join(",")} · ${exp.episodes_per_arm} episodes/arm</span></div>
+        <blockquote>${esc(exp.hypothesis)}</blockquote>
+        <ul>${exp.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+      </div>
+      <div class="grid2">
+        <div class="card chart"><h3>Change per environment</h3><div class="sub">Candidate − baseline pass rate, paired 95% CI</div><div class="legend"><span><i style="background:var(--series-1)"></i>Δ with 95% CI</span><span><i class="dash"></i>gate: −max_regression / +min_gain</span></div><div id="c-forest"></div></div>
+        <div class="card chart"><h3>Pass rate</h3><div class="sub">Baseline → candidate, per environment</div>${legend2}<div id="c-dumb"></div></div>
+        <div class="card chart"><h3>Failure modes that moved most</h3><div class="sub">Failure counts by grader tag, all seeds</div>${legend2}<div id="c-fail"></div></div>
+        <div class="card chart"><h3>Horizon curve</h3><div class="sub">multistep_tools pass rate (y) by number of dependent tool calls (x). Overlapping lines mean no change.</div>${legend2}<div id="c-hor"></div></div>
+        ${calibration(exp)}
+      </div>
+      ${table(exp)}`;
+    forest($("#c-forest"), exp); dumbbell($("#c-dumb"), exp); failures($("#c-fail"), exp); horizon($("#c-hor"), exp);
+  }
+
+  function render() {
+    if (!DATA) return;
+    document.querySelectorAll(".tab").forEach((t, i) => t.setAttribute("aria-selected", i === current));
+    renderPanel();
+  }
+
+  function init(data) {
+    DATA = data;
+    const exps = data.experiments, envs = data.environments;
+    const tasks = envs.reduce((a, e) => a + e.n_tasks, 0);
+    const v = k => exps.filter(e => e.verdict === k).length;
+    $("#stats").innerHTML = [
+      [envs.length, "behavior environments"], [tasks, "graded tasks"],
+      [exps.length, "experiments"], [`${v("SHIP")}·${v("HOLD")}·${v("BLOCK")}`, "ship · hold · block"],
+    ].map(([b, s]) => `<div class="card stat"><b>${b}</b><span>${s}</span></div>`).join("");
+
+    $("#tabs").innerHTML = exps.map((e, i) => `
+      <button class="card tab" role="tab" aria-selected="${i === 0}" data-i="${i}">
+        ${badge(e.verdict)}<span class="name">${esc(e.name)}</span><span class="hyp">${esc(e.hypothesis)}</span>
+      </button>`).join("");
+    document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { current = +t.dataset.i; render(); }));
+
+    $("#envs").innerHTML = envs.map(e => `
+      <div class="card env">
+        <div class="hd"><code>${esc(e.name)}</code><span>${e.n_tasks} tasks</span></div>
+        <p>${esc(e.summary.replace(/^[^:]+:\s*/, ""))}</p>
+        <pre>${esc(e.example)}</pre>
+        ${e.tools.length ? `<div class="chips">${e.tools.map(t => `<span class="pill">${esc(t)}()</span>`).join("")}</div>` : ""}
+      </div>`).join("") + `
+      <div class="card env add"><div class="hd"><code>your_env.py</code></div><p>Add a behavior with one file that implements <code>tasks</code>, <code>respond</code> and <code>grade</code>, plus one line in <code>evals/envs/__init__.py</code>. Computer use and multi-agent collaboration are next.</p></div>`;
+    render();
+  }
+
+  let resizeT;
+  addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(render, 120); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+
+  fetch("data/experiments.json")
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(init)
+    .catch(err => {
+      $("#panel").innerHTML = `<div class="card empty">Couldn't load <code>data/experiments.json</code> (${esc(err.message)}). Generate it with <code>make site</code>.</div>`;
+    });
+})();
+</script>
+</body>
+</html>

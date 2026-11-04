@@ -1,0 +1,13 @@
+# Long-horizon tasks.
+# Intervention: a small data-mixture change (more long trajectories). The effect
+# is real but small; the question is whether it clears the bar with CI > 0.
+name: 03_long_horizon_persistence
+hypothesis: >-
+  Upweighting long trajectories in the mixture reduces premature final answers,
+  flattening the pass-rate-vs-depth curve on multi-step tool use.
+targets: [multistep_tools]
+gate: {min_gain: 0.05, max_regression: 0.02}
+baseline:
+  defects: {answer_early: 0.12, drop_arg: 0.1, verbose_tail: 0.1, buggy_code: 0.2, overconfident_guess: 0.5}
+candidate:
+  defects: {answer_early: 0.09, drop_arg: 0.1, verbose_tail: 0.1, buggy_code: 0.2, overconfident_guess: 0.5}

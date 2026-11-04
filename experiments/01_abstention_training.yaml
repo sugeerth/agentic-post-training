@@ -1,0 +1,14 @@
+# Factuality / calibration.
+# Intervention: train on (unanswerable question -> "I don't know") pairs plus a
+# confidence-calibration objective. Everything outside factuality is unchanged.
+name: 01_abstention_training
+hypothesis: >-
+  Training on abstention pairs cuts hallucination on unanswerable questions and
+  improves calibration, without causing over-abstention on answerable ones.
+targets: [factuality]
+baseline:
+  defects: {overconfident_guess: 0.7, miscalibrated: 0.8,
+            drop_arg: 0.1, stringify_arg: 0.15, answer_early: 0.06, verbose_tail: 0.15, buggy_code: 0.2}
+candidate:
+  defects: {overconfident_guess: 0.1, miscalibrated: 0.1, over_abstain: 0.05,
+            drop_arg: 0.1, stringify_arg: 0.15, answer_early: 0.06, verbose_tail: 0.15, buggy_code: 0.2}

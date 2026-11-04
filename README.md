@@ -28,6 +28,101 @@ A modular framework where specialized AI agents coordinate to execute post-train
      └─────────────────┘ └──────────────┘ └────────────────┘
 ```
 
+## Repository Layout
+
+```
+core/           contracts: typed data, Protocols, registry, config base (imports nothing else)
+techniques/     post-training math: PPO, GRPO, DPO, ORPO, KTO, … (+ _base/ shared losses)
+optimization/   quantization, pruning, distillation
+agents/         coordinator + training/optimization/evaluation agents on a message bus
+pipeline/       end-to-end pipeline, presets, CLI
+backends/       where jobs run (local today)
+evals/          behavior evals: envs, graders, metrics, gate, experiments   ← new
+experiments/    experiment specs (YAML), one hypothesis per file
+examples/       runnable demos      notebooks/  Colab + Kaggle
+tests/          pytest suite        docs/       Pages site + design/ (audit, refactor plan)
+```
+
+## Behavior Evals & Experiments (`evals/`)
+
+Training is half the loop. The other half is **finding what the model gets wrong,
+proving a fix helped, and deciding whether it ships**. `evals/` does that, with no
+GPU and no dependencies beyond `pydantic` + `pyyaml`.
+
+```
+ hypothesis ─► experiment.yaml ─► run baseline & candidate on every env
+                                          │
+             ┌────────────────────────────┴───────────────────────────┐
+             ▼                                                        ▼
+   graders tag each failure                          paired bootstrap Δ per env
+   (missing_arg, hallucination, …)                               │
+             │                                                   ▼
+             ▼                                         gate: SHIP / HOLD / BLOCK
+   failures ─► preference pairs ─► DPO / ORPO / KTO in techniques/
+```
+
+### Environments — one file per behavior
+
+| Env | Behavior | Grader checks | Failure tags |
+|---|---|---|---|
+| `function_calling` | tool choice + argument filling | schema, tool, values | `no_call` `hallucinated_tool` `missing_arg` `bad_arg_type` `wrong_tool` `wrong_arg_value` |
+| `multistep_tools` | tool use over long horizons (depth 1–8) | final answer within step budget | `answered_early` `exceeded_budget` `wrong_answer` + schema tags |
+| `coding` | write a function | hidden unit tests in an isolated subprocess | `syntax_error` `test_failure` `runtime_error` `timeout` |
+| `instruction_following` | verifiable constraints (IFEval-style) | pure-function checks | `violated:<constraint>` |
+| `factuality` | answer or abstain, with stated confidence | exact match + abstention; ECE / Brier | `hallucination` `over_abstain` `wrong_answer` |
+
+Every environment implements the same three methods (`tasks`, `respond`, `grade`) and runs
+through one shared episode loop. Adding a behavior = one new file + one line in
+`evals/envs/__init__.py`.
+
+### Run the experiments
+
+Results site: **[sugeerth.github.io/agentic-post-training/evals.html](https://sugeerth.github.io/agentic-post-training/evals.html)** (rebuild its data with `make site`).
+
+```bash
+make experiments              # = python -m evals run experiments/*.yaml
+python -m evals list          # environments + simulated defects
+```
+
+Each run writes `runs/<name>/`: `report.md`, `manifest.json` (config hash, git SHA),
+per-arm `*.grades.jsonl` / `*.trajectories.jsonl`, and `preference_pairs.jsonl`.
+The exit code is the gate verdict (0 SHIP · 1 HOLD · 2 BLOCK), so it drops straight into CI.
+
+| Experiment | Target | Result | Why |
+|---|---|---|---|
+| `01_abstention_training` | factuality | **SHIP** | +22pt (CI [+8, +36]); hallucinations 8 → 0; ECE 0.20 → 0.06; nothing else moved |
+| `02_tool_schema_grounding` | function_calling, multistep_tools | **BLOCK** | function calling +33pt, but a chatty sign-off cost −19pt on instruction following **and** broke strict-format answers in multistep (−20pt) |
+| `03_long_horizon_persistence` | multistep_tools | **HOLD** | +1.9pt, CI touches 0: real but too small to show at this sample size, so add tasks/seeds before deciding |
+
+> **Note:** the shipped configs use `SimulatedPolicy`, a test double that replays reference
+> solutions and injects known defects at set rates. Use it to check the harness (do the graders
+> catch each defect? does the gate catch regressions?) and to show the method. Its numbers
+> **say nothing about any real model.**
+
+### Evaluate a real model
+
+Any `Observation -> Action` function is a policy:
+
+```python
+# my_model.py
+from evals import Action, Observation, ToolCall
+
+def act(obs: Observation) -> Action:
+    reply = call_your_model(obs.prompt, obs.tools, obs.history)   # HF, vLLM, API, harness…
+    if reply.tool_call:
+        return Action(tool_call=ToolCall(reply.name, reply.args))
+    return Action(text=reply.text, confidence=reply.confidence)
+```
+
+```yaml
+# experiments/my_run.yaml
+name: my_run
+hypothesis: New checkpoint improves tool use without regressing instruction following.
+targets: [function_calling, multistep_tools]
+baseline:  {kind: callable, target: "my_model:act_v1"}
+candidate: {kind: callable, target: "my_model:act_v2"}
+```
+
 ## Supported Techniques
 
 | Priority | Technique | Description | Key Advantage |

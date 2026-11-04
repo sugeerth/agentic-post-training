@@ -84,7 +84,7 @@ lands. To upgrade in place:
 
 1. Swap `model_name` in `run.yaml` to `Qwen/Qwen2.5-0.5B-Instruct`.
 2. Add an `ultrafeedback` loader under `data/loaders/` (greenfield; see
-   C2 in `REFACTOR_PLAN.md`).
+   C2 in `docs/design/REFACTOR_PLAN.md`).
 3. Run the same command on a GPU box (Colab T4 / Vast.ai / local CUDA).
 
 Colab, Kaggle, and Vast.ai backends will share this exact `run.yaml` and

@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry clean
+.PHONY: install test test-fast lint mypy demo demo-dry evals experiments site clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -16,7 +16,7 @@ lint:
 	ruff check .
 
 mypy:
-	mypy core techniques/_base
+	mypy core techniques/_base evals
 
 demo-dry:
 	$(PYTHON) -m pipeline.cli run examples/orpo_quickstart/run.yaml --backend local --dry-run
@@ -24,6 +24,15 @@ demo-dry:
 demo:
 	$(PYTHON) -m pipeline.cli run examples/orpo_quickstart/run.yaml --backend local
 
+evals:
+	$(PYTHON) -m evals list
+
+experiments:
+	$(PYTHON) -m evals run experiments/*.yaml
+
+site:  ## regenerate docs/data/experiments.json for docs/evals.html
+	$(PYTHON) -m evals run experiments/*.yaml --summary docs/data/experiments.json || true
+
 clean:
-	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache
+	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache runs
 	find . -type d -name __pycache__ -exec rm -rf {} +
