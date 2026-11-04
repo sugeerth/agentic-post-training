@@ -1,0 +1,14 @@
+# Tool use / function calling.
+# Intervention: RL against schema-validating graders. The candidate gets much
+# better at tool calls but picked up a chatty sign-off, which the gate must catch.
+name: 02_tool_schema_grounding
+hypothesis: >-
+  RL with schema-checking rewards removes missing/mistyped/hallucinated tool
+  arguments, improving function calling and multi-step tool use.
+targets: [function_calling, multistep_tools]
+baseline:
+  defects: {drop_arg: 0.2, stringify_arg: 0.3, hallucinate_tool: 0.1,
+            answer_early: 0.06, verbose_tail: 0.1, buggy_code: 0.2, overconfident_guess: 0.5}
+candidate:
+  defects: {drop_arg: 0.03, stringify_arg: 0.05, hallucinate_tool: 0.01,
+            answer_early: 0.06, verbose_tail: 0.6, buggy_code: 0.2, overconfident_guess: 0.5}

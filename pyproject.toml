@@ -42,7 +42,7 @@ dev = ["pytest>=8.0", "pytest-cov>=4.1", "ruff>=0.3", "mypy>=1.8", "pre-commit>=
 agentic-train = "pipeline.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["core*", "agents*", "techniques*", "optimization*", "pipeline*", "backends*"]
+include = ["core*", "agents*", "techniques*", "optimization*", "pipeline*", "backends*", "evals*"]
 
 [project.entry-points."agentic_post_training.techniques"]
 # Built-in techniques register themselves via `@register_technique` on import.
@@ -70,7 +70,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["core", "techniques/_base"]
+files = ["core", "techniques/_base", "evals"]
 # The rest of the codebase migrates to strict typing incrementally in Phase 3.
 
 [tool.pytest.ini_options]
