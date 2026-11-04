@@ -1,4 +1,4 @@
-.PHONY: install test test-fast lint mypy demo demo-dry evals experiments clean
+.PHONY: install test test-fast lint mypy demo demo-dry evals experiments site clean
 
 PYTHON ?= python3
 PYTEST ?= $(PYTHON) -m pytest
@@ -29,6 +29,9 @@ evals:
 
 experiments:
 	$(PYTHON) -m evals run experiments/*.yaml
+
+site:  ## regenerate docs/data/experiments.json for docs/evals.html
+	$(PYTHON) -m evals run experiments/*.yaml --summary docs/data/experiments.json || true
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache runs

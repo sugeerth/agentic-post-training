@@ -176,3 +176,16 @@ def test_cli_exit_code_is_gate(tmp_path: Path) -> None:
     cfg_path = tmp_path / "exp.yaml"
     cfg_path.write_text(_config().to_yaml())
     assert cli(["run", str(cfg_path), "--out", str(tmp_path / "runs")]) == 0
+
+
+def test_cli_writes_site_summary(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "exp.yaml"
+    cfg_path.write_text(_config().to_yaml())
+    summary = tmp_path / "site" / "experiments.json"
+    cli(["run", str(cfg_path), "--out", str(tmp_path / "runs"), "--summary", str(summary)])
+    data = json.loads(summary.read_text())
+    assert {e["name"] for e in data["environments"]} == set(ENVIRONMENTS)
+    exp = data["experiments"][0]
+    assert exp["verdict"] == "SHIP"
+    assert {e["env"] for e in exp["envs"]} == {"factuality", "function_calling"}
+    assert "calibration" in next(e for e in exp["envs"] if e["env"] == "factuality")["baseline"]

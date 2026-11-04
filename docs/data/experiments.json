@@ -1,0 +1,1165 @@
+{
+ "environments": [
+  {
+   "name": "coding",
+   "summary": "Coding: write a Python function that passes hidden unit tests.",
+   "n_tasks": 6,
+   "example": "Write a Python function `fizzbuzz`. Return 'Fizz' for multiples of 3, 'Buzz' for 5, 'FizzBuzz' for both, else str(n). Reply with one code block.",
+   "tools": []
+  },
+  {
+   "name": "factuality",
+   "summary": "Factuality + calibration: answer when you know, abstain when you can't.",
+   "n_tasks": 12,
+   "example": "Answer briefly and give your confidence (0-1) that you are right. If the question has no reliable answer, say 'I don't know'.\nQ: What is the chemical symbol for gold?",
+   "tools": []
+  },
+  {
+   "name": "function_calling",
+   "summary": "Function calling: pick the right tool and fill its arguments correctly.",
+   "n_tasks": 10,
+   "example": "What's the weather in Paris in celsius?",
+   "tools": [
+    "get_weather",
+    "send_email",
+    "create_event",
+    "search_flights",
+    "convert_currency"
+   ]
+  },
+  {
+   "name": "instruction_following",
+   "summary": "Instruction following: verifiable formatting/content constraints (IFEval-style).",
+   "n_tasks": 8,
+   "example": "Describe a code review in at most 12 words, all lowercase.",
+   "tools": []
+  },
+  {
+   "name": "multistep_tools",
+   "summary": "Multi-step tool use / long-horizon: follow a chain of tool results to an answer.",
+   "n_tasks": 18,
+   "example": "Ticket T-7311 may be a duplicate. Follow duplicate_of links to the root (open) ticket and reply with only its assignee.",
+   "tools": [
+    "get_ticket"
+   ]
+  }
+ ],
+ "experiments": [
+  {
+   "name": "01_abstention_training",
+   "hypothesis": "Training on abstention pairs cuts hallucination on unanswerable questions and improves calibration, without causing over-abstention on answerable ones.",
+   "targets": [
+    "factuality"
+   ],
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "gate": {
+    "min_gain": 0.05,
+    "max_regression": 0.02
+   },
+   "verdict": "SHIP",
+   "reasons": [
+    "all targets improved; no significant regressions"
+   ],
+   "episodes_per_arm": 162,
+   "envs": [
+    {
+     "env": "coding",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.8333333333333334,
+      "ci": [
+       0.6666666666666666,
+       1.0
+      ],
+      "failures": {
+       "test_failure": 2,
+       "runtime_error": 1
+      },
+      "slices": {}
+     },
+     "candidate": {
+      "mean": 0.8333333333333334,
+      "ci": [
+       0.6666666666666666,
+       1.0
+      ],
+      "failures": {
+       "test_failure": 2,
+       "runtime_error": 1
+      },
+      "slices": {}
+     }
+    },
+    {
+     "env": "factuality",
+     "target": true,
+     "delta": 0.2222222222222222,
+     "delta_ci": [
+      0.08333333333333333,
+      0.3611111111111111
+     ],
+     "baseline": {
+      "mean": 0.7777777777777778,
+      "ci": [
+       0.6388888888888888,
+       0.9166666666666666
+      ],
+      "failures": {
+       "hallucination": 8
+      },
+      "calibration": {
+       "ece": 0.19527777777777777,
+       "brier": 0.20951944444444445
+      },
+      "slices": {
+       "answerable": {
+        "mean": 1.0,
+        "n": 24
+       },
+       "unanswerable": {
+        "mean": 0.3333333333333333,
+        "n": 12
+       }
+      }
+     },
+     "candidate": {
+      "mean": 1.0,
+      "ci": [
+       1.0,
+       1.0
+      ],
+      "failures": {},
+      "calibration": {
+       "ece": 0.05972222222222223,
+       "brier": 0.004458333333333334
+      },
+      "slices": {
+       "answerable": {
+        "mean": 1.0,
+        "n": 24
+       },
+       "unanswerable": {
+        "mean": 1.0,
+        "n": 12
+       }
+      }
+     }
+    },
+    {
+     "env": "function_calling",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.7666666666666667,
+      "ci": [
+       0.6,
+       0.9
+      ],
+      "failures": {
+       "missing_arg": 4,
+       "bad_arg_type": 3
+      },
+      "slices": {
+       "tool=convert_currency": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "tool=create_event": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "tool=get_weather": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=search_flights": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=send_email": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.7666666666666667,
+      "ci": [
+       0.6,
+       0.9
+      ],
+      "failures": {
+       "missing_arg": 4,
+       "bad_arg_type": 3
+      },
+      "slices": {
+       "tool=convert_currency": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "tool=create_event": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "tool=get_weather": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=search_flights": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=send_email": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     }
+    },
+    {
+     "env": "instruction_following",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.8541666666666666,
+      "ci": [
+       0.7083333333333334,
+       0.9791666666666666
+      ],
+      "failures": {
+       "violated:max_words": 3,
+       "violated:json_object": 1
+      },
+      "slices": {
+       "constraint=ends_with": {
+        "mean": 1.0,
+        "n": 3
+       },
+       "constraint=exclude": {
+        "mean": 0.9166666666666666,
+        "n": 6
+       },
+       "constraint=include": {
+        "mean": 1.0,
+        "n": 9
+       },
+       "constraint=json_object": {
+        "mean": 0.9166666666666666,
+        "n": 6
+       },
+       "constraint=lowercase": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "constraint=max_words": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "constraint=n_bullets": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=no_commas": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.8541666666666666,
+      "ci": [
+       0.7083333333333334,
+       0.9791666666666666
+      ],
+      "failures": {
+       "violated:max_words": 3,
+       "violated:json_object": 1
+      },
+      "slices": {
+       "constraint=ends_with": {
+        "mean": 1.0,
+        "n": 3
+       },
+       "constraint=exclude": {
+        "mean": 0.9166666666666666,
+        "n": 6
+       },
+       "constraint=include": {
+        "mean": 1.0,
+        "n": 9
+       },
+       "constraint=json_object": {
+        "mean": 0.9166666666666666,
+        "n": 6
+       },
+       "constraint=lowercase": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "constraint=max_words": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "constraint=n_bullets": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=no_commas": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     }
+    },
+    {
+     "env": "multistep_tools",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.46296296296296297,
+      "ci": [
+       0.3333333333333333,
+       0.5925925925925926
+      ],
+      "failures": {
+       "answered_early": 13,
+       "missing_arg": 9,
+       "wrong_answer": 7
+      },
+      "slices": {
+       "depth=1": {
+        "mean": 0.3333333333333333,
+        "n": 9
+       },
+       "depth=2": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=3": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=4": {
+        "mean": 0.7777777777777778,
+        "n": 9
+       },
+       "depth=6": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=8": {
+        "mean": 0.0,
+        "n": 9
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.46296296296296297,
+      "ci": [
+       0.3333333333333333,
+       0.5925925925925926
+      ],
+      "failures": {
+       "answered_early": 13,
+       "missing_arg": 9,
+       "wrong_answer": 7
+      },
+      "slices": {
+       "depth=1": {
+        "mean": 0.3333333333333333,
+        "n": 9
+       },
+       "depth=2": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=3": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=4": {
+        "mean": 0.7777777777777778,
+        "n": 9
+       },
+       "depth=6": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=8": {
+        "mean": 0.0,
+        "n": 9
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "02_tool_schema_grounding",
+   "hypothesis": "RL with schema-checking rewards removes missing/mistyped/hallucinated tool arguments, improving function calling and multi-step tool use.",
+   "targets": [
+    "function_calling",
+    "multistep_tools"
+   ],
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "gate": {
+    "min_gain": 0.05,
+    "max_regression": 0.02
+   },
+   "verdict": "BLOCK",
+   "reasons": [
+    "instruction_following regressed -0.188 (CI [-0.292, -0.083])",
+    "multistep_tools regressed -0.204 (CI [-0.370, -0.037])",
+    "target multistep_tools did not clear +0.050 with CI > 0 (got -0.204, CI [-0.370, -0.037])"
+   ],
+   "episodes_per_arm": 162,
+   "envs": [
+    {
+     "env": "coding",
+     "target": false,
+     "delta": 0.05555555555555555,
+     "delta_ci": [
+      0.0,
+      0.16666666666666666
+     ],
+     "baseline": {
+      "mean": 0.8333333333333334,
+      "ci": [
+       0.6666666666666666,
+       1.0
+      ],
+      "failures": {
+       "test_failure": 2,
+       "runtime_error": 1
+      },
+      "slices": {}
+     },
+     "candidate": {
+      "mean": 0.8888888888888888,
+      "ci": [
+       0.7222222222222222,
+       1.0
+      ],
+      "failures": {
+       "test_failure": 2
+      },
+      "slices": {}
+     }
+    },
+    {
+     "env": "factuality",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.8055555555555556,
+       1.0
+      ],
+      "failures": {
+       "hallucination": 3
+      },
+      "calibration": {
+       "ece": 0.01666666666666672,
+       "brier": 0.07166666666666667
+      },
+      "slices": {
+       "answerable": {
+        "mean": 1.0,
+        "n": 24
+       },
+       "unanswerable": {
+        "mean": 0.75,
+        "n": 12
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.8055555555555556,
+       1.0
+      ],
+      "failures": {
+       "hallucination": 3
+      },
+      "calibration": {
+       "ece": 0.01666666666666672,
+       "brier": 0.07166666666666667
+      },
+      "slices": {
+       "answerable": {
+        "mean": 1.0,
+        "n": 24
+       },
+       "unanswerable": {
+        "mean": 0.75,
+        "n": 12
+       }
+      }
+     }
+    },
+    {
+     "env": "function_calling",
+     "target": true,
+     "delta": 0.3333333333333333,
+     "delta_ci": [
+      0.16666666666666666,
+      0.5
+     ],
+     "baseline": {
+      "mean": 0.5333333333333333,
+      "ci": [
+       0.36666666666666664,
+       0.7
+      ],
+      "failures": {
+       "missing_arg": 7,
+       "bad_arg_type": 7
+      },
+      "slices": {
+       "tool=convert_currency": {
+        "mean": 0.16666666666666666,
+        "n": 6
+       },
+       "tool=create_event": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "tool=get_weather": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "tool=search_flights": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "tool=send_email": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.8666666666666667,
+      "ci": [
+       0.7333333333333333,
+       0.9666666666666667
+      ],
+      "failures": {
+       "bad_arg_type": 2,
+       "missing_arg": 2
+      },
+      "slices": {
+       "tool=convert_currency": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=create_event": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=get_weather": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "tool=search_flights": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=send_email": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     }
+    },
+    {
+     "env": "instruction_following",
+     "target": false,
+     "delta": -0.1875,
+     "delta_ci": [
+      -0.2916666666666667,
+      -0.08333333333333333
+     ],
+     "baseline": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.7916666666666666,
+       1.0
+      ],
+      "failures": {
+       "violated:max_words": 2
+      },
+      "slices": {
+       "constraint=ends_with": {
+        "mean": 1.0,
+        "n": 3
+       },
+       "constraint=exclude": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=include": {
+        "mean": 1.0,
+        "n": 9
+       },
+       "constraint=json_object": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=lowercase": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "constraint=max_words": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "constraint=n_bullets": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=no_commas": {
+        "mean": 1.0,
+        "n": 6
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.7291666666666666,
+      "ci": [
+       0.5833333333333334,
+       0.8541666666666666
+      ],
+      "failures": {
+       "violated:max_words": 3,
+       "violated:no_commas": 3,
+       "violated:json_object": 3,
+       "violated:ends_with": 1
+      },
+      "slices": {
+       "constraint=ends_with": {
+        "mean": 0.8333333333333334,
+        "n": 3
+       },
+       "constraint=exclude": {
+        "mean": 0.75,
+        "n": 6
+       },
+       "constraint=include": {
+        "mean": 0.7777777777777778,
+        "n": 9
+       },
+       "constraint=json_object": {
+        "mean": 0.75,
+        "n": 6
+       },
+       "constraint=lowercase": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "constraint=max_words": {
+        "mean": 0.5,
+        "n": 6
+       },
+       "constraint=n_bullets": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=no_commas": {
+        "mean": 0.5833333333333334,
+        "n": 6
+       }
+      }
+     }
+    },
+    {
+     "env": "multistep_tools",
+     "target": true,
+     "delta": -0.2037037037037037,
+     "delta_ci": [
+      -0.37037037037037035,
+      -0.037037037037037035
+     ],
+     "baseline": {
+      "mean": 0.42592592592592593,
+      "ci": [
+       0.2962962962962963,
+       0.5555555555555556
+      ],
+      "failures": {
+       "missing_arg": 11,
+       "answered_early": 8,
+       "hallucinated_tool": 7,
+       "exceeded_budget": 3,
+       "wrong_answer": 2
+      },
+      "slices": {
+       "depth=1": {
+        "mean": 0.7777777777777778,
+        "n": 9
+       },
+       "depth=2": {
+        "mean": 0.4444444444444444,
+        "n": 9
+       },
+       "depth=3": {
+        "mean": 0.4444444444444444,
+        "n": 9
+       },
+       "depth=4": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=6": {
+        "mean": 0.3333333333333333,
+        "n": 9
+       },
+       "depth=8": {
+        "mean": 0.0,
+        "n": 9
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.2222222222222222,
+      "ci": [
+       0.1111111111111111,
+       0.35185185185185186
+      ],
+      "failures": {
+       "wrong_answer": 21,
+       "answered_early": 15,
+       "missing_arg": 5,
+       "hallucinated_tool": 1
+      },
+      "slices": {
+       "depth=1": {
+        "mean": 0.1111111111111111,
+        "n": 9
+       },
+       "depth=2": {
+        "mean": 0.1111111111111111,
+        "n": 9
+       },
+       "depth=3": {
+        "mean": 0.3333333333333333,
+        "n": 9
+       },
+       "depth=4": {
+        "mean": 0.4444444444444444,
+        "n": 9
+       },
+       "depth=6": {
+        "mean": 0.3333333333333333,
+        "n": 9
+       },
+       "depth=8": {
+        "mean": 0.0,
+        "n": 9
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "03_long_horizon_persistence",
+   "hypothesis": "Upweighting long trajectories in the mixture reduces premature final answers, flattening the pass-rate-vs-depth curve on multi-step tool use.",
+   "targets": [
+    "multistep_tools"
+   ],
+   "seeds": [
+    0,
+    1,
+    2
+   ],
+   "gate": {
+    "min_gain": 0.05,
+    "max_regression": 0.02
+   },
+   "verdict": "HOLD",
+   "reasons": [
+    "target multistep_tools did not clear +0.050 with CI > 0 (got +0.019, CI [+0.000, +0.056])"
+   ],
+   "episodes_per_arm": 162,
+   "envs": [
+    {
+     "env": "coding",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.8333333333333334,
+      "ci": [
+       0.6666666666666666,
+       1.0
+      ],
+      "failures": {
+       "test_failure": 2,
+       "runtime_error": 1
+      },
+      "slices": {}
+     },
+     "candidate": {
+      "mean": 0.8333333333333334,
+      "ci": [
+       0.6666666666666666,
+       1.0
+      ],
+      "failures": {
+       "test_failure": 2,
+       "runtime_error": 1
+      },
+      "slices": {}
+     }
+    },
+    {
+     "env": "factuality",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.8055555555555556,
+       1.0
+      ],
+      "failures": {
+       "hallucination": 3
+      },
+      "calibration": {
+       "ece": 0.01666666666666672,
+       "brier": 0.07166666666666667
+      },
+      "slices": {
+       "answerable": {
+        "mean": 1.0,
+        "n": 24
+       },
+       "unanswerable": {
+        "mean": 0.75,
+        "n": 12
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.8055555555555556,
+       1.0
+      ],
+      "failures": {
+       "hallucination": 3
+      },
+      "calibration": {
+       "ece": 0.01666666666666672,
+       "brier": 0.07166666666666667
+      },
+      "slices": {
+       "answerable": {
+        "mean": 1.0,
+        "n": 24
+       },
+       "unanswerable": {
+        "mean": 0.75,
+        "n": 12
+       }
+      }
+     }
+    },
+    {
+     "env": "function_calling",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.8666666666666667,
+      "ci": [
+       0.7333333333333333,
+       0.9666666666666667
+      ],
+      "failures": {
+       "missing_arg": 4
+      },
+      "slices": {
+       "tool=convert_currency": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=create_event": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=get_weather": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=search_flights": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "tool=send_email": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.8666666666666667,
+      "ci": [
+       0.7333333333333333,
+       0.9666666666666667
+      ],
+      "failures": {
+       "missing_arg": 4
+      },
+      "slices": {
+       "tool=convert_currency": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=create_event": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=get_weather": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       },
+       "tool=search_flights": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "tool=send_email": {
+        "mean": 0.8333333333333334,
+        "n": 6
+       }
+      }
+     }
+    },
+    {
+     "env": "instruction_following",
+     "target": false,
+     "delta": 0.0,
+     "delta_ci": [
+      0.0,
+      0.0
+     ],
+     "baseline": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.7916666666666666,
+       1.0
+      ],
+      "failures": {
+       "violated:max_words": 2
+      },
+      "slices": {
+       "constraint=ends_with": {
+        "mean": 1.0,
+        "n": 3
+       },
+       "constraint=exclude": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=include": {
+        "mean": 1.0,
+        "n": 9
+       },
+       "constraint=json_object": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=lowercase": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "constraint=max_words": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "constraint=n_bullets": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=no_commas": {
+        "mean": 1.0,
+        "n": 6
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.9166666666666666,
+      "ci": [
+       0.7916666666666666,
+       1.0
+      ],
+      "failures": {
+       "violated:max_words": 2
+      },
+      "slices": {
+       "constraint=ends_with": {
+        "mean": 1.0,
+        "n": 3
+       },
+       "constraint=exclude": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=include": {
+        "mean": 1.0,
+        "n": 9
+       },
+       "constraint=json_object": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=lowercase": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "constraint=max_words": {
+        "mean": 0.6666666666666666,
+        "n": 6
+       },
+       "constraint=n_bullets": {
+        "mean": 1.0,
+        "n": 6
+       },
+       "constraint=no_commas": {
+        "mean": 1.0,
+        "n": 6
+       }
+      }
+     }
+    },
+    {
+     "env": "multistep_tools",
+     "target": true,
+     "delta": 0.018518518518518517,
+     "delta_ci": [
+      0.0,
+      0.05555555555555555
+     ],
+     "baseline": {
+      "mean": 0.48148148148148145,
+      "ci": [
+       0.35185185185185186,
+       0.6111111111111112
+      ],
+      "failures": {
+       "answered_early": 16,
+       "missing_arg": 7,
+       "wrong_answer": 5
+      },
+      "slices": {
+       "depth=1": {
+        "mean": 0.6666666666666666,
+        "n": 9
+       },
+       "depth=2": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=3": {
+        "mean": 0.4444444444444444,
+        "n": 9
+       },
+       "depth=4": {
+        "mean": 0.6666666666666666,
+        "n": 9
+       },
+       "depth=6": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=8": {
+        "mean": 0.0,
+        "n": 9
+       }
+      }
+     },
+     "candidate": {
+      "mean": 0.5,
+      "ci": [
+       0.37037037037037035,
+       0.6296296296296297
+      ],
+      "failures": {
+       "answered_early": 15,
+       "missing_arg": 7,
+       "wrong_answer": 5
+      },
+      "slices": {
+       "depth=1": {
+        "mean": 0.6666666666666666,
+        "n": 9
+       },
+       "depth=2": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=3": {
+        "mean": 0.4444444444444444,
+        "n": 9
+       },
+       "depth=4": {
+        "mean": 0.7777777777777778,
+        "n": 9
+       },
+       "depth=6": {
+        "mean": 0.5555555555555556,
+        "n": 9
+       },
+       "depth=8": {
+        "mean": 0.0,
+        "n": 9
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

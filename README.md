@@ -77,6 +77,8 @@ through one shared episode loop. Adding a behavior = one new file + one line in
 
 ### Run the experiments
 
+Results site: **[sugeerth.github.io/agentic-post-training/evals.html](https://sugeerth.github.io/agentic-post-training/evals.html)** (rebuild its data with `make site`).
+
 ```bash
 make experiments              # = python -m evals run experiments/*.yaml
 python -m evals list          # environments + simulated defects
