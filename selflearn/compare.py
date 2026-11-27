@@ -52,7 +52,13 @@ def plot(runs: list[Path], labels: list[str], out: Path) -> Path:
     # decision mix on the held-out set: truth, base, then each run after training
     first = json.loads((runs[0] / "eval_before.json").read_text())["records"]
     truth = Counter(str(r["answer"]).split()[0] for r in first)
-    cols = [("truth", truth), ("base", _mix(runs[0], "before"))]
+    cols, seen = [("truth", truth)], set()
+    for run in runs:                      # one "base" bar per base model, since runs may start from different models
+        model = json.loads((run / "config.json").read_text())["model"].split("/")[-1]
+        if model not in seen and _mix(run, "before"):
+            seen.add(model)
+            size = next((w for w in model.split("-") if w.endswith("B")), model)
+            cols.append((f"base {size}", _mix(run, "before")))
     cols += [(label, _mix(run, "after")) for run, label in zip(runs, labels, strict=True) if _mix(run, "after")]
     kinds = ["refund", "replace", "deny", "no answer"]
     colors = {"refund": "#2563eb", "replace": "#16a34a", "deny": "#dc2626", "no answer": "#9ca3af"}
