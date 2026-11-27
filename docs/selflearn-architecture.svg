@@ -18,8 +18,8 @@
   <rect x="30" y="64" width="1155" height="66" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
   <text x="48" y="90" class="t">Coordinator</text>
   <text x="48" y="114" class="m" font-size="13" fill="#3730a3">assess → calibrate → [ propose → act → verify → observe → learn ] × N → re-assess</text>
-  <text x="1167" y="90" class="e" text-anchor="end">depends only on 5 role interfaces (Protocols)</text>
-  <text x="1167" y="110" class="e" text-anchor="end">tested with fake agents, no model needed</text>
+  <text x="1167" y="90" class="e" text-anchor="end">depends only on role interfaces (Protocols); tested with fake agents</text>
+  <text x="1167" y="110" class="e" text-anchor="end">optional Selector: keeps the best checkpoint by a validation set</text>
 
   <!-- Agents -->
   <text x="30" y="156" class="lab">AGENTS · ONE JOB EACH</text>
@@ -36,7 +36,7 @@
   <g>
     <rect x="520" y="164" width="175" height="104" rx="10" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
     <text x="532" y="188" class="t">Verifier</text><text x="532" y="207" class="m">score()</text>
-    <text x="532" y="229" class="d">checks the final answer</text><text x="532" y="246" class="d">reward 1 if exact, else 0</text>
+    <text x="532" y="229" class="d">checks the final answer</text><text x="532" y="246" class="d">reward from the use case</text>
   </g>
   <g>
     <rect x="765" y="164" width="175" height="104" rx="10" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
@@ -82,8 +82,8 @@
     <rect x="765" y="522" width="175" height="86" rx="10"/>
   </g>
   <text x="287" y="545" class="t" font-size="14">rollout.py</text><text x="287" y="567" class="d">batched sampling, stops at</text><text x="287" y="585" class="d">tags; tool tokens masked</text>
-  <text x="532" y="545" class="t" font-size="14">Qwen2.5-0.5B, 4-bit</text><text x="532" y="567" class="d">+ LoRA on all linear</text><text x="532" y="585" class="d">layers (8.8M params)</text>
-  <text x="777" y="545" class="t" font-size="14">GRPOLearner</text><text x="777" y="567" class="d">policy-gradient loss, Adam</text><text x="777" y="585" class="d">clip 1 · LoRA r16, scale 2</text>
+  <text x="532" y="545" class="t" font-size="14">Qwen2.5 0.5B / 1.5B</text><text x="532" y="567" class="d">4-bit + LoRA on all</text><text x="532" y="585" class="d">linear layers</text>
+  <text x="777" y="545" class="t" font-size="14">GRPOLearner</text><text x="777" y="567" class="d">policy gradient + KL anchor</text><text x="777" y="585" class="d">to the base · LoRA r16, s2</text>
   <path d="M450 565H518" class="ln" marker-end="url(#a)"/><text x="484" y="557" class="e" text-anchor="middle">samples</text>
   <path d="M765 565H697" class="ln" marker-end="url(#a)"/><text x="731" y="557" class="e" text-anchor="middle">updates</text>
 
