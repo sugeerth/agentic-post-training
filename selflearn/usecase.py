@@ -29,6 +29,8 @@ class UseCase:
     make_task: Callable[[int, random.Random], Task]
     reward: Callable[[str, int | float | str], float] = exact_answer   # verifier: (agent text, true answer) -> 0/1
     user_prefix: str = "Question: "
+    summary: str = ""          # one sentence for reports and the web demo
+    level_note: str = ""       # what "level" means for this use case
     max_new: int = 96          # new tokens per turn
     eval_per_level: int = 20
     eval_seed: int = 1234

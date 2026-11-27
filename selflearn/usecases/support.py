@@ -186,4 +186,6 @@ def reward(text: str, answer: str) -> float:
 
 USE_CASE = UseCase(name="support", system_prompt=SYSTEM_PROMPT, tools={"order": lookup, "calc": calc},
                    levels=(1, 2, 3, 4, 5, 6), make_task=make_task, reward=reward, user_prefix="Customer: ",
-                   max_new=96, eval_per_level=15)
+                   max_new=96, eval_per_level=15,
+                   summary="taught itself to handle refund requests: look up the order, apply the refund policy, decide",
+                   level_note="level = how many policy rules the case needs (6 = the message contradicts the record)")

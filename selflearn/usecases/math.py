@@ -115,4 +115,6 @@ def calc(expr: str) -> str:
 
 
 USE_CASE = UseCase(name="math", system_prompt=SYSTEM_PROMPT, tools={"calc": calc}, levels=LEVELS,
-                   make_task=make_task, max_new=96, eval_per_level=20)
+                   make_task=make_task, max_new=96, eval_per_level=20,
+                   summary="taught itself to use a calculator on multi-step word problems",
+                   level_note="level = number of steps in the problem")
