@@ -53,7 +53,7 @@ def build(run: Path) -> Path:
     b, a = res["before"], res["after"]
     lv = sorted(b["by_level"], key=int)
     rows = "\n".join(f"| L{k} | {b['by_level'][k]:.0%} | {a['by_level'][k]:.0%} |" for k in lv)
-    md = [f"# Self-learning agentic RL: {res['model']}, {res['steps']} steps", "",
+    md = [f"# Self-learning agentic RL ({res.get('usecase', 'math')}): {res['model']}, {res['steps']} steps", "",
           f"Held-out set: {res['held_out']} problems (fixed seed), greedy decoding, same questions before and after.", "",
           "| | base | trained |", "|---|---|---|",
           f"| **accuracy** | **{b['accuracy']:.1%}** | **{a['accuracy']:.1%}** |", rows,

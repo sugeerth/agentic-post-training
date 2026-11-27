@@ -1,0 +1,738 @@
+{
+ "summary": {
+  "accuracy": 0.3333333333333333,
+  "by_level": {
+   "1": 0.0,
+   "2": 0.0,
+   "3": 0.26666666666666666,
+   "4": 0.6666666666666666,
+   "5": 0.6,
+   "6": 0.4666666666666667
+  },
+  "used_tool": 0.0,
+  "answered": 1.0,
+  "mean_calls": 0.0
+ },
+ "records": [
+  {
+   "level": 1,
+   "question": "I never received order A915965. Please help.",
+   "answer": "refund 183.00",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "My order A188015 never arrived.",
+   "answer": "refund 55.18",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "I never received order A462900. Please help.",
+   "answer": "refund 275.55",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "I never received order A219970. Please help.",
+   "answer": "refund 352.00",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "Where is my Phone Case? Order A588530 still hasn't come.",
+   "answer": "refund 38.60",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "Where is my Phone Case? Order A964426 still hasn't come.",
+   "answer": "refund 235.40",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "I never received order A361254. Please help.",
+   "answer": "refund 278.33",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "My order A174017 never arrived.",
+   "answer": "refund 26.24",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "My order A179937 never arrived.",
+   "answer": "refund 239.96",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "My order A463049 never arrived.",
+   "answer": "refund 316.13",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "Where is my Air Fryer? Order A536470 still hasn't come.",
+   "answer": "refund 119.39",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "Where is my Book Light? Order A988762 still hasn't come.",
+   "answer": "refund 83.97",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "Where is my Book Light? Order A619943 still hasn't come.",
+   "answer": "refund 156.58",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "Where is my Backpack? Order A957047 still hasn't come.",
+   "answer": "refund 254.83",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 1,
+   "question": "My order A410041 never arrived.",
+   "answer": "refund 123.71",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A208100: the Water Bottle arrived broken.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Hi, my Air Fryer from order A213411 came damaged. What can you do?",
+   "answer": "refund 284.63",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A989115: the Wool Sweater arrived broken.",
+   "answer": "refund 338.11",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A324552: the Headphones arrived broken.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A833360: the Headphones arrived broken.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Hi, my Running Shoes from order A547012 came damaged. What can you do?",
+   "answer": "refund 380.41",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Hi, my Desk Chair from order A347807 came damaged. What can you do?",
+   "answer": "refund 329.59",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A712905. I ordered a Blender.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A449970: the Blender arrived broken.",
+   "answer": "refund 65.83",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A441086: the Phone Case arrived broken.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A327576. I ordered a Rain Jacket.",
+   "answer": "refund 27.49",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A393651. I ordered a Tent.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A258772. I ordered a Running Shoes.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A651341. I ordered a Rain Jacket.",
+   "answer": "replace",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 2,
+   "question": "Order A155049: the Book Light arrived broken.",
+   "answer": "refund 147.62",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Headphones from order A176888. I changed my mind.",
+   "answer": "refund 178.49",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "Order A264826: I don't need the Desk Chair anymore, can I get my money back?",
+   "answer": "refund 109.02",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Air Fryer from order A791895. I changed my mind.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "Order A598928: I don't need the Backpack anymore, can I get my money back?",
+   "answer": "refund 33.56",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "Order A711391: I don't need the Headphones anymore, can I get my money back?",
+   "answer": "refund 126.24",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Yoga Mat from order A731456. I changed my mind.",
+   "answer": "refund 82.04",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Book Light from order A710830. I changed my mind.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "Order A146215: I don't need the Phone Case anymore, can I get my money back?",
+   "answer": "refund 350.86",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Headphones from order A172348. I changed my mind.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "Order A784868: I don't need the Blender anymore, can I get my money back?",
+   "answer": "refund 328.74",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Toaster from order A246736. I changed my mind.",
+   "answer": "refund 317.35",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "Order A631032: I don't need the Wool Sweater anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Phone Case from order A487034. I changed my mind.",
+   "answer": "refund 277.20",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Yoga Mat from order A942027. I changed my mind.",
+   "answer": "refund 80.01",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Rain Jacket from order A184072. I changed my mind.",
+   "answer": "refund 300.06",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "I'd like to return the Desk Chair from order A131249. I changed my mind.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A975466: I don't need the Toaster anymore, can I get my money back?",
+   "answer": "refund 396.16",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A729015: I don't need the Toaster anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "I'd like to return the Headphones from order A427941. I changed my mind.",
+   "answer": "refund 238.22",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A487350: I don't need the Desk Chair anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A284879: I don't need the Tent anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A386684: I don't need the Wool Sweater anymore, can I get my money back?",
+   "answer": "refund 335.58",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A727854: I don't need the Book Light anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A807791: I don't need the Rain Jacket anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A238242: I don't need the Headphones anymore, can I get my money back?",
+   "answer": "refund 325.39",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A472220: I don't need the Book Light anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "I'd like to return the Air Fryer from order A650366. I changed my mind.",
+   "answer": "refund 53.87",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A281039: I don't need the Wool Sweater anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A158395: I don't need the Headphones anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 4,
+   "question": "Order A813301: I don't need the Rain Jacket anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Hi, my Backpack from order A998288 came damaged. What can you do?",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "I never received order A452737. Please help.",
+   "answer": "refund 226.96",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "I never received order A973434. Please help.",
+   "answer": "refund 135.05",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Order A758689: the Rain Jacket arrived broken.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Where is my Coffee Maker? Order A166147 still hasn't come.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "I got the wrong item in order A826131. I ordered a Yoga Mat.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Where is my Air Fryer? Order A946651 still hasn't come.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Where is my Yoga Mat? Order A416020 still hasn't come.",
+   "answer": "refund 55.89",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Order A392315: the Backpack arrived broken.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Order A965659: the Phone Case arrived broken.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Where is my Desk Chair? Order A253277 still hasn't come.",
+   "answer": "refund 381.36",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Order A983822: the Blender arrived broken.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "I never received order A542205. Please help.",
+   "answer": "refund 145.67",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "I got the wrong item in order A608380. I ordered a Toaster.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 5,
+   "question": "Where is my Coffee Maker? Order A699765 still hasn't come.",
+   "answer": "refund 356.26",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Toaster from order A286634. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 309.98",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I never received order A942718. Please help.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "Order A162854: I don't need the Wool Sweater anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 290.37",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "Order A402350: I don't need the Coffee Maker anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 319.17",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "Order A283570: I don't need the Rain Jacket anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 102.76",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "Order A758967: I don't need the Tent anymore, can I get my money back? I only got it last week.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "My order A118926 never arrived.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Rain Jacket from order A973779. I changed my mind. I only got it last week.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "Where is my Rain Jacket? Order A563700 still hasn't come.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I never received order A662121. Please help.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "My order A772741 never arrived.",
+   "answer": "deny",
+   "text": "<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Tent from order A572550. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 283.28",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "Order A567577: I don't need the Backpack anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 255.56",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Phone Case from order A133857. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 242.12",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Air Fryer from order A355634. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 337.55",
+   "text": "<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 0
+  }
+ ]
+}

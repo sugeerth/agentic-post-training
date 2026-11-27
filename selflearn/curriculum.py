@@ -14,16 +14,14 @@ from __future__ import annotations
 
 import random
 
-from selflearn.tasks import LEVELS
-
 
 def informative(p: float, group: int) -> float:
     return 1.0 - p ** group - (1.0 - p) ** group
 
 
 class Curriculum:
-    def __init__(self, init: dict[int, float], group: int, ema: float = 0.3, floor: float = 0.03):
-        self.p = {lv: float(init.get(lv, 0.5)) for lv in LEVELS}
+    def __init__(self, init: dict[int, float], group: int, levels: tuple[int, ...], ema: float = 0.3, floor: float = 0.03):
+        self.p = {lv: float(init.get(lv, init.get(str(lv), 0.5))) for lv in levels}
         self.group, self.ema, self.floor = group, ema, floor
 
     def weights(self) -> dict[int, float]:

@@ -1,0 +1,738 @@
+{
+ "summary": {
+  "accuracy": 0.3111111111111111,
+  "by_level": {
+   "1": 0.2,
+   "2": 0.0,
+   "3": 0.26666666666666666,
+   "4": 0.6666666666666666,
+   "5": 0.4,
+   "6": 0.3333333333333333
+  },
+  "used_tool": 1.0,
+  "answered": 1.0,
+  "mean_calls": 2.0
+ },
+ "records": [
+  {
+   "level": 1,
+   "question": "I never received order A915965. Please help.",
+   "answer": "refund 183.00",
+   "text": "<order>A915965</order>\n\n<result>order A915965 | item: Blender | price: 183.00 | shipping: 0.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>183.00 + 0.00</calc>\n\n<result>183</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "My order A188015 never arrived.",
+   "answer": "refund 55.18",
+   "text": "<order>A188015</order>\n\n<result>order A188015 | item: Desk Chair | price: 50.19 | shipping: 4.99 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>50.19 + 4.99</calc>\n\n<result>55.18</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "I never received order A462900. Please help.",
+   "answer": "refund 275.55",
+   "text": "<order>A462900</order>\n\n<result>order A462900 | item: Water Bottle | price: 263.55 | shipping: 12.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>263.55 + 12.00</calc>\n\n<result>275.55</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "I never received order A219970. Please help.",
+   "answer": "refund 352.00",
+   "text": "<order>A219970</order>\n\n<result>order A219970 | item: Yoga Mat | price: 340.00 | shipping: 12.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>340.00 + 12.00</calc>\n\n<result>352</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "Where is my Phone Case? Order A588530 still hasn't come.",
+   "answer": "refund 38.60",
+   "text": "<order>A588530</order>\n\n<result>order A588530 | item: Phone Case | price: 38.60 | shipping: 0.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>38.60 + 0.00</calc>\n\n<result>38.6</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "Where is my Phone Case? Order A964426 still hasn't come.",
+   "answer": "refund 235.40",
+   "text": "<order>A964426</order>\n\n<result>order A964426 | item: Phone Case | price: 227.90 | shipping: 7.50 | status: lost | in stock: no | final sale: no | member: standard</result>\n<calc>227.90 + 7.50</calc>\n\n<result>235.4</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "I never received order A361254. Please help.",
+   "answer": "refund 278.33",
+   "text": "<order>A361254</order>\n\n<result>order A361254 | item: Coffee Maker | price: 266.33 | shipping: 12.00 | status: lost | in stock: no | final sale: no | member: standard</result>\n<calc>266.33 + 12.00</calc>\n\n<result>278.33</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "My order A174017 never arrived.",
+   "answer": "refund 26.24",
+   "text": "<order>A174017</order>\n\n<result>order A174017 | item: Backpack | price: 14.24 | shipping: 12.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>14.24 + 12.00</calc>\n\n<result>26.24</result>\n<answer>refund 26.24</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "My order A179937 never arrived.",
+   "answer": "refund 239.96",
+   "text": "<order>A179937</order>\n\n<result>order A179937 | item: Backpack | price: 239.96 | shipping: 0.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>239.96 + 0.00</calc>\n\n<result>239.96</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "My order A463049 never arrived.",
+   "answer": "refund 316.13",
+   "text": "<order>A463049</order>\n\n<result>order A463049 | item: Yoga Mat | price: 311.14 | shipping: 4.99 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>311.14 + 4.99</calc>\n\n<result>316.13</result>\n<answer>refund 316.13</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "Where is my Air Fryer? Order A536470 still hasn't come.",
+   "answer": "refund 119.39",
+   "text": "<order>A536470</order>\n\n<result>order A536470 | item: Air Fryer | price: 119.39 | shipping: 0.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>119.39 + 0.00</calc>\n\n<result>119.39</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "Where is my Book Light? Order A988762 still hasn't come.",
+   "answer": "refund 83.97",
+   "text": "<order>A988762</order>\n\n<result>order A988762 | item: Book Light | price: 71.97 | shipping: 12.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>71.97 + 12.00</calc>\n\n<result>83.97</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "Where is my Book Light? Order A619943 still hasn't come.",
+   "answer": "refund 156.58",
+   "text": "<order>A619943</order>\n\n<result>order A619943 | item: Book Light | price: 144.58 | shipping: 12.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>144.58 + 12.00</calc>\n\n<result>156.58</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "Where is my Backpack? Order A957047 still hasn't come.",
+   "answer": "refund 254.83",
+   "text": "<order>A957047</order>\n\n<result>order A957047 | item: Backpack | price: 242.83 | shipping: 12.00 | status: lost | in stock: no | final sale: no | member: standard</result>\n<calc>242.83 + 12.00</calc>\n\n<result>254.83</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 1,
+   "question": "My order A410041 never arrived.",
+   "answer": "refund 123.71",
+   "text": "<order>A410041</order>\n\n<result>order A410041 | item: Air Fryer | price: 118.72 | shipping: 4.99 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>118.72 + 4.99</calc>\n\n<result>123.71</result>\n<answer>refund 123.71</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A208100: the Water Bottle arrived broken.",
+   "answer": "replace",
+   "text": "<order>A208100</order>\n\n<result>order A208100 | item: Water Bottle | price: 333.82 | shipping: 12.00 | status: delivered | delivered 17 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>333.82 + 12.00</calc>\n\n<result>345.82</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Hi, my Air Fryer from order A213411 came damaged. What can you do?",
+   "answer": "refund 284.63",
+   "text": "<order>A213411</order>\n\n<result>order A213411 | item: Air Fryer | price: 284.63 | shipping: 4.99 | status: delivered | delivered 12 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>284.63 + 4.99</calc>\n\n<result>289.62</result>\n<answer>refund 289.62</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A989115: the Wool Sweater arrived broken.",
+   "answer": "refund 338.11",
+   "text": "<order>A989115</order>\n\n<result>order A989115 | item: Wool Sweater | price: 338.11 | shipping: 7.50 | status: delivered | delivered 5 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>338.11 + 7.50</calc>\n\n<result>345.61</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A324552: the Headphones arrived broken.",
+   "answer": "replace",
+   "text": "<order>A324552</order>\n\n<result>order A324552 | item: Headphones | price: 30.52 | shipping: 0.00 | status: delivered | delivered 13 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>30.52 + 0.00</calc>\n\n<result>30.52</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A833360: the Headphones arrived broken.",
+   "answer": "replace",
+   "text": "<order>A833360</order>\n\n<result>order A833360 | item: Headphones | price: 399.38 | shipping: 12.00 | status: delivered | delivered 26 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>399.38 + 12.00</calc>\n\n<result>411.38</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Hi, my Running Shoes from order A547012 came damaged. What can you do?",
+   "answer": "refund 380.41",
+   "text": "<order>A547012</order>\n\n<result>order A547012 | item: Running Shoes | price: 380.41 | shipping: 12.00 | status: delivered | delivered 23 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>380.41 + 12.00</calc>\n\n<result>392.41</result>\n<answer>refund 392.41</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Hi, my Desk Chair from order A347807 came damaged. What can you do?",
+   "answer": "refund 329.59",
+   "text": "<order>A347807</order>\n\n<result>order A347807 | item: Desk Chair | price: 329.59 | shipping: 4.99 | status: delivered | delivered 17 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>329.59 + 4.99</calc>\n\n<result>334.58</result>\n<answer>refund 334.58</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A712905. I ordered a Blender.",
+   "answer": "replace",
+   "text": "<order>A712905</order>\n\n<result>order A712905 | item: Blender | price: 90.86 | shipping: 7.50 | status: delivered | delivered 6 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>90.86 + 7.50</calc>\n\n<result>98.36</result>\n<answer>refund 98.36</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A449970: the Blender arrived broken.",
+   "answer": "refund 65.83",
+   "text": "<order>A449970</order>\n\n<result>order A449970 | item: Blender | price: 65.83 | shipping: 4.99 | status: delivered | delivered 16 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>65.83 + 4.99</calc>\n\n<result>70.82</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A441086: the Phone Case arrived broken.",
+   "answer": "replace",
+   "text": "<order>A441086</order>\n\n<result>order A441086 | item: Phone Case | price: 78.36 | shipping: 0.00 | status: delivered | delivered 23 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>78.36 + 0.00</calc>\n\n<result>78.36</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A327576. I ordered a Rain Jacket.",
+   "answer": "refund 27.49",
+   "text": "<order>A327576</order>\n\n<result>order A327576 | item: Rain Jacket | price: 27.49 | shipping: 7.50 | status: delivered | delivered 30 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>27.49 + 7.50</calc>\n\n<result>34.99</result>\n<answer>refund 34.99</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A393651. I ordered a Tent.",
+   "answer": "replace",
+   "text": "<order>A393651</order>\n\n<result>order A393651 | item: Tent | price: 220.55 | shipping: 7.50 | status: delivered | delivered 13 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>220.55 + 7.50</calc>\n\n<result>228.05</result>\n<answer>refund 228.05</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A258772. I ordered a Running Shoes.",
+   "answer": "replace",
+   "text": "<order>A258772</order>\n\n<result>order A258772 | item: Running Shoes | price: 337.44 | shipping: 7.50 | status: delivered | delivered 28 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>337.44 + 7.50</calc>\n\n<result>344.94</result>\n<answer>refund 344.94</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "I got the wrong item in order A651341. I ordered a Rain Jacket.",
+   "answer": "replace",
+   "text": "<order>A651341</order>\n\n<result>order A651341 | item: Rain Jacket | price: 56.13 | shipping: 7.50 | status: delivered | delivered 9 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>56.13 + 7.50</calc>\n\n<result>63.63</result>\n<answer>refund 63.63</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 2,
+   "question": "Order A155049: the Book Light arrived broken.",
+   "answer": "refund 147.62",
+   "text": "<order>A155049</order>\n\n<result>order A155049 | item: Book Light | price: 147.62 | shipping: 12.00 | status: delivered | delivered 13 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>147.62 + 12.00</calc>\n\n<result>159.62</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Headphones from order A176888. I changed my mind.",
+   "answer": "refund 178.49",
+   "text": "<order>A176888</order>\n\n<result>order A176888 | item: Headphones | price: 198.32 | shipping: 12.00 | status: delivered | delivered 1 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>198.32 + 12.00</calc>\n\n<result>210.32</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "Order A264826: I don't need the Desk Chair anymore, can I get my money back?",
+   "answer": "refund 109.02",
+   "text": "<order>A264826</order>\n\n<result>order A264826 | item: Desk Chair | price: 121.13 | shipping: 7.50 | status: delivered | delivered 16 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>121.13 - 7.50</calc>\n\n<result>113.63</result>\n<answer>refund 113.63</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Air Fryer from order A791895. I changed my mind.",
+   "answer": "deny",
+   "text": "<order>A791895</order>\n\n<result>order A791895 | item: Air Fryer | price: 22.98 | shipping: 12.00 | status: delivered | delivered 61 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>22.98 + 12.00</calc>\n\n<result>34.98</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "Order A598928: I don't need the Backpack anymore, can I get my money back?",
+   "answer": "refund 33.56",
+   "text": "<order>A598928</order>\n\n<result>order A598928 | item: Backpack | price: 37.29 | shipping: 7.50 | status: delivered | delivered 26 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>37.29 + 7.50</calc>\n\n<result>44.79</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "Order A711391: I don't need the Headphones anymore, can I get my money back?",
+   "answer": "refund 126.24",
+   "text": "<order>A711391</order>\n\n<result>order A711391 | item: Headphones | price: 140.27 | shipping: 4.99 | status: delivered | delivered 22 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>140.27 + 4.99</calc>\n\n<result>145.26</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Yoga Mat from order A731456. I changed my mind.",
+   "answer": "refund 82.04",
+   "text": "<order>A731456</order>\n\n<result>order A731456 | item: Yoga Mat | price: 91.15 | shipping: 7.50 | status: delivered | delivered 23 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>91.15 + 7.50</calc>\n\n<result>98.65</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Book Light from order A710830. I changed my mind.",
+   "answer": "deny",
+   "text": "<order>A710830</order>\n\n<result>order A710830 | item: Book Light | price: 224.72 | shipping: 4.99 | status: delivered | delivered 68 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>224.72 + 4.99</calc>\n\n<result>229.71</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "Order A146215: I don't need the Phone Case anymore, can I get my money back?",
+   "answer": "refund 350.86",
+   "text": "<order>A146215</order>\n\n<result>order A146215 | item: Phone Case | price: 389.84 | shipping: 4.99 | status: delivered | delivered 22 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>389.84 + 4.99</calc>\n\n<result>394.83</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Headphones from order A172348. I changed my mind.",
+   "answer": "deny",
+   "text": "<order>A172348</order>\n\n<result>order A172348 | item: Headphones | price: 339.50 | shipping: 7.50 | status: delivered | delivered 89 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>339.50 + 7.50</calc>\n\n<result>347</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "Order A784868: I don't need the Blender anymore, can I get my money back?",
+   "answer": "refund 328.74",
+   "text": "<order>A784868</order>\n\n<result>order A784868 | item: Blender | price: 365.27 | shipping: 7.50 | status: delivered | delivered 3 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>365.27 + 7.50</calc>\n\n<result>372.77</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Toaster from order A246736. I changed my mind.",
+   "answer": "refund 317.35",
+   "text": "<order>A246736</order>\n\n<result>order A246736 | item: Toaster | price: 352.61 | shipping: 0.00 | status: delivered | delivered 22 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>352.61 + 0.00</calc>\n\n<result>352.61</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "Order A631032: I don't need the Wool Sweater anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A631032</order>\n\n<result>order A631032 | item: Wool Sweater | price: 304.72 | shipping: 12.00 | status: delivered | delivered 89 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>304.72 + 12.00</calc>\n\n<result>316.72</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Phone Case from order A487034. I changed my mind.",
+   "answer": "refund 277.20",
+   "text": "<order>A487034</order>\n\n<result>order A487034 | item: Phone Case | price: 308.00 | shipping: 12.00 | status: delivered | delivered 3 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>308.00 - 308.00</calc>\n\n<result>0</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Yoga Mat from order A942027. I changed my mind.",
+   "answer": "refund 80.01",
+   "text": "<order>A942027</order>\n\n<result>order A942027 | item: Yoga Mat | price: 88.90 | shipping: 12.00 | status: delivered | delivered 20 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>88.90 + 12.00</calc>\n\n<result>100.9</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 3,
+   "question": "I'd like to return the Rain Jacket from order A184072. I changed my mind.",
+   "answer": "refund 300.06",
+   "text": "<order>A184072</order>\n\n<result>order A184072 | item: Rain Jacket | price: 333.40 | shipping: 7.50 | status: delivered | delivered 26 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>333.40 + 7.50</calc>\n\n<result>340.9</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "I'd like to return the Desk Chair from order A131249. I changed my mind.",
+   "answer": "deny",
+   "text": "<order>A131249</order>\n\n<result>order A131249 | item: Desk Chair | price: 347.33 | shipping: 7.50 | status: delivered | delivered 86 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>347.33 + 7.50</calc>\n\n<result>354.83</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A975466: I don't need the Toaster anymore, can I get my money back?",
+   "answer": "refund 396.16",
+   "text": "<order>A975466</order>\n\n<result>order A975466 | item: Toaster | price: 396.16 | shipping: 4.99 | status: delivered | delivered 37 days ago | in stock: no | final sale: no | member: gold</result>\n<calc>396.16 - 4.99</calc>\n\n<result>391.17</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A729015: I don't need the Toaster anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A729015</order>\n\n<result>order A729015 | item: Toaster | price: 193.60 | shipping: 7.50 | status: delivered | delivered 62 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>193.60 + 7.50</calc>\n\n<result>201.1</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "I'd like to return the Headphones from order A427941. I changed my mind.",
+   "answer": "refund 238.22",
+   "text": "<order>A427941</order>\n\n<result>order A427941 | item: Headphones | price: 238.22 | shipping: 0.00 | status: delivered | delivered 31 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>238.22 + 0.00</calc>\n\n<result>238.22</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A487350: I don't need the Desk Chair anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A487350</order>\n\n<result>order A487350 | item: Desk Chair | price: 220.43 | shipping: 7.50 | status: delivered | delivered 79 days ago | in stock: no | final sale: no | member: gold</result>\n<calc>220.43 + 7.50</calc>\n\n<result>227.93</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A284879: I don't need the Tent anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A284879</order>\n\n<result>order A284879 | item: Tent | price: 189.26 | shipping: 4.99 | status: delivered | delivered 81 days ago | in stock: no | final sale: no | member: gold</result>\n<calc>189.26 + 4.99</calc>\n\n<result>194.25</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A386684: I don't need the Wool Sweater anymore, can I get my money back?",
+   "answer": "refund 335.58",
+   "text": "<order>A386684</order>\n\n<result>order A386684 | item: Wool Sweater | price: 335.58 | shipping: 4.99 | status: delivered | delivered 45 days ago | in stock: no | final sale: no | member: gold</result>\n<calc>335.58 + 4.99</calc>\n\n<result>340.57</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A727854: I don't need the Book Light anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A727854</order>\n\n<result>order A727854 | item: Book Light | price: 239.84 | shipping: 12.00 | status: delivered | delivered 85 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>239.84 + 12.00</calc>\n\n<result>251.84</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A807791: I don't need the Rain Jacket anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A807791</order>\n\n<result>order A807791 | item: Rain Jacket | price: 217.28 | shipping: 4.99 | status: delivered | delivered 83 days ago | in stock: no | final sale: no | member: gold</result>\n<calc>217.28 + 4.99</calc>\n\n<result>222.27</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A238242: I don't need the Headphones anymore, can I get my money back?",
+   "answer": "refund 325.39",
+   "text": "<order>A238242</order>\n\n<result>order A238242 | item: Headphones | price: 325.39 | shipping: 4.99 | status: delivered | delivered 48 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>325.39 - 325.39</calc>\n\n<result>0</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A472220: I don't need the Book Light anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A472220</order>\n\n<result>order A472220 | item: Book Light | price: 169.33 | shipping: 4.99 | status: delivered | delivered 17 days ago | in stock: yes | final sale: yes | member: standard</result>\n<calc>169.33 - 4.99</calc>\n\n<result>164.34</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "I'd like to return the Air Fryer from order A650366. I changed my mind.",
+   "answer": "refund 53.87",
+   "text": "<order>A650366</order>\n\n<result>order A650366 | item: Air Fryer | price: 53.87 | shipping: 12.00 | status: delivered | delivered 45 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>53.87 + 12.00</calc>\n\n<result>65.87</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A281039: I don't need the Wool Sweater anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A281039</order>\n\n<result>order A281039 | item: Wool Sweater | price: 158.57 | shipping: 4.99 | status: delivered | delivered 71 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>158.57 + 4.99</calc>\n\n<result>163.56</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A158395: I don't need the Headphones anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A158395</order>\n\n<result>order A158395 | item: Headphones | price: 325.02 | shipping: 12.00 | status: delivered | delivered 62 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>325.02 + 12.00</calc>\n\n<result>337.02</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 4,
+   "question": "Order A813301: I don't need the Rain Jacket anymore, can I get my money back?",
+   "answer": "deny",
+   "text": "<order>A813301</order>\n\n<result>order A813301 | item: Rain Jacket | price: 76.51 | shipping: 0.00 | status: delivered | delivered 89 days ago | in stock: yes | final sale: no | member: gold</result>\n<calc>76.51 - 76.51</calc>\n\n<result>0</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Hi, my Backpack from order A998288 came damaged. What can you do?",
+   "answer": "deny",
+   "text": "<order>A998288</order>\n\n<result>order A998288 | item: Backpack | price: 248.44 | shipping: 4.99 | status: delivered | delivered 51 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>248.44 + 4.99</calc>\n\n<result>253.43</result>\n<answer>refund 253.43</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "I never received order A452737. Please help.",
+   "answer": "refund 226.96",
+   "text": "<order>A452737</order>\n\n<result>order A452737 | item: Air Fryer | price: 214.96 | shipping: 12.00 | status: in transit | in transit for 16 days | in stock: yes | final sale: no | member: standard</result>\n<calc>214.96 + 12.00</calc>\n\n<result>226.96</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "I never received order A973434. Please help.",
+   "answer": "refund 135.05",
+   "text": "<order>A973434</order>\n\n<result>order A973434 | item: Backpack | price: 123.05 | shipping: 12.00 | status: in transit | in transit for 11 days | in stock: yes | final sale: no | member: standard</result>\n<calc>123.05 + 12.00</calc>\n\n<result>135.05</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Order A758689: the Rain Jacket arrived broken.",
+   "answer": "deny",
+   "text": "<order>A758689</order>\n\n<result>order A758689 | item: Rain Jacket | price: 223.01 | shipping: 12.00 | status: delivered | delivered 53 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>223.01 + 12.00</calc>\n\n<result>235.01</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Where is my Coffee Maker? Order A166147 still hasn't come.",
+   "answer": "deny",
+   "text": "<order>A166147</order>\n\n<result>order A166147 | item: Coffee Maker | price: 39.48 | shipping: 12.00 | status: in transit | in transit for 8 days | in stock: no | final sale: no | member: standard</result>\n<calc>39.48 + 12.00</calc>\n\n<result>51.48</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "I got the wrong item in order A826131. I ordered a Yoga Mat.",
+   "answer": "deny",
+   "text": "<order>A826131</order>\n\n<result>order A826131 | item: Yoga Mat | price: 129.46 | shipping: 7.50 | status: delivered | delivered 46 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>129.46 + 7.50</calc>\n\n<result>136.96</result>\n<answer>refund 136.96</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Where is my Air Fryer? Order A946651 still hasn't come.",
+   "answer": "deny",
+   "text": "<order>A946651</order>\n\n<result>order A946651 | item: Air Fryer | price: 310.80 | shipping: 4.99 | status: in transit | in transit for 5 days | in stock: yes | final sale: no | member: standard</result>\n<calc>310.80 + 4.99</calc>\n\n<result>315.79</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Where is my Yoga Mat? Order A416020 still hasn't come.",
+   "answer": "refund 55.89",
+   "text": "<order>A416020</order>\n\n<result>order A416020 | item: Yoga Mat | price: 48.39 | shipping: 7.50 | status: in transit | in transit for 11 days | in stock: yes | final sale: no | member: standard</result>\n<calc>48.39 + 7.50</calc>\n\n<result>55.89</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Order A392315: the Backpack arrived broken.",
+   "answer": "deny",
+   "text": "<order>A392315</order>\n\n<result>order A392315 | item: Backpack | price: 350.29 | shipping: 0.00 | status: delivered | delivered 61 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>350.29 + 0.00</calc>\n\n<result>350.29</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Order A965659: the Phone Case arrived broken.",
+   "answer": "deny",
+   "text": "<order>A965659</order>\n\n<result>order A965659 | item: Phone Case | price: 72.59 | shipping: 7.50 | status: delivered | delivered 48 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>72.59 + 7.50</calc>\n\n<result>80.09</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Where is my Desk Chair? Order A253277 still hasn't come.",
+   "answer": "refund 381.36",
+   "text": "<order>A253277</order>\n\n<result>order A253277 | item: Desk Chair | price: 369.36 | shipping: 12.00 | status: in transit | in transit for 14 days | in stock: yes | final sale: no | member: standard</result>\n<calc>369.36 + 12.00</calc>\n\n<result>381.36</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Order A983822: the Blender arrived broken.",
+   "answer": "deny",
+   "text": "<order>A983822</order>\n\n<result>order A983822 | item: Blender | price: 226.70 | shipping: 7.50 | status: delivered | delivered 45 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>226.70 + 7.50</calc>\n\n<result>234.2</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "I never received order A542205. Please help.",
+   "answer": "refund 145.67",
+   "text": "<order>A542205</order>\n\n<result>order A542205 | item: Tent | price: 140.68 | shipping: 4.99 | status: in transit | in transit for 13 days | in stock: yes | final sale: no | member: standard</result>\n<calc>140.68 + 4.99</calc>\n\n<result>145.67</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "I got the wrong item in order A608380. I ordered a Toaster.",
+   "answer": "deny",
+   "text": "<order>A608380</order>\n\n<result>order A608380 | item: Toaster | price: 130.52 | shipping: 0.00 | status: delivered | delivered 67 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>130.52 + 0.00</calc>\n\n<result>130.52</result>\n<answer>refund 130.52</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 5,
+   "question": "Where is my Coffee Maker? Order A699765 still hasn't come.",
+   "answer": "refund 356.26",
+   "text": "<order>A699765</order>\n\n<result>order A699765 | item: Coffee Maker | price: 344.26 | shipping: 12.00 | status: in transit | in transit for 13 days | in stock: yes | final sale: no | member: standard</result>\n<calc>344.26 + 12.00</calc>\n\n<result>356.26</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Toaster from order A286634. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 309.98",
+   "text": "<order>A286634</order>\n\n<result>order A286634 | item: Toaster | price: 344.42 | shipping: 0.00 | status: delivered | delivered 14 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>344.42 + 0.00</calc>\n\n<result>344.42</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I never received order A942718. Please help.",
+   "answer": "deny",
+   "text": "<order>A942718</order>\n\n<result>order A942718 | item: Rain Jacket | price: 36.55 | shipping: 0.00 | status: delivered | delivered 9 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>36.55 + 0.00</calc>\n\n<result>36.55</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "Order A162854: I don't need the Wool Sweater anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 290.37",
+   "text": "<order>A162854</order>\n\n<result>order A162854 | item: Wool Sweater | price: 322.63 | shipping: 0.00 | status: delivered | delivered 17 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>322.63 + 0.00</calc>\n\n<result>322.63</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "Order A402350: I don't need the Coffee Maker anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 319.17",
+   "text": "<order>A402350</order>\n\n<result>order A402350 | item: Coffee Maker | price: 354.63 | shipping: 12.00 | status: delivered | delivered 25 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>354.63 + 12.00</calc>\n\n<result>366.63</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "Order A283570: I don't need the Rain Jacket anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 102.76",
+   "text": "<order>A283570</order>\n\n<result>order A283570 | item: Rain Jacket | price: 114.18 | shipping: 7.50 | status: delivered | delivered 15 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>114.18 + 7.50</calc>\n\n<result>121.68</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "Order A758967: I don't need the Tent anymore, can I get my money back? I only got it last week.",
+   "answer": "deny",
+   "text": "<order>A758967</order>\n\n<result>order A758967 | item: Tent | price: 242.76 | shipping: 4.99 | status: delivered | delivered 51 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>242.76 + 4.99</calc>\n\n<result>247.75</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "My order A118926 never arrived.",
+   "answer": "deny",
+   "text": "<order>A118926</order>\n\n<result>order A118926 | item: Rain Jacket | price: 176.82 | shipping: 7.50 | status: delivered | delivered 17 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>176.82 + 7.50</calc>\n\n<result>184.32</result>\n<answer>refund 184.32</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Rain Jacket from order A973779. I changed my mind. I only got it last week.",
+   "answer": "deny",
+   "text": "<order>A973779</order>\n\n<result>order A973779 | item: Rain Jacket | price: 235.87 | shipping: 7.50 | status: delivered | delivered 36 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>235.87 + 7.50</calc>\n\n<result>243.37</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "Where is my Rain Jacket? Order A563700 still hasn't come.",
+   "answer": "deny",
+   "text": "<order>A563700</order>\n\n<result>order A563700 | item: Rain Jacket | price: 215.44 | shipping: 0.00 | status: delivered | delivered 15 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>215.44 + 0.00</calc>\n\n<result>215.44</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I never received order A662121. Please help.",
+   "answer": "deny",
+   "text": "<order>A662121</order>\n\n<result>order A662121 | item: Yoga Mat | price: 85.77 | shipping: 0.00 | status: delivered | delivered 18 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>85.77 + 0.00</calc>\n\n<result>85.77</result>\n<answer>deny</answer>",
+   "reward": 1.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "My order A772741 never arrived.",
+   "answer": "deny",
+   "text": "<order>A772741</order>\n\n<result>order A772741 | item: Wool Sweater | price: 261.98 | shipping: 12.00 | status: delivered | delivered 4 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>261.98 + 12.00</calc>\n\n<result>273.98</result>\n<answer>refund 273.98</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Tent from order A572550. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 283.28",
+   "text": "<order>A572550</order>\n\n<result>order A572550 | item: Tent | price: 314.75 | shipping: 0.00 | status: delivered | delivered 20 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>314.75 + 0.00</calc>\n\n<result>314.75</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "Order A567577: I don't need the Backpack anymore, can I get my money back? I'm a gold member, so no fee please.",
+   "answer": "refund 255.56",
+   "text": "<order>A567577</order>\n\n<result>order A567577 | item: Backpack | price: 283.96 | shipping: 0.00 | status: delivered | delivered 22 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>283.96 + 0.00</calc>\n\n<result>283.96</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Phone Case from order A133857. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 242.12",
+   "text": "<order>A133857</order>\n\n<result>order A133857 | item: Phone Case | price: 269.02 | shipping: 7.50 | status: delivered | delivered 20 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>269.02 + 7.50</calc>\n\n<result>276.52</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  },
+  {
+   "level": 6,
+   "question": "I'd like to return the Air Fryer from order A355634. I changed my mind. I'm a gold member, so no fee please.",
+   "answer": "refund 337.55",
+   "text": "<order>A355634</order>\n\n<result>order A355634 | item: Air Fryer | price: 375.05 | shipping: 7.50 | status: delivered | delivered 25 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>375.05 + 7.50</calc>\n\n<result>382.55</result>\n<answer>deny</answer>",
+   "reward": 0.0,
+   "calls": 2
+  }
+ ]
+}

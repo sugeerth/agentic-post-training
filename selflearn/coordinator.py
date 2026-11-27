@@ -32,6 +32,11 @@ class Learner(Protocol):
     def learn(self, trajs: list) -> dict: ...
 
 
+class Selector(Protocol):
+    def consider(self, step: int) -> None: ...
+    def restore_best(self) -> int: ...
+
+
 @dataclass
 class Coordinator:
     assessor: Assessor
@@ -39,11 +44,14 @@ class Coordinator:
     actor: Actor
     verifier: Verifier
     learner: Learner
+    selector: Selector | None = None   # optional: keep the best checkpoint by validation, restore it at the end
 
     def run(self, steps: int, tasks_per_step: int, group: int, temp: float,
             on_step: Callable[[int, dict], None] | None = None) -> dict:
         before, before_rec = self.assessor.assess("base")
         self.proposer.calibrate(before["by_level"])
+        if self.selector:
+            self.selector.consider(0)
         for step in range(1, steps + 1):
             tasks = self.proposer.propose(tasks_per_step)
             trajs = self.actor.act(tasks, group, temp)
@@ -52,5 +60,9 @@ class Coordinator:
             stats = self.learner.learn(trajs)
             if on_step:
                 on_step(step, {"step": step, "reward": reward, "levels": [t.level for t in tasks], **stats})
+            if self.selector:
+                self.selector.consider(step)
+        selected = self.selector.restore_best() if self.selector else steps
         after, after_rec = self.assessor.assess("trained")
-        return {"before": before, "after": after, "before_records": before_rec, "after_records": after_rec}
+        return {"before": before, "after": after, "before_records": before_rec, "after_records": after_rec,
+                "selected_step": selected}

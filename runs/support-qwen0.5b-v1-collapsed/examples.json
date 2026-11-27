@@ -1,0 +1,150 @@
+{
+ "fixed": [
+  [
+   {
+    "level": 6,
+    "question": "My order A118926 never arrived.",
+    "answer": "deny",
+    "text": "<order>A118926</order>\n\n<result>order A118926 | item: Rain Jacket | price: 176.82 | shipping: 7.50 | status: delivered | delivered 17 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>176.82 + 7.50</calc>\n\n<result>184.32</result>\n<answer>refund 184.32</answer>",
+    "reward": 0.0,
+    "calls": 2
+   },
+   {
+    "level": 6,
+    "question": "My order A118926 never arrived.",
+    "answer": "deny",
+    "text": "<answer>deny</answer>",
+    "reward": 1.0,
+    "calls": 0
+   }
+  ],
+  [
+   {
+    "level": 6,
+    "question": "My order A772741 never arrived.",
+    "answer": "deny",
+    "text": "<order>A772741</order>\n\n<result>order A772741 | item: Wool Sweater | price: 261.98 | shipping: 12.00 | status: delivered | delivered 4 days ago | in stock: no | final sale: no | member: standard</result>\n<calc>261.98 + 12.00</calc>\n\n<result>273.98</result>\n<answer>refund 273.98</answer>",
+    "reward": 0.0,
+    "calls": 2
+   },
+   {
+    "level": 6,
+    "question": "My order A772741 never arrived.",
+    "answer": "deny",
+    "text": "<answer>deny</answer>",
+    "reward": 1.0,
+    "calls": 0
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "Hi, my Backpack from order A998288 came damaged. What can you do?",
+    "answer": "deny",
+    "text": "<order>A998288</order>\n\n<result>order A998288 | item: Backpack | price: 248.44 | shipping: 4.99 | status: delivered | delivered 51 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>248.44 + 4.99</calc>\n\n<result>253.43</result>\n<answer>refund 253.43</answer>",
+    "reward": 0.0,
+    "calls": 2
+   },
+   {
+    "level": 5,
+    "question": "Hi, my Backpack from order A998288 came damaged. What can you do?",
+    "answer": "deny",
+    "text": "<answer>deny</answer>",
+    "reward": 1.0,
+    "calls": 0
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "I got the wrong item in order A826131. I ordered a Yoga Mat.",
+    "answer": "deny",
+    "text": "<order>A826131</order>\n\n<result>order A826131 | item: Yoga Mat | price: 129.46 | shipping: 7.50 | status: delivered | delivered 46 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>129.46 + 7.50</calc>\n\n<result>136.96</result>\n<answer>refund 136.96</answer>",
+    "reward": 0.0,
+    "calls": 2
+   },
+   {
+    "level": 5,
+    "question": "I got the wrong item in order A826131. I ordered a Yoga Mat.",
+    "answer": "deny",
+    "text": "<answer>deny</answer>",
+    "reward": 1.0,
+    "calls": 0
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "I got the wrong item in order A608380. I ordered a Toaster.",
+    "answer": "deny",
+    "text": "<order>A608380</order>\n\n<result>order A608380 | item: Toaster | price: 130.52 | shipping: 0.00 | status: delivered | delivered 67 days ago | in stock: yes | final sale: no | member: standard</result>\n<calc>130.52 + 0.00</calc>\n\n<result>130.52</result>\n<answer>refund 130.52</answer>",
+    "reward": 0.0,
+    "calls": 2
+   },
+   {
+    "level": 5,
+    "question": "I got the wrong item in order A608380. I ordered a Toaster.",
+    "answer": "deny",
+    "text": "<answer>deny</answer>",
+    "reward": 1.0,
+    "calls": 0
+   }
+  ]
+ ],
+ "broken": [
+  [
+   {
+    "level": 1,
+    "question": "My order A174017 never arrived.",
+    "answer": "refund 26.24",
+    "text": "<order>A174017</order>\n\n<result>order A174017 | item: Backpack | price: 14.24 | shipping: 12.00 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>14.24 + 12.00</calc>\n\n<result>26.24</result>\n<answer>refund 26.24</answer>",
+    "reward": 1.0,
+    "calls": 2
+   },
+   {
+    "level": 1,
+    "question": "My order A174017 never arrived.",
+    "answer": "refund 26.24",
+    "text": "<answer>deny</answer>",
+    "reward": 0.0,
+    "calls": 0
+   }
+  ],
+  [
+   {
+    "level": 1,
+    "question": "My order A463049 never arrived.",
+    "answer": "refund 316.13",
+    "text": "<order>A463049</order>\n\n<result>order A463049 | item: Yoga Mat | price: 311.14 | shipping: 4.99 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>311.14 + 4.99</calc>\n\n<result>316.13</result>\n<answer>refund 316.13</answer>",
+    "reward": 1.0,
+    "calls": 2
+   },
+   {
+    "level": 1,
+    "question": "My order A463049 never arrived.",
+    "answer": "refund 316.13",
+    "text": "<answer>deny</answer>",
+    "reward": 0.0,
+    "calls": 0
+   }
+  ],
+  [
+   {
+    "level": 1,
+    "question": "My order A410041 never arrived.",
+    "answer": "refund 123.71",
+    "text": "<order>A410041</order>\n\n<result>order A410041 | item: Air Fryer | price: 118.72 | shipping: 4.99 | status: lost | in stock: yes | final sale: no | member: standard</result>\n<calc>118.72 + 4.99</calc>\n\n<result>123.71</result>\n<answer>refund 123.71</answer>",
+    "reward": 1.0,
+    "calls": 2
+   },
+   {
+    "level": 1,
+    "question": "My order A410041 never arrived.",
+    "answer": "refund 123.71",
+    "text": "<answer>deny</answer>",
+    "reward": 0.0,
+    "calls": 0
+   }
+  ]
+ ]
+}
