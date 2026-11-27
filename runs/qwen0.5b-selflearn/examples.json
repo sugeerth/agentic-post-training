@@ -1,0 +1,222 @@
+{
+ "fixed": [
+  [
+   {
+    "level": 6,
+    "question": "A farm has 1815 eggs. It gives away 1306 eggs. It receives 34 baskets with 16 eggs each. It gets 640 more eggs. It gives away 389 eggs. Then the number of eggs at the farm quadruples. Then the number of eggs at the farm quadruples. How many eggs does the farm have now?",
+    "answer": 20864,
+    "text": "<calc>1815 - 1306 + 34 * 16 + 640 - 389</calc>\n\n<result>1304</result>\n<answer>1304</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 6,
+    "question": "A farm has 1815 eggs. It gives away 1306 eggs. It receives 34 baskets with 16 eggs each. It gets 640 more eggs. It gives away 389 eggs. Then the number of eggs at the farm quadruples. Then the number of eggs at the farm quadruples. How many eggs does the farm have now?",
+    "answer": 20864,
+    "text": "<calc>1815 - 1306 + 34 * 16 + 640 - 389</calc>\n\n<result>1304</result>\n<calc>1304 * 4</calc>\n\n<result>5216</result>\n<calc>5216 * 4</calc>\n\n<result>20864</result>\n<answer>20864</answer>\n\n",
+    "reward": 1.0,
+    "calls": 3
+   }
+  ],
+  [
+   {
+    "level": 6,
+    "question": "A farm has 1200 eggs. Then the number of eggs at the farm quadruples. It receives 31 baskets with 12 eggs each. It gives away 1775 eggs. It receives 39 baskets with 18 eggs each. Then the number of eggs at the farm triples. It gets 985 more eggs. How many eggs does the farm have now?",
+    "answer": 13282,
+    "text": "<calc>1200 * 4</calc>\n\n<result>4800</result>\n<answer>4800</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 6,
+    "question": "A farm has 1200 eggs. Then the number of eggs at the farm quadruples. It receives 31 baskets with 12 eggs each. It gives away 1775 eggs. It receives 39 baskets with 18 eggs each. Then the number of eggs at the farm triples. It gets 985 more eggs. How many eggs does the farm have now?",
+    "answer": 13282,
+    "text": "<calc>1200 * 4 + 31 * 12 - 1775 + 39 * 18</calc>\n\n<result>4099</result>\n<calc>4099 * 3 + 985</calc>\n\n<result>13282</result>\n<answer>13282</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "A warehouse has 9494 boxes. It gives away 1568 boxes. It gets 875 more boxes. It receives 3 trucks with 58 boxes each. Then the number of boxes at the warehouse doubles. It receives 28 trucks with 66 boxes each. How many boxes does the warehouse have now?",
+    "answer": 19798,
+    "text": "<calc>9494 - 1568 + 875 + 3 * 58 + 2 * 66</calc>\n\n<result>9107</result>\n<answer>9107</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 5,
+    "question": "A warehouse has 9494 boxes. It gives away 1568 boxes. It gets 875 more boxes. It receives 3 trucks with 58 boxes each. Then the number of boxes at the warehouse doubles. It receives 28 trucks with 66 boxes each. How many boxes does the warehouse have now?",
+    "answer": 19798,
+    "text": "<calc>9494 - 1568 + 875 + 3 * 58</calc>\n\n<result>8975</result>\n<calc>8975 * 2 + 28 * 66</calc>\n\n<result>19798</result>\n<answer>19798</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "A warehouse has 3080 boxes. It gives away 2056 boxes. It receives 24 trucks with 77 boxes each. It receives 19 trucks with 78 boxes each. It receives 4 trucks with 64 boxes each. Then the number of boxes at the warehouse doubles. How many boxes does the warehouse have now?",
+    "answer": 9220,
+    "text": "<calc>3080 - 2056 + 24 * (77 + 78 + 64)</calc>\n\n<result>6280</result>\n<answer>6280</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 5,
+    "question": "A warehouse has 3080 boxes. It gives away 2056 boxes. It receives 24 trucks with 77 boxes each. It receives 19 trucks with 78 boxes each. It receives 4 trucks with 64 boxes each. Then the number of boxes at the warehouse doubles. How many boxes does the warehouse have now?",
+    "answer": 9220,
+    "text": "<calc>3080 - 2056 + 24 * 77 + 19 * 78 + 4 * 64</calc>\n\n<result>4610</result>\n<calc>4610 * 2</calc>\n\n<result>9220</result>\n<answer>9220</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "A library has 1532 books. It gives away 1024 books. It receives 29 carts with 32 books each. Then the number of books at the library quadruples. It gives away 2350 books. It receives 7 carts with 85 books each. How many books does the library have now?",
+    "answer": 3989,
+    "text": "<calc>1532 - 1024 + (29 * 32)</calc>\n\n<result>1436</result>\n<answer>1436</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 5,
+    "question": "A library has 1532 books. It gives away 1024 books. It receives 29 carts with 32 books each. Then the number of books at the library quadruples. It gives away 2350 books. It receives 7 carts with 85 books each. How many books does the library have now?",
+    "answer": 3989,
+    "text": "<calc>1532 - 1024 + 29 * 32</calc>\n\n<result>1436</result>\n<calc>1436 * 4 - 2350 + 7 * 85</calc>\n\n<result>3989</result>\n<answer>3989</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "A farm has 9489 eggs. It splits the eggs equally into 3 crates and keeps only one of them. It receives 27 baskets with 23 eggs each. It gives away 2101 eggs. It gets 664 more eggs. It receives 23 baskets with 90 eggs each. How many eggs does the farm have now?",
+    "answer": 4417,
+    "text": "To find the number of eggs the farm has now, we need to follow these steps:\n\n1. Calculate the number of eggs in the crates.\n2. Subtract the number of eggs received from the crates.\n3. Subtract the number of eggs given away.\n4. Add the number of eggs received from the baskets.\n5. Add the number of eggs given away.\n6. Add the number of eggs received from the baskets.\n\nLet's start with the initial number of eggs:\n\n1",
+    "reward": 0.0,
+    "calls": 0
+   },
+   {
+    "level": 5,
+    "question": "A farm has 9489 eggs. It splits the eggs equally into 3 crates and keeps only one of them. It receives 27 baskets with 23 eggs each. It gives away 2101 eggs. It gets 664 more eggs. It receives 23 baskets with 90 eggs each. How many eggs does the farm have now?",
+    "answer": 4417,
+    "text": "<calc>9489 / 3 + 27 * 23 - 2101 + 664 + 23 * 90</calc>\n\n<result>4417</result>\n<answer>4417</answer>\n\n",
+    "reward": 1.0,
+    "calls": 1
+   }
+  ],
+  [
+   {
+    "level": 5,
+    "question": "A library has 5279 books. It gives away 1020 books. It gives away 687 books. It gets 629 more books. Then the number of books at the library doubles. It gives away 3437 books. How many books does the library have now?",
+    "answer": 4965,
+    "text": "<calc>5279 - 1020 - 687 + 629 + 3437</calc>\n\n<result>7638</result>\n<answer>7638</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 5,
+    "question": "A library has 5279 books. It gives away 1020 books. It gives away 687 books. It gets 629 more books. Then the number of books at the library doubles. It gives away 3437 books. How many books does the library have now?",
+    "answer": 4965,
+    "text": "<calc>5279 - 1020 - 687 + 629</calc>\n\n<result>4201</result>\n<calc>4201 * 2 - 3437</calc>\n\n<result>4965</result>\n<answer>4965</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ],
+  [
+   {
+    "level": 4,
+    "question": "A school has 555 pencils. It gives away 317 pencils. It receives 35 packs with 62 pencils each. It splits the pencils equally into 4 classrooms and keeps only one of them. It receives 32 packs with 73 pencils each. How many pencils does the school have now?",
+    "answer": 2938,
+    "text": "<calc>555 - 317 + 35 * 62 - 32 * 73</calc>\n\n<result>72</result>\n<answer>72</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 4,
+    "question": "A school has 555 pencils. It gives away 317 pencils. It receives 35 packs with 62 pencils each. It splits the pencils equally into 4 classrooms and keeps only one of them. It receives 32 packs with 73 pencils each. How many pencils does the school have now?",
+    "answer": 2938,
+    "text": "<calc>555 - 317 + 35 * 62</calc>\n\n<result>2408</result>\n<calc>2408 / 4 + 32 * 73</calc>\n\n<result>2938</result>\n<answer>2938</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ],
+  [
+   {
+    "level": 4,
+    "question": "A school has 463 pencils. Then the number of pencils at the school quadruples. It gets 631 more pencils. Then the number of pencils at the school quadruples. Then the number of pencils at the school triples. How many pencils does the school have now?",
+    "answer": 29796,
+    "text": "<calc>463 * 4</calc>\n\n<result>1852</result>\n<answer>1852</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 4,
+    "question": "A school has 463 pencils. Then the number of pencils at the school quadruples. It gets 631 more pencils. Then the number of pencils at the school quadruples. Then the number of pencils at the school triples. How many pencils does the school have now?",
+    "answer": 29796,
+    "text": "<calc>463 * 4 + 631</calc>\n\n<result>2483</result>\n<calc>2483 * 4</calc>\n\n<result>9932</result>\n<calc>9932 * 3</calc>\n\n<result>29796</result>\n<answer>29796</answer>\n\n",
+    "reward": 1.0,
+    "calls": 3
+   }
+  ],
+  [
+   {
+    "level": 4,
+    "question": "A farm has 534 eggs. It gives away 175 eggs. It gives away 223 eggs. It splits the eggs equally into 8 crates and keeps only one of them. It gets 395 more eggs. How many eggs does the farm have now?",
+    "answer": 412,
+    "text": "<calc>534 - 175 - 223 + 395</calc>\n\n<result>531</result>\n<answer>531</answer>",
+    "reward": 0.0,
+    "calls": 1
+   },
+   {
+    "level": 4,
+    "question": "A farm has 534 eggs. It gives away 175 eggs. It gives away 223 eggs. It splits the eggs equally into 8 crates and keeps only one of them. It gets 395 more eggs. How many eggs does the farm have now?",
+    "answer": 412,
+    "text": "<calc>534 - 175 - 223</calc>\n\n<result>136</result>\n<calc>136 / 8 + 395</calc>\n\n<result>412</result>\n<answer>412</answer>\n\n",
+    "reward": 1.0,
+    "calls": 2
+   }
+  ]
+ ],
+ "broken": [
+  [
+   {
+    "level": 4,
+    "question": "A library has 790 books. It gives away 51 books. Then the number of books at the library triples. It splits the books equally into 3 shelves and keeps only one of them. It gives away 407 books. How many books does the library have now?",
+    "answer": 332,
+    "text": "<calc>790 - 51 - 407</calc>\n\n<result>332</result>\n<answer>332</answer>",
+    "reward": 1.0,
+    "calls": 1
+   },
+   {
+    "level": 4,
+    "question": "A library has 790 books. It gives away 51 books. Then the number of books at the library triples. It splits the books equally into 3 shelves and keeps only one of them. It gives away 407 books. How many books does the library have now?",
+    "answer": 332,
+    "text": "<calc>790 - 51</calc>\n\n<result>739</result>\n<calc>739 * 3</calc>\n\n<result>2217</result>\n<calc>2217 - 407</calc>\n\n<result>1810</result>\n<calc>1810</calc>\n\n\n<result>1810</result>\n",
+    "reward": 0.0,
+    "calls": 4
+   }
+  ],
+  [
+   {
+    "level": 4,
+    "question": "A bakery has 637 cookies. It receives 36 trays with 70 cookies each. It receives 6 trays with 36 cookies each. It gets 633 more cookies. It gives away 708 cookies. How many cookies does the bakery have now?",
+    "answer": 3298,
+    "text": "<calc>637 + 36 * 70 + 6 * 36 + 633 - 708</calc>\n\n<result>3298</result>\n<answer>3298</answer>",
+    "reward": 1.0,
+    "calls": 1
+   },
+   {
+    "level": 4,
+    "question": "A bakery has 637 cookies. It receives 36 trays with 70 cookies each. It receives 6 trays with 36 cookies each. It gets 633 more cookies. It gives away 708 cookies. How many cookies does the bakery have now?",
+    "answer": 3298,
+    "text": "<calc>637 + 36 * 70 + 6 * 36 - 708</calc>\n\n<result>2665</result>\n<calc>2665</calc>\n\n\n<result>2665</result>\n<calc>2665 - 708</calc>\n\n<result>1957</result>\n<answer>1957</answer>\n\n",
+    "reward": 0.0,
+    "calls": 3
+   }
+  ]
+ ]
+}

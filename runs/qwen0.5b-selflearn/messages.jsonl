@@ -1,0 +1,245 @@
+{"sender": "Coordinator", "receiver": "all", "text": "model Qwen2.5-0.5B-Instruct-4bit, LoRA 8.8M params, 60 steps", "data": {}, "ts": 1795751455.575966}
+{"sender": "Assessor", "receiver": "Coordinator", "text": "base: held-out accuracy 37.5% (L1 90% L2 75% L3 20% L4 25% L5 10% L6 5%)", "data": {"tag": "base"}, "ts": 1795751473.1323788}
+{"sender": "Curriculum", "receiver": "Coordinator", "text": "practice weights from the baseline: L1 14% L2 22% L3 20% L4 22% L5 14% L6 9%", "data": {}, "ts": 1795751473.132689}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5]", "data": {"levels": [5, 4, 3, 2, 3, 3, 5, 2, 3, 4, 5, 3, 2, 4, 4, 2]}, "ts": 1795751473.1327438}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 0.9 tool calls each", "data": {}, "ts": 1795751496.636786}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.14", "data": {"reward": 0.140625}, "ts": 1795751496.636925}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 6/16 groups, grad norm 0.85", "data": {"informative": 6, "grad_norm": 0.8466722369194031}, "ts": 1795751512.181345}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6]", "data": {"levels": [5, 1, 1, 2, 3, 1, 3, 3, 4, 2, 2, 6, 3, 5, 3, 4]}, "ts": 1795751512.182017}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.0 tool calls each", "data": {}, "ts": 1795751536.6092532}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.25", "data": {"reward": 0.25}, "ts": 1795751536.611687}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 6/16 groups, grad norm 1.68", "data": {"informative": 6, "grad_norm": 1.6800932884216309}, "ts": 1795751547.527659}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 6]", "data": {"levels": [1, 1, 2, 4, 3, 2, 3, 1, 1, 6, 2, 2, 2, 2, 2, 2]}, "ts": 1795751547.5285802}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.1 tool calls each", "data": {}, "ts": 1795751565.841363}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.52", "data": {"reward": 0.5234375}, "ts": 1795751565.841791}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 2.04", "data": {"informative": 4, "grad_norm": 2.0384702682495117}, "ts": 1795751572.045571}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5]", "data": {"levels": [4, 3, 3, 4, 1, 1, 5, 1, 2, 1, 1, 4, 2, 1, 1, 3]}, "ts": 1795751572.04572}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.0 tool calls each", "data": {}, "ts": 1795751591.5691688}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.50", "data": {"reward": 0.5}, "ts": 1795751591.569546}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 4.82", "data": {"informative": 2, "grad_norm": 4.824712753295898}, "ts": 1795751595.2282}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 6, 6, 6]", "data": {"levels": [2, 2, 2, 2, 3, 6, 6, 2, 2, 4, 4, 1, 2, 3, 1, 6]}, "ts": 1795751595.22837}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.0 tool calls each", "data": {}, "ts": 1795751612.125468}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.55", "data": {"reward": 0.5546875}, "ts": 1795751612.125721}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 5.41", "data": {"informative": 4, "grad_norm": 5.414946556091309}, "ts": 1795751618.478713}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 6]", "data": {"levels": [4, 4, 2, 4, 2, 6, 2, 4, 1, 2, 3, 3, 3, 2, 2, 2]}, "ts": 1795751618.478834}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.1 tool calls each", "data": {}, "ts": 1795751637.00989}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.51", "data": {"reward": 0.5078125}, "ts": 1795751637.010211}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 3.24", "data": {"informative": 5, "grad_norm": 3.236778736114502}, "ts": 1795751645.009959}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 5, 5, 6, 6]", "data": {"levels": [2, 4, 2, 3, 3, 3, 6, 6, 5, 5, 3, 3, 3, 2, 2, 1]}, "ts": 1795751645.010185}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.1 tool calls each", "data": {}, "ts": 1795751677.835486}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.16", "data": {"reward": 0.15625}, "ts": 1795751677.835915}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 7/16 groups, grad norm 1.57", "data": {"informative": 7, "grad_norm": 1.5745468139648438}, "ts": 1795751695.680326}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 5, 6, 6]", "data": {"levels": [4, 4, 2, 2, 6, 2, 2, 5, 3, 4, 6, 2, 2, 2, 2, 3]}, "ts": 1795751695.680483}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.4 tool calls each", "data": {}, "ts": 1795751721.719857}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.31", "data": {"reward": 0.3125}, "ts": 1795751721.7204502}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 5.76", "data": {"informative": 2, "grad_norm": 5.758012771606445}, "ts": 1795751725.005824}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 5, 5, 6]", "data": {"levels": [3, 1, 3, 3, 5, 1, 2, 2, 2, 1, 2, 6, 2, 3, 3, 5]}, "ts": 1795751725.006021}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.2 tool calls each", "data": {}, "ts": 1795751745.303246}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.62", "data": {"reward": 0.6171875}, "ts": 1795751745.303927}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 3.79", "data": {"informative": 5, "grad_norm": 3.791933298110962}, "ts": 1795751754.8992488}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 5, 5, 6]", "data": {"levels": [5, 3, 6, 2, 5, 3, 3, 1, 1, 1, 2, 3, 2, 3, 3, 2]}, "ts": 1795751754.899374}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.1 tool calls each", "data": {}, "ts": 1795751776.404477}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.48", "data": {"reward": 0.484375}, "ts": 1795751776.4050088}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 1.83", "data": {"informative": 4, "grad_norm": 1.8323887586593628}, "ts": 1795751782.609097}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 6]", "data": {"levels": [3, 3, 2, 2, 4, 2, 2, 2, 2, 6, 1, 1, 1, 1, 2, 3]}, "ts": 1795751782.632601}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.0 tool calls each", "data": {}, "ts": 1795751800.482761}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.70", "data": {"reward": 0.6953125}, "ts": 1795751800.483499}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 3.87", "data": {"informative": 3, "grad_norm": 3.8715896606445312}, "ts": 1795751804.828254}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6]", "data": {"levels": [4, 6, 5, 2, 1, 3, 3, 2, 1, 2, 4, 6, 2, 5, 1, 3]}, "ts": 1795751804.829171}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.1 tool calls each", "data": {}, "ts": 1795751823.774016}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.48", "data": {"reward": 0.484375}, "ts": 1795751823.7743201}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 4.39", "data": {"informative": 2, "grad_norm": 4.394989967346191}, "ts": 1795751827.239133}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 5, 6]", "data": {"levels": [6, 3, 3, 3, 4, 2, 3, 5, 2, 3, 1, 3, 4, 3, 3, 2]}, "ts": 1795751827.2393012}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.1 tool calls each", "data": {}, "ts": 1795751845.1728861}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.55", "data": {"reward": 0.5546875}, "ts": 1795751845.173156}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 3.05", "data": {"informative": 4, "grad_norm": 3.0529303550720215}, "ts": 1795751852.34348}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 6]", "data": {"levels": [2, 4, 2, 2, 3, 1, 6, 1, 3, 2, 4, 3, 5, 2, 3, 5]}, "ts": 1795751852.3436108}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.5 tool calls each", "data": {}, "ts": 1795751877.09702}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.48", "data": {"reward": 0.4765625}, "ts": 1795751877.098366}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 4.82", "data": {"informative": 2, "grad_norm": 4.816415786743164}, "ts": 1795751881.0791612}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 6]", "data": {"levels": [2, 4, 3, 4, 2, 6, 3, 5, 4, 2, 4, 3, 2, 3, 4, 4]}, "ts": 1795751881.0803862}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.8 tool calls each", "data": {}, "ts": 1795751907.673162}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.30", "data": {"reward": 0.296875}, "ts": 1795751907.6734579}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 3.80", "data": {"informative": 5, "grad_norm": 3.799805164337158}, "ts": 1795751919.22994}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6]", "data": {"levels": [4, 6, 6, 3, 2, 3, 2, 2, 3, 5, 1, 4, 2, 6, 5, 2]}, "ts": 1795751919.230556}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.1 tool calls each", "data": {}, "ts": 1795751952.674365}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.30", "data": {"reward": 0.3046875}, "ts": 1795751952.674937}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 1/16 groups, grad norm 1.70", "data": {"informative": 1, "grad_norm": 1.7044098377227783}, "ts": 1795751954.246351}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 6]", "data": {"levels": [3, 4, 4, 2, 3, 3, 1, 2, 3, 2, 6, 3, 3, 2, 3, 4]}, "ts": 1795751954.246583}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.9 tool calls each", "data": {}, "ts": 1795751981.060423}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.32", "data": {"reward": 0.3203125}, "ts": 1795751981.060717}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 4.20", "data": {"informative": 2, "grad_norm": 4.19575309753418}, "ts": 1795751984.883429}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 6]", "data": {"levels": [6, 4, 3, 4, 4, 2, 4, 5, 3, 3, 3, 2, 4, 2, 4, 3]}, "ts": 1795751984.883557}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.2 tool calls each", "data": {}, "ts": 1795752015.5719738}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.27", "data": {"reward": 0.265625}, "ts": 1795752015.572255}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 8.54", "data": {"informative": 3, "grad_norm": 8.539840698242188}, "ts": 1795752021.514358}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5]", "data": {"levels": [2, 3, 4, 4, 3, 4, 4, 4, 3, 4, 2, 4, 4, 4, 5, 4]}, "ts": 1795752021.5152829}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.3 tool calls each", "data": {}, "ts": 1795752053.534047}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.16", "data": {"reward": 0.15625}, "ts": 1795752053.534434}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 3.34", "data": {"informative": 3, "grad_norm": 3.338189125061035}, "ts": 1795752059.399159}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5]", "data": {"levels": [3, 2, 3, 3, 4, 4, 2, 4, 3, 3, 2, 3, 2, 5, 4, 4]}, "ts": 1795752059.400065}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.9 tool calls each", "data": {}, "ts": 1795752087.678553}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.50", "data": {"reward": 0.5}, "ts": 1795752087.678942}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 3.05", "data": {"informative": 4, "grad_norm": 3.0462305545806885}, "ts": 1795752094.615865}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5]", "data": {"levels": [5, 3, 4, 2, 3, 4, 2, 5, 5, 2, 3, 4, 4, 5, 3, 2]}, "ts": 1795752094.637745}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.6 tool calls each", "data": {}, "ts": 1795752121.012149}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.46", "data": {"reward": 0.4609375}, "ts": 1795752121.0124779}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 3.29", "data": {"informative": 4, "grad_norm": 3.29433274269104}, "ts": 1795752127.797791}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5]", "data": {"levels": [2, 1, 3, 4, 5, 2, 1, 3, 4, 5, 3, 4, 2, 4, 2, 4]}, "ts": 1795752127.798656}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.6 tool calls each", "data": {}, "ts": 1795752149.8210502}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.73", "data": {"reward": 0.7265625}, "ts": 1795752149.8213918}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 1.38", "data": {"informative": 5, "grad_norm": 1.3799526691436768}, "ts": 1795752158.791798}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 6, 6, 6]", "data": {"levels": [4, 4, 1, 3, 3, 6, 3, 1, 4, 2, 6, 4, 4, 4, 6, 3]}, "ts": 1795752158.7930381}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.8 tool calls each", "data": {}, "ts": 1795752183.9317818}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.38", "data": {"reward": 0.375}, "ts": 1795752183.93209}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 1.84", "data": {"informative": 2, "grad_norm": 1.8387070894241333}, "ts": 1795752187.476501}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 5, 5, 6]", "data": {"levels": [4, 4, 2, 4, 3, 3, 5, 4, 4, 3, 3, 4, 2, 4, 5, 6]}, "ts": 1795752187.476639}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.9 tool calls each", "data": {}, "ts": 1795752213.514341}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.41", "data": {"reward": 0.40625}, "ts": 1795752213.514668}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 3.54", "data": {"informative": 4, "grad_norm": 3.5409438610076904}, "ts": 1795752221.129172}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 6, 6]", "data": {"levels": [4, 6, 3, 2, 4, 4, 1, 3, 4, 6, 3, 3, 3, 4, 4, 3]}, "ts": 1795752221.129406}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.1 tool calls each", "data": {}, "ts": 1795752249.585331}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.40", "data": {"reward": 0.3984375}, "ts": 1795752249.585711}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 1/16 groups, grad norm 5.03", "data": {"informative": 1, "grad_norm": 5.03139066696167}, "ts": 1795752251.324517}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5]", "data": {"levels": [2, 2, 5, 2, 2, 3, 4, 2, 3, 2, 4, 5, 4, 3, 2, 3]}, "ts": 1795752251.324694}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.3 tool calls each", "data": {}, "ts": 1795752279.8548899}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.60", "data": {"reward": 0.6015625}, "ts": 1795752279.85516}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 4.84", "data": {"informative": 4, "grad_norm": 4.842614650726318}, "ts": 1795752288.168331}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6]", "data": {"levels": [3, 3, 5, 3, 4, 3, 5, 3, 3, 3, 4, 4, 4, 2, 6, 3]}, "ts": 1795752288.168797}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.0 tool calls each", "data": {}, "ts": 1795752327.010978}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.23", "data": {"reward": 0.234375}, "ts": 1795752327.0114748}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 2.35", "data": {"informative": 4, "grad_norm": 2.3517932891845703}, "ts": 1795752334.2942069}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 6]", "data": {"levels": [5, 4, 3, 3, 3, 3, 4, 4, 3, 6, 3, 3, 2, 4, 3, 4]}, "ts": 1795752334.2954419}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.3 tool calls each", "data": {}, "ts": 1795752369.792022}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.29", "data": {"reward": 0.2890625}, "ts": 1795752369.7924109}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 2.59", "data": {"informative": 5, "grad_norm": 2.58886981010437}, "ts": 1795752380.376374}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 5]", "data": {"levels": [3, 3, 3, 3, 3, 4, 5, 3, 3, 2, 3, 2, 4, 3, 2, 2]}, "ts": 1795752380.376639}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.7 tool calls each", "data": {}, "ts": 1795752412.382643}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.65", "data": {"reward": 0.6484375}, "ts": 1795752412.383136}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 6/16 groups, grad norm 1.74", "data": {"informative": 6, "grad_norm": 1.73773193359375}, "ts": 1795752424.076104}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 5, 5, 6]", "data": {"levels": [3, 3, 3, 2, 3, 5, 6, 2, 3, 1, 2, 3, 3, 3, 4, 5]}, "ts": 1795752424.077139}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.8 tool calls each", "data": {}, "ts": 1795752457.247381}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.73", "data": {"reward": 0.7265625}, "ts": 1795752457.247815}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 1.72", "data": {"informative": 3, "grad_norm": 1.7208999395370483}, "ts": 1795752463.0561962}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5]", "data": {"levels": [5, 3, 2, 3, 5, 3, 5, 3, 4, 5, 5, 3, 1, 4, 3, 1]}, "ts": 1795752463.081643}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.8 tool calls each", "data": {}, "ts": 1795752496.279466}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.49", "data": {"reward": 0.4921875}, "ts": 1795752496.279906}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 3.44", "data": {"informative": 5, "grad_norm": 3.4391705989837646}, "ts": 1795752506.5005}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 6]", "data": {"levels": [5, 3, 4, 4, 3, 3, 1, 6, 3, 5, 3, 3, 3, 2, 5, 5]}, "ts": 1795752506.500752}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.1 tool calls each", "data": {}, "ts": 1795752541.662078}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.44", "data": {"reward": 0.4375}, "ts": 1795752541.6624599}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 1.66", "data": {"informative": 5, "grad_norm": 1.6641840934753418}, "ts": 1795752550.9435441}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 6]", "data": {"levels": [3, 3, 5, 5, 3, 5, 5, 6, 3, 5, 5, 3, 4, 2, 4, 3]}, "ts": 1795752550.944064}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.0 tool calls each", "data": {}, "ts": 1795752584.578499}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.30", "data": {"reward": 0.3046875}, "ts": 1795752584.578927}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 1.50", "data": {"informative": 3, "grad_norm": 1.5003690719604492}, "ts": 1795752590.150501}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 5, 5, 6]", "data": {"levels": [5, 2, 3, 6, 3, 5, 3, 3, 2, 3, 3, 3, 3, 2, 5, 3]}, "ts": 1795752590.151107}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.5 tool calls each", "data": {}, "ts": 1795752621.271898}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.58", "data": {"reward": 0.578125}, "ts": 1795752621.272435}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 1.82", "data": {"informative": 5, "grad_norm": 1.8229573965072632}, "ts": 1795752629.792852}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 2, 3, 3, 3, 3, 3, 3, 3, 4, 5, 6, 6, 6]", "data": {"levels": [2, 4, 3, 1, 3, 1, 3, 1, 3, 6, 6, 3, 3, 3, 6, 5]}, "ts": 1795752629.794106}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.8 tool calls each", "data": {}, "ts": 1795752660.157729}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.57", "data": {"reward": 0.5703125}, "ts": 1795752660.158031}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 1.72", "data": {"informative": 3, "grad_norm": 1.719618797302246}, "ts": 1795752665.919601}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 3, 3, 4, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6]", "data": {"levels": [2, 6, 5, 5, 3, 6, 3, 5, 5, 6, 6, 4, 5, 5, 2, 5]}, "ts": 1795752665.922125}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.1 tool calls each", "data": {}, "ts": 1795752701.447225}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.12", "data": {"reward": 0.1171875}, "ts": 1795752701.447666}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 2.51", "data": {"informative": 2, "grad_norm": 2.513920545578003}, "ts": 1795752705.284927}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 4, 6, 6]", "data": {"levels": [3, 2, 2, 1, 3, 1, 1, 6, 3, 6, 2, 4, 2, 2, 3, 1]}, "ts": 1795752705.2850711}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.3 tool calls each", "data": {}, "ts": 1795752732.005076}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.79", "data": {"reward": 0.7890625}, "ts": 1795752732.005374}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 2.76", "data": {"informative": 2, "grad_norm": 2.763042688369751}, "ts": 1795752735.5599658}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5]", "data": {"levels": [4, 4, 4, 5, 4, 4, 3, 5, 4, 3, 3, 3, 5, 3, 3, 3]}, "ts": 1795752735.5600839}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.9 tool calls each", "data": {}, "ts": 1795752767.629029}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.48", "data": {"reward": 0.484375}, "ts": 1795752767.6301582}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 6/16 groups, grad norm 1.84", "data": {"informative": 6, "grad_norm": 1.842989444732666}, "ts": 1795752778.653552}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 6]", "data": {"levels": [5, 6, 3, 2, 4, 3, 3, 4, 4, 4, 4, 3, 2, 3, 4, 3]}, "ts": 1795752778.65534}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.0 tool calls each", "data": {}, "ts": 1795752810.5347168}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.45", "data": {"reward": 0.4453125}, "ts": 1795752810.535037}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 5.73", "data": {"informative": 2, "grad_norm": 5.727362632751465}, "ts": 1795752814.0253482}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 6, 6, 6, 6]", "data": {"levels": [6, 6, 4, 6, 6, 3, 3, 5, 4, 2, 4, 3, 3, 4, 3, 3]}, "ts": 1795752814.02547}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.9 tool calls each", "data": {}, "ts": 1795752848.385449}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.38", "data": {"reward": 0.3828125}, "ts": 1795752848.3857338}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 1.20", "data": {"informative": 4, "grad_norm": 1.1959956884384155}, "ts": 1795752857.100841}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5]", "data": {"levels": [3, 3, 3, 4, 4, 4, 3, 5, 3, 3, 3, 3, 4, 4, 1, 2]}, "ts": 1795752857.129156}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.6 tool calls each", "data": {}, "ts": 1795752887.6148238}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.74", "data": {"reward": 0.7421875}, "ts": 1795752887.615392}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 1/16 groups, grad norm 2.35", "data": {"informative": 1, "grad_norm": 2.345336675643921}, "ts": 1795752889.554065}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 6, 6]", "data": {"levels": [4, 4, 5, 4, 5, 4, 2, 4, 5, 4, 6, 4, 4, 6, 4, 4]}, "ts": 1795752889.5542028}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.0 tool calls each", "data": {}, "ts": 1795752922.4619892}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.10", "data": {"reward": 0.1015625}, "ts": 1795752922.462262}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 2.92", "data": {"informative": 2, "grad_norm": 2.9172513484954834}, "ts": 1795752926.198078}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 6]", "data": {"levels": [6, 2, 1, 1, 3, 4, 2, 3, 2, 2, 1, 4, 4, 1, 4, 3]}, "ts": 1795752926.198195}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 1.9 tool calls each", "data": {}, "ts": 1795752950.171382}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.86", "data": {"reward": 0.859375}, "ts": 1795752950.1716878}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 1.14", "data": {"informative": 2, "grad_norm": 1.1399637460708618}, "ts": 1795752954.0292401}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 6]", "data": {"levels": [2, 4, 4, 3, 6, 4, 2, 4, 5, 4, 5, 4, 4, 4, 2, 4]}, "ts": 1795752954.030505}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.5 tool calls each", "data": {}, "ts": 1795752983.810189}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.34", "data": {"reward": 0.3359375}, "ts": 1795752983.810525}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 1.34", "data": {"informative": 4, "grad_norm": 1.3369067907333374}, "ts": 1795752991.78335}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 6, 6, 6]", "data": {"levels": [4, 4, 4, 4, 4, 5, 1, 5, 2, 6, 4, 4, 6, 4, 1, 6]}, "ts": 1795752991.786047}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.5 tool calls each", "data": {}, "ts": 1795753024.642189}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.62", "data": {"reward": 0.6171875}, "ts": 1795753024.642626}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 1.87", "data": {"informative": 3, "grad_norm": 1.8708847761154175}, "ts": 1795753030.340651}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5]", "data": {"levels": [5, 2, 2, 2, 2, 4, 4, 2, 3, 4, 5, 3, 5, 4, 4, 4]}, "ts": 1795753030.3407931}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.3 tool calls each", "data": {}, "ts": 1795753057.5924969}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.59", "data": {"reward": 0.5859375}, "ts": 1795753057.5927732}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 5/16 groups, grad norm 2.25", "data": {"informative": 5, "grad_norm": 2.247249126434326}, "ts": 1795753069.389031}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 5]", "data": {"levels": [5, 3, 3, 3, 4, 3, 5, 3, 4, 3, 5, 3, 3, 5, 4, 5]}, "ts": 1795753069.390492}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.2 tool calls each", "data": {}, "ts": 1795753099.755944}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.85", "data": {"reward": 0.8515625}, "ts": 1795753099.7563179}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 2.32", "data": {"informative": 3, "grad_norm": 2.3167006969451904}, "ts": 1795753105.430829}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6]", "data": {"levels": [5, 3, 4, 2, 5, 2, 6, 5, 4, 4, 1, 6, 5, 4, 6, 4]}, "ts": 1795753105.43234}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.1 tool calls each", "data": {}, "ts": 1795753135.5398421}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.48", "data": {"reward": 0.484375}, "ts": 1795753135.540193}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 3.88", "data": {"informative": 2, "grad_norm": 3.875950813293457}, "ts": 1795753139.167215}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 2, 3, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6]", "data": {"levels": [2, 6, 5, 4, 5, 2, 6, 6, 6, 2, 6, 3, 4, 5, 6, 5]}, "ts": 1795753139.167386}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.0 tool calls each", "data": {}, "ts": 1795753167.3360279}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.49", "data": {"reward": 0.4921875}, "ts": 1795753167.336334}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 3.03", "data": {"informative": 4, "grad_norm": 3.030465841293335}, "ts": 1795753178.102957}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 6, 6]", "data": {"levels": [5, 5, 6, 5, 4, 6, 3, 5, 5, 4, 5, 4, 5, 3, 4, 4]}, "ts": 1795753178.104477}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.2 tool calls each", "data": {}, "ts": 1795753211.642082}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.34", "data": {"reward": 0.34375}, "ts": 1795753211.6426082}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 4.11", "data": {"informative": 2, "grad_norm": 4.11052942276001}, "ts": 1795753216.0300622}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6]", "data": {"levels": [4, 5, 4, 5, 5, 6, 5, 3, 2, 6, 4, 4, 5, 1, 6, 2]}, "ts": 1795753216.05825}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.4 tool calls each", "data": {}, "ts": 1795753249.9763541}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.34", "data": {"reward": 0.3359375}, "ts": 1795753249.976867}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 4/16 groups, grad norm 2.16", "data": {"informative": 4, "grad_norm": 2.1636548042297363}, "ts": 1795753260.046378}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 5, 5, 6, 6]", "data": {"levels": [4, 3, 5, 5, 4, 2, 1, 3, 2, 2, 6, 6, 4, 4, 4, 1]}, "ts": 1795753260.047786}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.0 tool calls each", "data": {}, "ts": 1795753289.632504}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.69", "data": {"reward": 0.6875}, "ts": 1795753289.632876}
+{"sender": "Learner", "receiver": "Coordinator", "text": "no update: all 16 groups agreed (no signal)", "data": {"informative": 0, "grad_norm": 0.0}, "ts": 1795753289.632936}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 6]", "data": {"levels": [2, 5, 3, 5, 5, 5, 4, 5, 3, 5, 1, 3, 2, 4, 3, 6]}, "ts": 1795753289.633016}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.4 tool calls each", "data": {}, "ts": 1795753320.058963}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.53", "data": {"reward": 0.53125}, "ts": 1795753320.059226}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 1/16 groups, grad norm 5.30", "data": {"informative": 1, "grad_norm": 5.296417713165283}, "ts": 1795753322.267435}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 6, 6]", "data": {"levels": [6, 4, 6, 4, 3, 5, 5, 5, 3, 5, 5, 4, 5, 4, 5, 3]}, "ts": 1795753322.267562}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.1 tool calls each", "data": {}, "ts": 1795753352.462035}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.63", "data": {"reward": 0.6328125}, "ts": 1795753352.462316}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 2.59", "data": {"informative": 2, "grad_norm": 2.5850706100463867}, "ts": 1795753356.9697}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6]", "data": {"levels": [2, 4, 5, 6, 4, 2, 4, 3, 6, 1, 3, 5, 5, 2, 5, 5]}, "ts": 1795753356.9711292}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.5 tool calls each", "data": {}, "ts": 1795753395.744456}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.50", "data": {"reward": 0.5}, "ts": 1795753395.744865}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 3.43", "data": {"informative": 3, "grad_norm": 3.433178424835205}, "ts": 1795753402.258466}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 3, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6]", "data": {"levels": [5, 5, 5, 5, 5, 2, 5, 2, 5, 6, 5, 4, 4, 3, 5, 4]}, "ts": 1795753402.259263}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.7 tool calls each", "data": {}, "ts": 1795753437.6988769}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.55", "data": {"reward": 0.5546875}, "ts": 1795753437.699326}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 1/16 groups, grad norm 3.92", "data": {"informative": 1, "grad_norm": 3.9185469150543213}, "ts": 1795753439.938485}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5]", "data": {"levels": [5, 5, 5, 5, 5, 4, 1, 5, 3, 1, 4, 2, 3, 4, 4, 4]}, "ts": 1795753439.938665}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.5 tool calls each", "data": {}, "ts": 1795753470.314079}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.57", "data": {"reward": 0.5703125}, "ts": 1795753470.31443}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 4.48", "data": {"informative": 3, "grad_norm": 4.483516693115234}, "ts": 1795753478.21232}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 6, 6]", "data": {"levels": [4, 4, 3, 5, 4, 5, 6, 4, 1, 4, 2, 4, 6, 4, 2, 4]}, "ts": 1795753478.2132108}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 2.5 tool calls each", "data": {}, "ts": 1795753512.091671}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.44", "data": {"reward": 0.4375}, "ts": 1795753512.0922382}
+{"sender": "Learner", "receiver": "Coordinator", "text": "no update: all 16 groups agreed (no signal)", "data": {"informative": 0, "grad_norm": 0.0}, "ts": 1795753512.0923321}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [2, 2, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 6]", "data": {"levels": [5, 5, 2, 4, 5, 6, 3, 2, 4, 4, 5, 5, 5, 4, 5, 4]}, "ts": 1795753512.092454}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.0 tool calls each", "data": {}, "ts": 1795753548.002421}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.32", "data": {"reward": 0.3203125}, "ts": 1795753548.002718}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 3/16 groups, grad norm 3.80", "data": {"informative": 3, "grad_norm": 3.7964749336242676}, "ts": 1795753555.2688}
+{"sender": "Curriculum", "receiver": "Actor", "text": "practise levels [1, 2, 2, 2, 2, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6]", "data": {"levels": [4, 2, 5, 3, 6, 4, 4, 2, 1, 2, 2, 5, 4, 5, 5, 4]}, "ts": 1795753555.2707882}
+{"sender": "Actor", "receiver": "Verifier", "text": "128 attempts, 3.0 tool calls each", "data": {}, "ts": 1795753592.5655549}
+{"sender": "Verifier", "receiver": "Learner", "text": "mean reward 0.48", "data": {"reward": 0.484375}, "ts": 1795753592.568595}
+{"sender": "Learner", "receiver": "Coordinator", "text": "updated on 2/16 groups, grad norm 7.71", "data": {"informative": 2, "grad_norm": 7.705441474914551}, "ts": 1795753596.363264}
+{"sender": "Assessor", "receiver": "Coordinator", "text": "trained: held-out accuracy 60.0% (L1 100% L2 95% L3 70% L4 45% L5 35% L6 15%)", "data": {"tag": "trained"}, "ts": 1795753625.88451}
+{"sender": "Coordinator", "receiver": "all", "text": "done: 37.5% -> 60.0% held-out, fixed 29, broke 2 | runs/qwen0.5b-selflearn", "data": {}, "ts": 1795753625.8944068}
