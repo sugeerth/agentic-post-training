@@ -9,6 +9,118 @@
 
 A modular framework where specialized AI agents coordinate to execute post-training pipelines — from technique selection through training, optimization, and evaluation. Agents communicate via a structured message bus, making the entire process observable and debuggable.
 
+## Self-learning agentic RL post-training (real training, runs on a Mac)
+
+**Live:** the [web demo's first tab](https://sugeerth.github.io/agentic-post-training/demo.html) replays every held-out problem (base vs trained) and the agents' real message log.
+
+A small model teaches itself to use a calculator tool on multi-step word problems, with **no human labels**:
+it tests itself, picks what to practise, attempts problems with the tool, has its answers checked, and updates
+its own weights with GRPO. Unlike the simulated pipeline further down, **every number in this section is measured.**
+
+![architecture](docs/selflearn-architecture.svg)
+
+| Agent | One job | File |
+|---|---|---|
+| Assessor | greedy accuracy on a fixed held-out set, per difficulty level | `selflearn/agents.py` |
+| Curriculum | samples levels with probability ∝ `1 − pᴳ − (1 − p)ᴳ`: the chance a group of its own attempts disagrees, i.e. carries GRPO signal | `selflearn/curriculum.py` |
+| Actor | multi-turn tool use: `<calc>…</calc>` → `<result>…</result>` → `<answer>…</answer>` | `selflearn/rollout.py`, `selflearn/tools.py` |
+| Verifier | binary, exact reward from the final answer | `selflearn/verifier.py` |
+| Learner | GRPO: group-relative advantages, groups with no spread dropped, loss only on model-written tokens | `selflearn/grpo.py` |
+
+Agents report on a small message bus (`selflearn/bus.py`, logged to `messages.jsonl`):
+
+```
+[19:50:55] Coordinator → all         model Qwen2.5-0.5B-Instruct-4bit, LoRA 8.8M params, 60 steps
+[19:51:13]   Assessor → Coordinator base: held-out accuracy 37.5% (L1 90% L2 75% L3 20% L4 25% L5 10% L6 5%)
+[19:51:13] Curriculum → Coordinator practice weights from the baseline: L1 14% L2 22% L3 20% L4 22% L5 14% L6 9%
+[19:51:13] Curriculum → Actor       practise levels [2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5]
+[19:51:36]      Actor → Verifier    128 attempts, 0.9 tool calls each
+[19:51:36]   Verifier → Learner     mean reward 0.14
+[19:51:52]    Learner → Coordinator updated on 6/16 groups, grad norm 0.85
+   ...
+[20:27:05]   Assessor → Coordinator trained: held-out accuracy 60.0% (L1 100% L2 95% L3 70% L4 45% L5 35% L6 15%)
+[20:27:05] Coordinator → all         done: 37.5% -> 60.0% held-out, fixed 29, broke 2 | runs/qwen0.5b-selflearn
+```
+
+### Result: Qwen2.5-0.5B-Instruct-4bit, 60 steps, Apple M3 Pro, 36 minutes
+
+Same 120 held-out problems before and after, greedy decoding:
+
+| | base | after self-learning |
+|---|---|---|
+| **accuracy** | **37.5%** | **60.0%** |
+| level 1 | 90% | 100% |
+| level 2 | 75% | 95% |
+| level 3 | 20% | 70% |
+| level 4 | 25% | 45% |
+| level 5 | 10% | 35% |
+| level 6 | 5% | 15% |
+| used the calculator | 95% | 100% |
+
+Fixed **29** problems, broke **2**. Full report: [`runs/qwen0.5b-selflearn/REPORT.md`](runs/qwen0.5b-selflearn/REPORT.md)
+
+![self-learning report](runs/qwen0.5b-selflearn/report.png)
+
+**Example (level 6, answer 20864).** A farm has 1815 eggs. It gives away 1306 eggs. It receives 34 baskets with 16 eggs each. It gets 640 more eggs. It gives away 389 eggs. Then the number of eggs at the farm quadruples. Then the number of eggs at the farm quadruples. How many eggs does the farm have now?
+
+```
+BASE MODEL (wrong)
+<calc>1815 - 1306 + 34 * 16 + 640 - 389</calc>
+
+<result>1304</result>
+<answer>1304</answer>
+
+AFTER SELF-LEARNING (right)
+<calc>1815 - 1306 + 34 * 16 + 640 - 389</calc>
+
+<result>1304</result>
+<calc>1304 * 4</calc>
+
+<result>5216</result>
+<calc>5216 * 4</calc>
+
+<result>20864</result>
+<answer>20864</answer>
+```
+
+**What it learned.** Calculator calls per problem went from 0.97 to 2.50. The base model often answers after its first
+calculation and drops the remaining steps; after self-learning it keeps calling the tool until every step is done.
+
+**Live check on a new question** (in neither the training data nor the held-out set; answer 5110):
+
+```
+$ python3 -m selflearn.demo --adapter runs/qwen0.5b-selflearn/adapter --answer 5110 --question "A bakery has 2400 cookies.
+  It gives away 950 cookies. It receives 25 trays with 36 cookies each. Then the number of cookies at the bakery doubles.
+  It gets 410 more cookies. How many cookies does the bakery have now?"
+
+=== BASE MODEL  -> wrong                       (skipped the "doubles" step)
+<calc>2400 - 950 + 25 * 36 + 410</calc>  <result>2760</result>  <answer>2760</answer>
+
+=== AFTER SELF-LEARNING  -> correct
+<calc>2400 - 950 + 25 * 36</calc>  <result>2350</result>
+<calc>2350 * 2 + 410</calc>  <result>5110</result>
+<calc>5110</calc>  <result>5110</result>  <answer>5110</answer>      (one redundant check, a habit it picked up)
+```
+
+**Limits.** One seed, one small model, synthetic word problems. With 120 held-out problems each accuracy has about
+±4.5 points of sampling error, so the 22.5-point gain is well outside noise; other tasks need their own runs.
+
+### Run it
+
+```bash
+pip install mlx-lm matplotlib                     # Apple silicon
+python3 -m selflearn.train --smoke                # 1 minute: checks the plumbing
+python3 -m selflearn.train --steps 60             # the run above
+python3 -m selflearn.report runs/<run>            # REPORT.md + report.png
+python3 -m selflearn.demo --adapter runs/<run>/adapter --question "A farm has 120 eggs. ..."
+python3 -m selflearn.publish runs/<run>           # updates the "Self-Learning (real run)" tab of the web demo
+python3 -m pytest tests/test_selflearn.py         # 9 fast tests, no model needed
+```
+
+Design notes: the Coordinator imports no ML library and is tested with fake agents; tools are a registry
+(add one entry to add a tool); LoRA scale 2 (mlx's default of 20 collapsed the policy in one step in a smoke test);
+one on-policy update per batch, so no PPO clipping or KL term is needed at this scale.
+
 ## Architecture
 
 ```
