@@ -1,0 +1,15 @@
+{
+ "usecase": "support",
+ "model": "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+ "steps": 60,
+ "tasks": 16,
+ "group": 8,
+ "lr": 2e-05,
+ "rank": 16,
+ "scale": 2.0,
+ "temp": 1.0,
+ "max_turns": 4,
+ "eval_per_level": 0,
+ "seed": 0,
+ "out": "runs/support-qwen0.5b"
+}

@@ -13,9 +13,11 @@ A modular framework where specialized AI agents coordinate to execute post-train
 
 **Live:** the [web demo's first tab](https://sugeerth.github.io/agentic-post-training/demo.html) replays every held-out problem (base vs trained) and the agents' real message log.
 
-A small model teaches itself to use a calculator tool on multi-step word problems, with **no human labels**:
-it tests itself, picks what to practise, attempts problems with the tool, has its answers checked, and updates
-its own weights with GRPO. Unlike the simulated pipeline further down, **every number in this section is measured.**
+A small model teaches itself to use tools, with **no human labels**: it tests itself, picks what to practise,
+attempts problems with its tools, has its answers checked, and updates its own weights with GRPO. Two use cases run
+on the same agents: **word problems with a calculator** (37.5% → 60.0% held-out) and **a customer-support agent that
+decides refunds** (43.3% → 60.0%, after three honest failed runs). Unlike the simulated pipeline further down,
+**every number in this section is measured.**
 
 ![architecture](docs/selflearn-architecture.svg)
 
@@ -42,7 +44,7 @@ Agents report on a small message bus (`selflearn/bus.py`, logged to `messages.js
 [20:27:05] Coordinator → all         done: 37.5% -> 60.0% held-out, fixed 29, broke 2 | runs/qwen0.5b-selflearn
 ```
 
-### Result: Qwen2.5-0.5B-Instruct-4bit, 60 steps, Apple M3 Pro, 36 minutes
+### Use case 1: word problems with a calculator (Qwen2.5-0.5B-Instruct-4bit, 60 steps, Apple M3 Pro, 36 minutes)
 
 Same 120 held-out problems before and after, greedy decoding:
 
@@ -105,16 +107,87 @@ $ python3 -m selflearn.demo --adapter runs/qwen0.5b-selflearn/adapter --answer 5
 **Limits.** One seed, one small model, synthetic word problems. With 120 held-out problems each accuracy has about
 ±4.5 points of sampling error, so the 22.5-point gain is well outside noise; other tasks need their own runs.
 
+### Use case 2: a customer-support agent that decides refunds
+
+Same agents, same loop, a different `UseCase` (`selflearn/usecases/support.py`). A customer writes in about an order;
+the agent looks it up with an `<order>` tool, does arithmetic with `<calc>`, applies a four-rule refund policy, and
+answers `refund AMOUNT`, `replace` or `deny`. A reference implementation of the policy scores the decision, so there
+are still no human labels. Levels go from a lost package (look up, add price + shipping) to cases where the
+customer's message contradicts the order record (the record wins). Levels 3-6 are built about half refund, half deny,
+and a test enforces it, so a constant answer cannot score well.
+
+**What happened, honestly.** The first three runs collapsed onto a single answer, which is the classic way RL on a
+small model fails:
+
+| run | change | held-out accuracy | what the agent learned |
+|---|---|---|---|
+| v1 | 0.5B, plain 0/1 reward | 31.1% → 33.3% | answer **"deny" to everything**, without looking anything up (33.3% = the share of deny cases) |
+| v2 | + no credit without a lookup, 0.5 for the right action with a wrong amount | 31.1% → 24.4% | look every order up, then answer **"refund" to everything** (partial credit made it pay) |
+| v3 | 1.5B model, same reward | stopped at step 21 | attempts stopped disagreeing after step 9 (0-3 of 16 groups carried signal), success estimates falling |
+| v4 | 1.5B + KL anchor to the base model, half the learning rate, best checkpoint chosen on a validation set | 43.3% → **60.0%** | a real policy: answers spread over refund / replace / deny, every order looked up |
+
+![collapse](docs/selflearn-support-runs.png)
+
+The left panel is the tell: the share of groups whose attempts disagree (the only groups GRPO can learn from) falls
+to about zero within 5-10 steps in the collapsed runs. The right panel shows what the agent ends up answering.
+
+Fixes that are now part of the framework, all optional flags:
+- `--kl 0.04`: a KL penalty to the base model, computed with the same weights by setting every LoRA scale to 0 (no
+  second copy of the model).
+- `--select-every 5`: a Selector agent scores a separate validation set every 5 steps and restores the best
+  checkpoint before the final test, so a late collapse cannot ship. Step 0 (the untouched model) is a candidate, so
+  the result is never worse on validation than where it started.
+- The support reward: no decision without a successful lookup (policy rule 1), partial credit for the right action.
+
+**Result (v4): Qwen2.5-1.5B-Instruct-4bit, 30 steps, Apple M3 Pro, 108 minutes.** Same 90 held-out cases, greedy:
+
+| | base | after self-learning |
+|---|---|---|
+| **accuracy** | **43.3%** | **60.0%** |
+| level 1 (lost package) | 47% | 100% |
+| level 2 (damaged item) | 27% | 53% |
+| level 3 (changed mind, 10% fee) | 27% | 27% |
+| level 4 (gold member / final sale) | 67% | 67% |
+| level 5 (in-transit timing) | 47% | 40% |
+| level 6 (message contradicts the record) | 47% | 73% |
+
+Fixed 25, broke 10 (paired McNemar test p ≈ 0.01). Validation accuracy rose 50.0% → 69.4% and the Selector kept
+step 30. It chose "refund" on 29 of the 52 refund cases (base: 11); the base model said "deny" to 73 of 90 cases.
+Full report: [`runs/support-qwen1.5b/REPORT.md`](runs/support-qwen1.5b/REPORT.md)
+
+**Live check on fresh cases** (`python3 -m selflearn.demo --adapter runs/support-qwen1.5b/adapter --level 6 --seed 99`):
+
+```
+Customer: Order A728557: I don't need the Coffee Maker anymore, can I get my money back? I'm a gold member, so no fee please.
+(correct: refund 73.24)
+
+=== BASE MODEL  -> wrong
+<order>A728557</order>  <result>... price: 81.38 | ... delivered 7 days ago | ... member: standard</result>
+<answer>deny</answer>
+
+=== AFTER SELF-LEARNING  -> correct          (trusts the record, not the claim: standard member, 10% fee)
+<order>A728557</order>  <result>... price: 81.38 | ... delivered 7 days ago | ... member: standard</result>
+<calc>81.38 - (81.38 * 0.10)</calc>  <result>73.242</result>  <answer>refund 73.24</answer>
+```
+
+Seeds 99, 100 and 101 were all run: the trained agent got 3 of 3, the base model 1 of 3.
+
+**What is still wrong.** It now over-uses "replace" (14 of its 22 replace answers are wrong), level 5 timing rules got
+slightly worse, and levels 3-4 did not move. One seed, 90 held-out cases: about ±5 points of sampling error per accuracy.
+
 ### Run it
 
 ```bash
 pip install mlx-lm matplotlib                     # Apple silicon
 python3 -m selflearn.train --smoke                # 1 minute: checks the plumbing
-python3 -m selflearn.train --steps 60             # the run above
+python3 -m selflearn.train --steps 60             # use case 1 (math), the run above
+python3 -m selflearn.train --usecase support --model mlx-community/Qwen2.5-1.5B-Instruct-4bit \
+    --steps 30 --kl 0.04 --lr 1e-5 --select-every 5      # use case 2 (support), v4 above
+python3 -m selflearn.compare runs/a runs/b --out runs.png   # learning signal + decision mix across runs
 python3 -m selflearn.report runs/<run>            # REPORT.md + report.png
 python3 -m selflearn.demo --adapter runs/<run>/adapter --question "A farm has 120 eggs. ..."
 python3 -m selflearn.publish runs/<run>           # updates the "Self-Learning (real run)" tab of the web demo
-python3 -m pytest tests/test_selflearn.py         # 9 fast tests, no model needed
+python3 -m pytest tests/test_selflearn.py         # 12 fast tests, no model needed
 ```
 
 Design notes: the Coordinator imports no ML library and is tested with fake agents; tools are a registry

@@ -18,8 +18,8 @@
   <rect x="30" y="64" width="1155" height="66" rx="10" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
   <text x="48" y="90" class="t">Coordinator</text>
   <text x="48" y="114" class="m" font-size="13" fill="#3730a3">assess → calibrate → [ propose → act → verify → observe → learn ] × N → re-assess</text>
-  <text x="1167" y="90" class="e" text-anchor="end">depends only on 5 role interfaces (Protocols)</text>
-  <text x="1167" y="110" class="e" text-anchor="end">tested with fake agents, no model needed</text>
+  <text x="1167" y="90" class="e" text-anchor="end">depends only on role interfaces (Protocols); tested with fake agents</text>
+  <text x="1167" y="110" class="e" text-anchor="end">optional Selector: keeps the best checkpoint by a validation set</text>
 
   <!-- Agents -->
   <text x="30" y="156" class="lab">AGENTS · ONE JOB EACH</text>
@@ -31,12 +31,12 @@
   <g>
     <rect x="275" y="164" width="175" height="104" rx="10" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
     <text x="287" y="188" class="t">Actor</text><text x="287" y="207" class="m">act()</text>
-    <text x="287" y="229" class="d">multi-turn calculator use</text><text x="287" y="246" class="d">keeps exact token ids</text>
+    <text x="287" y="229" class="d">multi-turn tool use</text><text x="287" y="246" class="d">keeps exact token ids</text>
   </g>
   <g>
     <rect x="520" y="164" width="175" height="104" rx="10" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
     <text x="532" y="188" class="t">Verifier</text><text x="532" y="207" class="m">score()</text>
-    <text x="532" y="229" class="d">checks the final answer</text><text x="532" y="246" class="d">reward 1 if exact, else 0</text>
+    <text x="532" y="229" class="d">checks the final answer</text><text x="532" y="246" class="d">reward from the use case</text>
   </g>
   <g>
     <rect x="765" y="164" width="175" height="104" rx="10" fill="#fff" stroke="#2563eb" stroke-width="1.6"/>
@@ -70,10 +70,10 @@
     <rect x="1010" y="398" width="175" height="86" rx="10"/>
   </g>
   <text x="42" y="421" class="t" font-size="14">curriculum.py</text><text x="42" y="443" class="d">weight = 1 − p<tspan dy="-5" font-size="9">G</tspan><tspan dy="5"> − (1 − p)</tspan><tspan dy="-5" font-size="9">G</tspan></text><text x="42" y="461" class="d">EMA success per level</text>
-  <text x="287" y="421" class="t" font-size="14">tools.py</text><text x="287" y="443" class="d">registry {name: function}</text><text x="287" y="461" class="d">safe AST calculator</text>
-  <text x="532" y="421" class="t" font-size="14">verifier.py</text><text x="532" y="443" class="d">parse the last &lt;answer&gt;</text><text x="532" y="461" class="d">exact match → 1.0</text>
+  <text x="287" y="421" class="t" font-size="14">tools.py</text><text x="287" y="443" class="d">parses &lt;tool&gt;…&lt;/tool&gt; calls</text><text x="287" y="461" class="d">for any tool registry</text>
+  <text x="532" y="421" class="t" font-size="14">verifier.py</text><text x="532" y="443" class="d">exact answer → 1.0;</text><text x="532" y="461" class="d">a use case can override</text>
   <text x="777" y="421" class="t" font-size="14">grpo.py (advantages)</text><text x="777" y="443" class="d">(r − mean) / std per task</text><text x="777" y="461" class="d">no-spread groups dropped</text>
-  <text x="1022" y="421" class="t" font-size="14">tasks.py</text><text x="1022" y="443" class="d">6 levels of word problems</text><text x="1022" y="461" class="d">fixed held-out set (seed)</text>
+  <text x="1022" y="421" class="t" font-size="14">usecases/</text><text x="1022" y="443" class="d">math: calculator problems</text><text x="1022" y="461" class="d">support: refund decisions</text>
 
   <!-- ML runtime -->
   <text x="30" y="514" class="lab">ML RUNTIME · MLX ON THE APPLE GPU</text>
@@ -82,8 +82,8 @@
     <rect x="765" y="522" width="175" height="86" rx="10"/>
   </g>
   <text x="287" y="545" class="t" font-size="14">rollout.py</text><text x="287" y="567" class="d">batched sampling, stops at</text><text x="287" y="585" class="d">tags; tool tokens masked</text>
-  <text x="532" y="545" class="t" font-size="14">Qwen2.5-0.5B, 4-bit</text><text x="532" y="567" class="d">+ LoRA on all linear</text><text x="532" y="585" class="d">layers (8.8M params)</text>
-  <text x="777" y="545" class="t" font-size="14">GRPOLearner</text><text x="777" y="567" class="d">policy-gradient loss, Adam</text><text x="777" y="585" class="d">clip 1 · LoRA r16, scale 2</text>
+  <text x="532" y="545" class="t" font-size="14">Qwen2.5 0.5B / 1.5B</text><text x="532" y="567" class="d">4-bit + LoRA on all</text><text x="532" y="585" class="d">linear layers</text>
+  <text x="777" y="545" class="t" font-size="14">GRPOLearner</text><text x="777" y="567" class="d">policy gradient + KL anchor</text><text x="777" y="585" class="d">to the base · LoRA r16, s2</text>
   <path d="M450 565H518" class="ln" marker-end="url(#a)"/><text x="484" y="557" class="e" text-anchor="middle">samples</text>
   <path d="M765 565H697" class="ln" marker-end="url(#a)"/><text x="731" y="557" class="e" text-anchor="middle">updates</text>
 
@@ -95,5 +95,5 @@
   <text x="1022" y="545" class="t" font-size="14">report.py · demo.py</text><text x="1022" y="567" class="d">REPORT.md + report.png</text><text x="1022" y="585" class="d">base vs trained, 1 question</text>
 
   <text x="30" y="640" class="e">Outputs per run (runs/&lt;name&gt;/): messages.jsonl · steps.jsonl · eval_before.json · eval_after.json · examples.json · results.json · adapter/ (mlx_lm format)</text>
-  <text x="30" y="660" class="e">Swap a role without touching the loop: e.g. a different Learner (DPO) or Verifier (unit tests for code) only has to implement the same one method.</text>
+  <text x="30" y="660" class="e">Add a use case = one module (prompt, tools, task generator, reward) + one registry line. Swap a role (e.g. a DPO Learner) by implementing its one method.</text>
 </svg>

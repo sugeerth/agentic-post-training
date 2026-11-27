@@ -12,16 +12,7 @@ from dataclasses import dataclass, field
 from mlx_lm.generate import BatchGenerator
 from mlx_lm.sample_utils import make_sampler
 
-from selflearn.tasks import Task
-
-SYSTEM_PROMPT = (
-    "You solve math word problems step by step. You have a calculator.\n"
-    "To use it, write <calc>EXPRESSION</calc> and stop. The result comes back as <result>VALUE</result>.\n"
-    "You may use the calculator several times. When you are sure, write <answer>NUMBER</answer>.\n"
-    "Example:\n"
-    "Question: A shop has 12 pens. It buys 3 packs of 25 pens. How many pens does the shop have now?\n"
-    "<calc>12 + 3 * 25</calc>\n<result>87</result>\n<answer>87</answer>"
-)
+from selflearn.usecase import Task
 
 
 @dataclass
@@ -36,8 +27,8 @@ class Trajectory:
     done: bool = field(default=False, repr=False)
 
 
-def prompt_ids(tok, task: Task) -> list[int]:
-    msgs = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Question: " + task.question}]
+def prompt_ids(tok, task: Task, system_prompt: str, user_prefix: str) -> list[int]:
+    msgs = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prefix + task.question}]
     return list(tok.apply_chat_template(msgs, add_generation_prompt=True))
 
 
@@ -69,13 +60,14 @@ def generate(model, tok, prompts: list[list[int]], temp: float, max_new: int, st
     return [(out[u], tok.decode(out[u]), ended[u]) for u in uids]
 
 
-def rollout(model, tok, tasks: list[Task], *, group: int, temp: float, tools: dict[str, Callable[[str], str]],
-            call_tool: Callable, max_turns: int = 4, max_new: int = 96, batch: int = 64) -> list[Trajectory]:
+def rollout(model, tok, tasks: list[Task], *, group: int, temp: float, system_prompt: str,
+            tools: dict[str, Callable[[str], str]], call_tool: Callable, user_prefix: str = "Question: ",
+            max_turns: int = 4, max_new: int = 96, batch: int = 64) -> list[Trajectory]:
     """`group` attempts per task, in task order (attempts of one task are contiguous). Scoring is the Verifier's job."""
     stops = (*(f"</{name}>" for name in tools), "</answer>")
     trajs = []
     for t in tasks:
-        p = prompt_ids(tok, t)
+        p = prompt_ids(tok, t, system_prompt, user_prefix)
         trajs += [Trajectory(t, list(p), [0] * len(p)) for _ in range(group)]
     for turn in range(max_turns):
         active = [tr for tr in trajs if not tr.done]

@@ -15,17 +15,24 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from selflearn import tasks as T
-from selflearn.agents import ActorAgent, AssessorAgent, CurriculumAgent, LearnerAgent, VerifierAgent
+from selflearn.agents import (
+    ActorAgent,
+    AssessorAgent,
+    CurriculumAgent,
+    LearnerAgent,
+    SelectorAgent,
+    VerifierAgent,
+)
 from selflearn.bus import Bus
 from selflearn.coordinator import Coordinator
 from selflearn.grpo import GRPOLearner, attach_lora, save_adapter
-from selflearn.tools import TOOLS, run_call
-from selflearn.verifier import reward
+from selflearn.tools import run_call
+from selflearn.usecases import USE_CASES
 
 
 @dataclass
 class Config:
+    usecase: str = "math"    # math | support  (see selflearn/usecases/)
     model: str = "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
     steps: int = 60
     tasks: int = 16          # tasks per step: more groups -> more groups with mixed outcomes -> more learning signal
@@ -35,8 +42,10 @@ class Config:
     scale: float = 2.0       # LoRA alpha/rank; mlx's default 20 broke the policy in one step in our smoke test
     temp: float = 1.0
     max_turns: int = 4
-    max_new: int = 96        # new tokens per turn
-    eval_per_level: int = 20
+    eval_per_level: int = 0  # 0 = the use case's default
+    kl: float = 0.0          # KL anchor to the base model (0 = off); stops collapse onto one answer
+    select_every: int = 0    # score a validation set every N steps and keep the best checkpoint (0 = off)
+    val_per_level: int = 6   # validation set size per level (separate from the held-out test)
     seed: int = 0
     out: str = ""
 
@@ -44,7 +53,8 @@ class Config:
 def run(cfg: Config) -> dict:
     import mlx.core as mx
     from mlx_lm import load
-    out = Path(cfg.out or f"runs/{time.strftime('%Y%m%d-%H%M')}-{cfg.model.split('/')[-1]}")
+    uc = USE_CASES[cfg.usecase]
+    out = Path(cfg.out or f"runs/{time.strftime('%Y%m%d-%H%M')}-{uc.name}-{cfg.model.split('/')[-1]}")
     out.mkdir(parents=True, exist_ok=True)
     (out / "config.json").write_text(json.dumps(asdict(cfg), indent=1))
     rng = random.Random(cfg.seed)
@@ -53,14 +63,19 @@ def run(cfg: Config) -> dict:
     model, tok = load(cfg.model)
     n_params = attach_lora(model, cfg.rank, cfg.scale)
     bus = Bus(out / "messages.jsonl")
-    bus.send("Coordinator", "all", f"model {cfg.model.split('/')[-1]}, LoRA {n_params / 1e6:.1f}M params, {cfg.steps} steps")
+    bus.send("Coordinator", "all", f"use case {uc.name}, model {cfg.model.split('/')[-1]}, "
+             f"LoRA {n_params / 1e6:.1f}M params, {cfg.steps} steps")
 
-    held_out = T.make_eval_set(cfg.eval_per_level)
-    actor = ActorAgent(model, tok, TOOLS, run_call, bus, cfg.max_turns, cfg.max_new)
-    verifier = VerifierAgent(reward, bus)
-    curriculum = CurriculumAgent(cfg.group, rng, {t.question for t in held_out}, bus)
-    learner = LearnerAgent(GRPOLearner(model, cfg.lr, pad_id=tok.eos_token_id or 0), cfg.group, bus)
+    held_out = uc.eval_set(cfg.eval_per_level or None)
+    exclude = {t.question for t in held_out}
+    validation = uc.validation_set(cfg.val_per_level, exclude) if cfg.select_every else []
+    exclude |= {t.question for t in validation}           # never train on test or validation questions
+    actor = ActorAgent(model, tok, uc, run_call, bus, cfg.max_turns)
+    verifier = VerifierAgent(uc.reward, bus)
+    curriculum = CurriculumAgent(uc, cfg.group, rng, exclude, bus)
+    learner = LearnerAgent(GRPOLearner(model, cfg.lr, pad_id=tok.eos_token_id or 0, kl=cfg.kl), cfg.group, bus)
     assessor = AssessorAgent(actor, verifier, held_out, bus)
+    selector = SelectorAgent(model, actor, verifier, validation, bus, cfg.select_every) if cfg.select_every else None
 
     log = open(out / "steps.jsonl", "w")
 
@@ -69,18 +84,22 @@ def run(cfg: Config) -> dict:
         log.write(json.dumps(rec) + "\n")
         log.flush()
         if step % 10 == 0 or step == cfg.steps:
-            save_adapter(model, out / "adapter", cfg.model, cfg.rank, cfg.scale)   # survives a sleeping Mac
+            save_adapter(model, out / "adapter", cfg.model, cfg.rank, cfg.scale, uc.name)   # survives a sleeping Mac
 
-    res = Coordinator(assessor, curriculum, actor, verifier, learner).run(cfg.steps, cfg.tasks, cfg.group, cfg.temp, on_step)
+    res = Coordinator(assessor, curriculum, actor, verifier, learner, selector).run(
+        cfg.steps, cfg.tasks, cfg.group, cfg.temp, on_step)
     log.close()
+    save_adapter(model, out / "adapter", cfg.model, cfg.rank, cfg.scale, uc.name)   # the weights that were assessed
 
     b, a = res["before_records"], res["after_records"]
-    fixed = sorted([(x, y) for x, y in zip(b, a, strict=True) if x["reward"] < y["reward"]], key=lambda p: -p[0]["level"])
-    broken = [(x, y) for x, y in zip(b, a, strict=True) if x["reward"] > y["reward"]]
+    ok = lambda r: r["reward"] >= 1.0   # noqa: E731  (fully correct; partial credit is a training signal only)
+    fixed = sorted([(x, y) for x, y in zip(b, a, strict=True) if not ok(x) and ok(y)], key=lambda p: -p[0]["level"])
+    broken = [(x, y) for x, y in zip(b, a, strict=True) if ok(x) and not ok(y)]
     (out / "eval_before.json").write_text(json.dumps({"summary": res["before"], "records": b}, indent=1))
     (out / "eval_after.json").write_text(json.dumps({"summary": res["after"], "records": a}, indent=1))
     (out / "examples.json").write_text(json.dumps({"fixed": fixed[:10], "broken": broken[:5]}, indent=1))
-    results = {"model": cfg.model, "steps": cfg.steps, "before": res["before"], "after": res["after"],
+    results = {"usecase": uc.name, "model": cfg.model, "steps": cfg.steps, "selected_step": res["selected_step"],
+               "kl": cfg.kl, "before": res["before"], "after": res["after"],
                "fixed": len(fixed), "broken": len(broken), "held_out": len(held_out)}
     (out / "results.json").write_text(json.dumps(results, indent=1))
     bus.send("Coordinator", "all", f"done: {res['before']['accuracy']:.1%} -> {res['after']['accuracy']:.1%} held-out, "

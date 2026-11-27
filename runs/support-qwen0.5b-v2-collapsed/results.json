@@ -1,0 +1,36 @@
+{
+ "usecase": "support",
+ "model": "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+ "steps": 60,
+ "before": {
+  "accuracy": 0.3111111111111111,
+  "by_level": {
+   "1": 0.2,
+   "2": 0.0,
+   "3": 0.26666666666666666,
+   "4": 0.6666666666666666,
+   "5": 0.4,
+   "6": 0.3333333333333333
+  },
+  "used_tool": 1.0,
+  "answered": 1.0,
+  "mean_calls": 2.0
+ },
+ "after": {
+  "accuracy": 0.24444444444444444,
+  "by_level": {
+   "1": 1.0,
+   "2": 0.0,
+   "3": 0.0,
+   "4": 0.06666666666666667,
+   "5": 0.4,
+   "6": 0.0
+  },
+  "used_tool": 1.0,
+  "answered": 1.0,
+  "mean_calls": 2.0
+ },
+ "fixed": 19,
+ "broken": 25,
+ "held_out": 90
+}
