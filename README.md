@@ -11,6 +11,8 @@ A modular framework where specialized AI agents coordinate to execute post-train
 
 ## Self-learning agentic RL post-training (real training, runs on a Mac)
 
+**Live:** the [web demo's first tab](https://sugeerth.github.io/agentic-post-training/demo.html) replays every held-out problem (base vs trained) and the agents' real message log.
+
 A small model teaches itself to use a calculator tool on multi-step word problems, with **no human labels**:
 it tests itself, picks what to practise, attempts problems with the tool, has its answers checked, and updates
 its own weights with GRPO. Unlike the simulated pipeline further down, **every number in this section is measured.**
@@ -111,6 +113,7 @@ python3 -m selflearn.train --smoke                # 1 minute: checks the plumbin
 python3 -m selflearn.train --steps 60             # the run above
 python3 -m selflearn.report runs/<run>            # REPORT.md + report.png
 python3 -m selflearn.demo --adapter runs/<run>/adapter --question "A farm has 120 eggs. ..."
+python3 -m selflearn.publish runs/<run>           # updates the "Self-Learning (real run)" tab of the web demo
 python3 -m pytest tests/test_selflearn.py         # 9 fast tests, no model needed
 ```
 

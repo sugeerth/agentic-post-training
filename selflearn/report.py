@@ -18,8 +18,8 @@ def _chart(run: Path, res: dict, steps: list[dict]) -> None:
     x = range(len(lv))
     b = [res["before"]["by_level"][k] for k in lv]
     a = [res["after"]["by_level"][k] for k in lv]
-    ax[0].bar([i - 0.2 for i in x], b, 0.4, label=f"base {res['before']['accuracy']:.0%}", color="#9ca3af")
-    ax[0].bar([i + 0.2 for i in x], a, 0.4, label=f"trained {res['after']['accuracy']:.0%}", color="#2563eb")
+    ax[0].bar([i - 0.2 for i in x], b, 0.4, label=f"base {res['before']['accuracy']:.1%}", color="#9ca3af")
+    ax[0].bar([i + 0.2 for i in x], a, 0.4, label=f"trained {res['after']['accuracy']:.1%}", color="#2563eb")
     ax[0].set_xticks(list(x), [f"L{k}" for k in lv])
     ax[0].set_ylim(0, 1)
     ax[0].set_title("Held-out accuracy by difficulty (greedy)")
