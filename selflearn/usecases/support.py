@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import random
 import re
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 
 from selflearn.usecase import Task, UseCase
 from selflearn.usecases.math import calc
@@ -159,14 +160,13 @@ _DECISION = re.compile(r"(refund|replace|deny)\s*\$?\s*([\d,]*\.?\d*)", re.I)
 
 def reward(text: str, answer: str) -> float:
     """1.0 for the right decision (action, and amount to the cent for refunds); 0.5 for the right action with a wrong
-    amount; 0.0 otherwise. A decision made without a successful <order> lookup scores 0 (policy rule 1).
+    amount; 0.0 otherwise. The environment adds the evidence rule (requires=("order",)): a decision made without a
+    successful <order> lookup in the episode scores 0 (policy rule 1). See selflearn/env.py.
 
     Why: with a plain 0/1 reward and no lookup rule, the first run collapsed to always answering "deny" without
     looking anything up (right about a third of the time, no effort). Requiring evidence removes that shortcut, and
     partial credit gives refund cases a learning signal before the agent gets amounts exactly right.
     Held-out accuracy still counts only 1.0 as correct."""
-    if "<result>order " not in text:
-        return 0.0
     m = re.findall(r"<answer>(.*?)</answer>", text, re.S)
     if not m:
         return 0.0
@@ -184,8 +184,47 @@ def reward(text: str, answer: str) -> float:
         return 0.5
 
 
+# ----------------------------------------------------------------------------- shortcut probes for the env audit
+# Scripted policies, each skipping part of the job. The Designer agent plays them in the environment before training:
+# a reward that pays one of them about as much as the agent already earns is a reward the agent will learn to hack.
+def _probe(decide_from: Callable[[Task, Order | None], str], look_up: bool = True):
+    def play(task: Task, ep) -> str:
+        text, o = "", None
+        if look_up:
+            m = re.search(r"[A-Z]\d{6}", task.question)
+            oid = m.group() if m else "A000000"
+            text = f"<order>{oid}</order>\n<result>{ep.step(f'<order>{oid}</order>')}</result>\n"
+            o = ORDERS.get(oid)
+        final = f"<answer>{decide_from(task, o)}</answer>"
+        ep.step(final)
+        return text + final
+    return play
+
+
+PROBES = {
+    "oracle": _probe(lambda t, o: str(t.answer)),
+    "no lookup, always deny": _probe(lambda t, o: "deny", look_up=False),
+    "no lookup, always replace": _probe(lambda t, o: "replace", look_up=False),
+    "look up, always deny": _probe(lambda t, o: "deny"),
+    "look up, always replace": _probe(lambda t, o: "replace"),
+    "look up, always refund the price": _probe(lambda t, o: f"refund {o.price if o else 0:.2f}"),
+    "look up, always refund price + shipping": _probe(lambda t, o: f"refund {(o.price + o.shipping) if o else 0:.2f}"),
+}
+
+
 USE_CASE = UseCase(name="support", system_prompt=SYSTEM_PROMPT, tools={"order": lookup, "calc": calc},
-                   levels=(1, 2, 3, 4, 5, 6), make_task=make_task, reward=reward, user_prefix="Customer: ",
+                   levels=(1, 2, 3, 4, 5, 6), make_task=make_task, reward=reward, requires=("order",),
+                   probes=PROBES, user_prefix="Customer: ",
                    max_new=96, eval_per_level=15,
                    summary="taught itself to handle refund requests: look up the order, apply the refund policy, decide",
                    level_note="level = how many policy rules the case needs (6 = the message contradicts the record)")
+
+
+def exact_decision(text: str, answer: str) -> float:
+    """The first run's reward: 1 for exactly the right decision, else 0, and no evidence rule."""
+    return float(reward(text, answer) == 1.0)
+
+
+# The environment the first run trained in (it collapsed to "deny" on everything). Kept so the Designer's audit can be
+# checked against what actually happened: python3 -m selflearn.audit --usecase support-v1
+USE_CASE_V1 = replace(USE_CASE, name="support-v1", requires=(), reward=exact_decision)

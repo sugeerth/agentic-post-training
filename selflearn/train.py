@@ -19,14 +19,15 @@ from selflearn.agents import (
     ActorAgent,
     AssessorAgent,
     CurriculumAgent,
+    DesignerAgent,
     LearnerAgent,
     SelectorAgent,
     VerifierAgent,
 )
 from selflearn.bus import Bus
 from selflearn.coordinator import Coordinator
+from selflearn.env import Knobs
 from selflearn.grpo import GRPOLearner, attach_lora, save_adapter
-from selflearn.tools import run_call
 from selflearn.usecases import USE_CASES
 
 
@@ -46,6 +47,8 @@ class Config:
     kl: float = 0.0          # KL anchor to the base model (0 = off); stops collapse onto one answer
     select_every: int = 0    # score a validation set every N steps and keep the best checkpoint (0 = off)
     val_per_level: int = 6   # validation set size per level (separate from the held-out test)
+    designer: int = 1        # 1 = the Designer audits the environment first and reshapes its tasks while training
+    force: int = 0           # 1 = train even if the Designer's audit says BLOCK
     seed: int = 0
     out: str = ""
 
@@ -70,25 +73,39 @@ def run(cfg: Config) -> dict:
     exclude = {t.question for t in held_out}
     validation = uc.validation_set(cfg.val_per_level, exclude) if cfg.select_every else []
     exclude |= {t.question for t in validation}           # never train on test or validation questions
-    actor = ActorAgent(model, tok, uc, run_call, bus, cfg.max_turns)
-    verifier = VerifierAgent(uc.reward, bus)
+    actor = ActorAgent(model, tok, uc, bus, cfg.max_turns)
+    knobs = Knobs()                                          # the environment settings only the Designer turns
+    verifier = VerifierAgent(uc, bus, knobs)
     curriculum = CurriculumAgent(uc, cfg.group, rng, exclude, bus)
     learner = LearnerAgent(GRPOLearner(model, cfg.lr, pad_id=tok.eos_token_id or 0, kl=cfg.kl), cfg.group, bus)
     assessor = AssessorAgent(actor, verifier, held_out, bus)
     selector = SelectorAgent(model, actor, verifier, validation, bus, cfg.select_every) if cfg.select_every else None
+    designer = (DesignerAgent(uc, held_out, knobs, random.Random(cfg.seed + 1), exclude, bus, bool(cfg.force))
+                if cfg.designer else None)
 
     log = open(out / "steps.jsonl", "w")
 
     def on_step(step: int, rec: dict) -> None:
         rec["p"] = {str(k): round(v, 3) for k, v in curriculum.cur.p.items()}
+        if designer:
+            rec["knobs"] = asdict(knobs)
         log.write(json.dumps(rec) + "\n")
         log.flush()
         if step % 10 == 0 or step == cfg.steps:
             save_adapter(model, out / "adapter", cfg.model, cfg.rank, cfg.scale, uc.name)   # survives a sleeping Mac
 
-    res = Coordinator(assessor, curriculum, actor, verifier, learner, selector).run(
+    res = Coordinator(assessor, curriculum, actor, verifier, learner, selector, designer).run(
         cfg.steps, cfg.tasks, cfg.group, cfg.temp, on_step)
     log.close()
+    if designer:
+        v, why = designer.verdict
+        (out / "env_audit.json").write_text(json.dumps({**asdict(designer.audit), "verdict": v, "why": why,
+                                                        "variants": designer.variants, "knobs": asdict(knobs)}, indent=1))
+    if res["blocked"]:
+        results = {"usecase": uc.name, "model": cfg.model, "blocked": True, "why": designer.verdict[1],
+                   "before": res["before"]}
+        (out / "results.json").write_text(json.dumps(results, indent=1))
+        return results
     save_adapter(model, out / "adapter", cfg.model, cfg.rank, cfg.scale, uc.name)   # the weights that were assessed
 
     b, a = res["before_records"], res["after_records"]

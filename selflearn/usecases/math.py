@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import operator
 import random
+import re
 
 from selflearn.usecase import Task, UseCase
 
@@ -114,7 +115,25 @@ def calc(expr: str) -> str:
     return str(v)
 
 
+# ----------------------------------------------------------------------------- shortcut probes for the env audit
+# Number-copying habits a small model falls into; an exact-answer reward should pay them (almost) nothing.
+def _probe(guess):
+    def play(task: Task, ep) -> str:
+        nums = [int(x) for x in re.findall(r"\d+", task.question)]
+        final = f"<answer>{guess(nums) if nums else 0}</answer>"
+        ep.step(final)
+        return final
+    return play
+
+
+PROBES = {
+    "answer the first number": _probe(lambda n: n[0]),
+    "answer the last number": _probe(lambda n: n[-1]),
+    "answer the sum of all numbers": _probe(sum),
+}
+
+
 USE_CASE = UseCase(name="math", system_prompt=SYSTEM_PROMPT, tools={"calc": calc}, levels=LEVELS,
-                   make_task=make_task, max_new=96, eval_per_level=20,
+                   make_task=make_task, max_new=96, eval_per_level=20, probes=PROBES,
                    summary="taught itself to use a calculator on multi-step word problems",
                    level_note="level = number of steps in the problem")
