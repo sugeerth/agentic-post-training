@@ -176,6 +176,73 @@ Seeds 99, 100 and 101 were all run: the trained agent got 3 of 3, the base model
 **What is still wrong.** It now over-uses "replace" (14 of its 22 replace answers are wrong), level 5 timing rules got
 slightly worse, and levels 3-4 did not move. One seed, 90 held-out cases: about ±5 points of sampling error per accuracy.
 
+### RL environment design: a Designer agent that audits the environment before training on it
+
+The support runs above failed because of the **environment**, not the model: v1's reward paid "deny" to everything
+about as well as the agent's real attempts did, and v2's partial credit did the same for "refund". So environment
+design is now an agent's job. The `DesignerAgent` owns the environment and treats it the way an RL environment
+designer would: before any GPU time, it checks whether the environment can be beaten without doing the task.
+
+**The environment** (`selflearn/env.py`) is a stateful, multi-turn `Episode` per attempt: the agent writes text, the
+environment runs the tool it called and returns the result, or ends the episode. Evidence of how the agent got its
+answer (which tools ran, which succeeded) is taken from the environment's own log, never parsed from the agent's
+text. That closed a real hole: the v2 reward gave "looked the order up" credit to any text containing
+`<result>order`, which the agent can type itself. (No saved run ever did; re-scoring them changes nothing.)
+
+**The audit** (`selflearn/audit.py`) plays scripted policies in the environment:
+- an **oracle** that does the job right: it must get full reward on every task, or the verifier is broken;
+- **shortcut probes** that each skip part of the job: answer without looking anything up, look up and then always
+  say "deny" / "replace" / "refund the price" / "refund price + shipping", type a fake tool result, or (math) copy a
+  number out of the question.
+
+The best shortcut's mean reward is what an agent earns for *not doing the task*. Compared with what the agent already
+earns (its baseline mean reward on the same tasks): if a shortcut pays as much, group-relative RL drifts to it.
+
+**Checked against every saved run**, auditing each in the environment it actually trained in
+(`python3 -m selflearn.audit --usecase support --policy runs/<run>`):
+
+| run | agent's baseline reward | best shortcut in that environment | audit | what actually happened in training |
+|---|---|---|---|---|
+| support v1, 0.5B | 0.311 | no lookup, always "deny": **0.333** | **BLOCK** | collapsed to "deny" on 90/90, mean reward **0.333** |
+| support v2, 0.5B | 0.339 | look up, always "refund price + shipping": **0.411** | **BLOCK** | collapsed to "refund" on 90/90, mean reward **0.411** |
+| support v3/v4, 1.5B | 0.450 | the same shortcut: 0.411 | **WARN** (margin 0.04) | v3 was collapsing by step 21; v4 worked only with a KL anchor + checkpoint selection |
+| math, 0.5B | 0.375 | answer the sum of all numbers: 0.04 | **PASS** | clean run, 37.5% → 60.0% |
+
+Both collapsed runs ended at exactly the reward of the shortcut the audit names, which shows the audit identifies
+the attractor RL falls into, not just a risk score.
+
+**What the Designer does with it** (it turns two knobs, `env.Knobs`, and nothing else):
+1. **review**, before training: audit against the agent's baseline. If it is not a clear PASS, search the environment
+   variants (answer balance within each level × partial credit), audit each one, and switch to the smallest change
+   that makes doing the task beat the best shortcut, within noise of the best margin. If no variant does, **refuse to
+   train**.
+2. **shape**, every step: rebalance the batch the Curriculum proposed to the chosen answer mix.
+3. **observe**, every step: watch for reward hacking: one answer on most attempts while it is right on far fewer,
+   attempts that skip the required lookup, and tool results the agent typed itself. Collapse switches full answer
+   balance on.
+
+A lesson on the way: the first Designer down-weighted the shortcut's answer ("refund"). The audit showed that just
+handed the shortcut to the next answer: the best shortcut went *up*, from 0.44 to 0.67. Balancing all answers
+within each level is the minimax fix for constant answers. Even that can backfire here (it raises "always refund"
+to 0.51, because partial credit pays any refund), which is why each variant is audited, not assumed.
+
+**Real run 1: Qwen2.5-0.5B on support (the v2 setup), Designer on.**
+
+```
+[17:51:22]   Assessor → Coordinator base: held-out accuracy 31.1% (L1 20% L2 0% L3 27% L4 67% L5 40% L6 33%)
+[17:51:22]   Designer → Coordinator env audit BLOCK: 'look up, always refund price + shipping' earns 0.41, more than the agent's 0.34: RL would drift to the shortcut
+[17:51:22]   Designer → Coordinator variants (balance, partial credit -> agent vs best shortcut): 50%/0.5 -> 0.36 vs 0.37; 0%/0.5 -> 0.33 vs 0.33; ...
+[17:51:22]   Designer → Coordinator no variant makes doing the task pay more than a shortcut for this agent: refusing to train
+```
+
+It stopped after 37 seconds; the v2 run spent 47 minutes getting worse (31.1% → 24.4%). This matches the earlier
+diagnosis that 0.5B cannot condition its decision on the order record: in every variant, a constant answer earns as
+much as this agent does.
+
+**Real run 2: Qwen2.5-1.5B on support, Designer on, no KL anchor, no checkpoint selection** (the v3 settings that lost their learning signal). The Designer's review: WARN (margin +0.04), so it switched the environment to *keep the answer mix, halve partial credit* (margin +0.11). In its first steps the live watch caught the agent typing its own `<result>` in a handful of attempts; the environment's log gave them no credit. The run is still training; its result will be added here.
+
+Blog post: [Your RL Environment Has a Cheaper Answer. Find It Before the Policy Does.](https://sugeerth.github.io/blog/environment-designer/)
+
 ### Run it
 
 ```bash
