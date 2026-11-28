@@ -178,19 +178,23 @@ class DesignerAgent:
              the task pay more than a shortcut, it refuses to train (no GPU time spent) unless forced.
     shape    each step: rebalances the batch the Curriculum proposed to the chosen answer mix.
     observe  each step: watches the attempts for reward hacking (one answer for everything, skipped evidence,
-             tool results typed by the agent). Collapse onto one answer switches full answer balance on.
+             tool results typed by the agent). On collapse it re-runs the same audited variant search, with the
+             agent's latest attempts in place of the stale baseline, and switches only if a variant still beats every
+             shortcut. (An un-audited reflex, e.g. "balance all answers", can make a shortcut pay more.)
     """
     name = "Designer"
 
     def __init__(self, usecase: UseCase, held_out: list[Task], knobs: Knobs, rng: random.Random, exclude: set[str],
-                 bus: Bus, force: bool = False, collapse: float = 0.8):
+                 bus: Bus, force: bool = False, collapse: float = 0.8, cooldown: int = 5):
         self.uc, self.held_out, self.knobs, self.rng, self.exclude, self.bus = usecase, held_out, knobs, rng, exclude, bus
-        self.force, self.collapse = force, collapse
+        self.force, self.collapse, self.cooldown = force, collapse, cooldown
         self.keys = env_audit.level_answers(usecase)
         self.audit: env_audit.EnvAudit | None = None
-        self.verdict, self.variants = ("PASS", ""), []
+        self.verdict, self.variants, self.baseline = ("PASS", ""), [], []
+        self.since_redesign, self.redesigns = cooldown, 0
 
     def review(self, baseline: list[dict]) -> bool:
+        self.baseline = baseline
         policy = env_audit.mean_reward(baseline)
         self.audit = env_audit.audit(self.uc, self.held_out)   # the very tasks the baseline was measured on
         self.verdict = v, why = self.audit.verdict(policy)
@@ -215,6 +219,24 @@ class DesignerAgent:
                       f"{best['margin']:+.2f}", **best)
         return True
 
+    def _redesign(self, trajs: list[Trajectory]) -> str:
+        """Re-run the variant search against the agent as it is now: its latest attempts (scored with the use case's
+        own reward), plus its baseline for any level this batch did not practise."""
+        self.since_redesign, self.redesigns = 0, self.redesigns + 1
+        recent = [{"level": t.task.level, "answer": t.task.answer,
+                   "reward": score(self.uc, t.text, t.task.answer, t.ep.log if t.ep else [])} for t in trajs]
+        seen = {r["level"] for r in recent}
+        rows = env_audit.search(self.uc, recent + [r for r in self.baseline if r["level"] not in seen],
+                                self.held_out, self.exclude)
+        best = env_audit.choose(rows)
+        now = next(r for r in rows if (r["balance"], r["partial"]) == (self.knobs.balance, self.knobs.partial))
+        if best["margin"] > now["margin"] and best["margin"] > 0:
+            self.knobs.balance, self.knobs.partial = best["balance"], best["partial"]
+            return (f"re-audited: switched to balance {best['balance']:.0%}, partial x{best['partial']:.1f} "
+                    f"(margin {now['margin']:+.2f} -> {best['margin']:+.2f})")
+        return f"re-audited: keeping balance {self.knobs.balance:.0%}, partial x{self.knobs.partial:.1f} " \
+               f"(margin {now['margin']:+.2f}; no variant does better)"
+
     def shape(self, tasks: list[Task]) -> list[Task]:
         if not self.knobs.balance:
             return tasks
@@ -226,11 +248,11 @@ class DesignerAgent:
         top, n = said.most_common(1)[0]
         share, true_share = n / len(trajs), truth[top] / len(trajs)
         notes = []
+        self.since_redesign += 1
         if top != "(none)" and share >= self.collapse and share - true_share >= 0.25:
             notes.append(f"collapse: '{top}' on {share:.0%} of attempts, right on {true_share:.0%}")
-            if self.knobs.balance < 1.0 and self.keys:
-                self.knobs.balance = 1.0
-                notes.append("answer balance -> 100%")
+            if self.since_redesign >= self.cooldown:
+                notes.append(self._redesign(trajs))
         for need in self.uc.requires:
             skipped = sum(not t.ep.used(need) for t in trajs if t.ep) / len(trajs)
             if skipped > 0.5:

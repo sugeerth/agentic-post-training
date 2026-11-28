@@ -28,6 +28,7 @@ decides refunds** (43.3% → 60.0%, after three honest failed runs). Unlike the 
 | Actor | multi-turn tool use: `<calc>…</calc>` → `<result>…</result>` → `<answer>…</answer>` | `selflearn/rollout.py`, `selflearn/tools.py` |
 | Verifier | binary, exact reward from the final answer | `selflearn/verifier.py` |
 | Learner | GRPO: group-relative advantages, groups with no spread dropped, loss only on model-written tokens | `selflearn/grpo.py` |
+| Designer | owns the environment: audits it for shortcuts before training, switches to a variant where doing the task beats every shortcut (or refuses to train), watches each batch for reward hacking ([below](#rl-environment-design-a-designer-agent-that-audits-the-environment-before-training-on-it)) | `selflearn/env.py`, `selflearn/audit.py` |
 
 Agents report on a small message bus (`selflearn/bus.py`, logged to `messages.jsonl`):
 
@@ -182,12 +183,14 @@ pip install mlx-lm matplotlib                     # Apple silicon
 python3 -m selflearn.train --smoke                # 1 minute: checks the plumbing
 python3 -m selflearn.train --steps 60             # use case 1 (math), the run above
 python3 -m selflearn.train --usecase support --model mlx-community/Qwen2.5-1.5B-Instruct-4bit \
-    --steps 30 --kl 0.04 --lr 1e-5 --select-every 5      # use case 2 (support), v4 above
+    --steps 30 --kl 0.04 --lr 1e-5 --select-every 5 --designer 0   # use case 2 (support), v4 above
+python3 -m selflearn.audit --usecase support      # environment audit: oracle + shortcut probes, no model needed
+python3 -m selflearn.audit --usecase support --policy runs/support-qwen1.5b   # + verdict vs that agent, variants
 python3 -m selflearn.compare runs/a runs/b --out runs.png   # learning signal + decision mix across runs
 python3 -m selflearn.report runs/<run>            # REPORT.md + report.png
 python3 -m selflearn.demo --adapter runs/<run>/adapter --question "A farm has 120 eggs. ..."
 python3 -m selflearn.publish runs/<run>           # updates the "Self-Learning (real run)" tab of the web demo
-python3 -m pytest tests/test_selflearn.py         # 12 fast tests, no model needed
+python3 -m pytest tests/test_selflearn.py         # 18 fast tests, no model needed
 ```
 
 Design notes: the Coordinator imports no ML library and is tested with fake agents; tools are a registry

@@ -253,8 +253,11 @@ def test_designer_refuses_or_redesigns_and_catches_collapse():
     assert d.review([{"level": t.level, "answer": t.answer, "reward": 1.0} for t in held]) is True
     assert knobs.balance == 0.0 and d.verdict[0] == "PASS"
     tasks = [t for t in held if not t.answer.startswith("deny")][:8]
-    d.observe([Trajectory(t, [], [], text="<answer>deny</answer>", ep=Episode(t, uc.tools)) for t in tasks])
-    assert knobs.balance == 1.0 and "collapse" in bus.history[-1].text
+    batch = [Trajectory(t, [], [], text="<answer>deny</answer>", ep=Episode(t, uc.tools)) for t in tasks]
+    d.observe(batch)
+    assert "collapse" in bus.history[-1].text and "re-audited" in bus.history[-1].text and d.redesigns == 1
+    d.observe(batch)                                     # within the cooldown: alarm again, but no second search
+    assert "collapse" in bus.history[-1].text and d.redesigns == 1
     assert len(d.shape(held)) == len(held)
 
 
