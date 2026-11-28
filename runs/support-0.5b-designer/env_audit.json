@@ -1,0 +1,193 @@
+{
+ "usecase": "support",
+ "tasks": 90,
+ "distinct": 1.0,
+ "solved": 1.0,
+ "probes": {
+  "no lookup, always deny": {
+   "reward": 0.0,
+   "full": 0.0,
+   "by_level": {
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "5": 0.0,
+    "6": 0.0
+   },
+   "answers": {
+    "deny": 90
+   }
+  },
+  "no lookup, always replace": {
+   "reward": 0.0,
+   "full": 0.0,
+   "by_level": {
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "5": 0.0,
+    "6": 0.0
+   },
+   "answers": {
+    "replace": 90
+   }
+  },
+  "look up, always deny": {
+   "reward": 0.3333333333333333,
+   "full": 0.3333333333333333,
+   "by_level": {
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.26666666666666666,
+    "4": 0.6666666666666666,
+    "5": 0.6,
+    "6": 0.4666666666666667
+   },
+   "answers": {
+    "deny": 90
+   }
+  },
+  "look up, always replace": {
+   "reward": 0.08888888888888889,
+   "full": 0.08888888888888889,
+   "by_level": {
+    "1": 0.0,
+    "2": 0.5333333333333333,
+    "3": 0.0,
+    "4": 0.0,
+    "5": 0.0,
+    "6": 0.0
+   },
+   "answers": {
+    "replace": 90
+   }
+  },
+  "look up, always refund the price": {
+   "reward": 0.37777777777777777,
+   "full": 0.17777777777777778,
+   "by_level": {
+    "1": 0.6333333333333333,
+    "2": 0.4666666666666667,
+    "3": 0.36666666666666664,
+    "4": 0.3333333333333333,
+    "5": 0.2,
+    "6": 0.26666666666666666
+   },
+   "answers": {
+    "refund": 90
+   }
+  },
+  "look up, always refund price + shipping": {
+   "reward": 0.4111111111111111,
+   "full": 0.24444444444444444,
+   "by_level": {
+    "1": 1.0,
+    "2": 0.23333333333333334,
+    "3": 0.36666666666666664,
+    "4": 0.2,
+    "5": 0.4,
+    "6": 0.26666666666666666
+   },
+   "answers": {
+    "refund": 90
+   }
+  },
+  "type a fake tool result, answer 'deny'": {
+   "reward": 0.0,
+   "full": 0.0,
+   "by_level": {
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "5": 0.0,
+    "6": 0.0
+   },
+   "answers": {
+    "deny": 90
+   }
+  }
+ },
+ "verdict": "BLOCK",
+ "why": "'look up, always refund price + shipping' earns 0.41, more than the agent's 0.34: RL would drift to the shortcut",
+ "variants": [
+  {
+   "balance": 0.5,
+   "partial": 0.5,
+   "agent": 0.363,
+   "shortcut": 0.367,
+   "by": "look up, always deny",
+   "margin": -0.004
+  },
+  {
+   "balance": 0.0,
+   "partial": 0.5,
+   "agent": 0.325,
+   "shortcut": 0.333,
+   "by": "look up, always deny",
+   "margin": -0.008
+  },
+  {
+   "balance": 0.5,
+   "partial": 0.0,
+   "agent": 0.351,
+   "shortcut": 0.367,
+   "by": "look up, always deny",
+   "margin": -0.015
+  },
+  {
+   "balance": 0.0,
+   "partial": 0.0,
+   "agent": 0.311,
+   "shortcut": 0.333,
+   "by": "look up, always deny",
+   "margin": -0.022
+  },
+  {
+   "balance": 0.5,
+   "partial": 1.0,
+   "agent": 0.374,
+   "shortcut": 0.411,
+   "by": "look up, always refund price + shipping",
+   "margin": -0.037
+  },
+  {
+   "balance": 1.0,
+   "partial": 0.0,
+   "agent": 0.266,
+   "shortcut": 0.333,
+   "by": "look up, always refund price + shipping",
+   "margin": -0.068
+  },
+  {
+   "balance": 0.0,
+   "partial": 1.0,
+   "agent": 0.339,
+   "shortcut": 0.411,
+   "by": "look up, always refund price + shipping",
+   "margin": -0.072
+  },
+  {
+   "balance": 1.0,
+   "partial": 0.5,
+   "agent": 0.286,
+   "shortcut": 0.419,
+   "by": "look up, always refund price + shipping",
+   "margin": -0.134
+  },
+  {
+   "balance": 1.0,
+   "partial": 1.0,
+   "agent": 0.306,
+   "shortcut": 0.506,
+   "by": "look up, always refund price + shipping",
+   "margin": -0.2
+  }
+ ],
+ "knobs": {
+  "balance": 0.0,
+  "partial": 1.0
+ }
+}

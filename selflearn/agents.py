@@ -7,14 +7,18 @@ each reports what it did on the bus. None of them knows about the others (the Co
   Learner     GRPO update on the scored trajectories
   Assessor    greedy accuracy on the fixed held-out set, per level
   Selector    (optional) keeps the best checkpoint by validation accuracy and restores it at the end
+  Designer    (optional) owns the environment: audits it for shortcuts before training, switches to the variant
+              where doing the task beats every shortcut by the most (or refuses), and watches for reward hacking
 """
 from __future__ import annotations
 
 import random
-from collections.abc import Callable
+from collections import Counter
 
+from selflearn import audit as env_audit
 from selflearn.bus import Bus
 from selflearn.curriculum import Curriculum
+from selflearn.env import Knobs, answer_key, score
 from selflearn.grpo import group_advantages
 from selflearn.rollout import Trajectory, rollout
 from selflearn.usecase import Task, UseCase
@@ -48,14 +52,13 @@ class CurriculumAgent:
 class ActorAgent:
     name = "Actor"
 
-    def __init__(self, model, tok, usecase: UseCase, call_tool: Callable, bus: Bus, max_turns: int = 4):
-        self.model, self.tok, self.uc, self.call_tool, self.bus = model, tok, usecase, call_tool, bus
-        self.max_turns = max_turns
+    def __init__(self, model, tok, usecase: UseCase, bus: Bus, max_turns: int = 4):
+        self.model, self.tok, self.uc, self.bus, self.max_turns = model, tok, usecase, bus, max_turns
 
     def act(self, tasks: list[Task], group: int, temp: float, report: bool = True) -> list[Trajectory]:
         uc = self.uc
         trajs = rollout(self.model, self.tok, tasks, group=group, temp=temp, system_prompt=uc.system_prompt,
-                        tools=uc.tools, call_tool=self.call_tool, user_prefix=uc.user_prefix,
+                        tools=uc.tools, user_prefix=uc.user_prefix,
                         max_turns=self.max_turns, max_new=uc.max_new)
         if report:
             calls = sum(t.calls for t in trajs) / len(trajs)
@@ -66,12 +69,15 @@ class ActorAgent:
 class VerifierAgent:
     name = "Verifier"
 
-    def __init__(self, reward_fn: Callable[[str, int | float | str], float], bus: Bus):
-        self.reward_fn, self.bus = reward_fn, bus
+    def __init__(self, usecase: UseCase, bus: Bus, knobs: Knobs | None = None):
+        self.uc, self.bus, self.knobs = usecase, bus, knobs or Knobs()
 
-    def score(self, trajs: list[Trajectory], report: bool = True) -> float:
+    def score(self, trajs: list[Trajectory], report: bool = True, train: bool = True) -> float:
+        """Training scores use the Designer's knobs; evaluation (train=False) always uses the use case's own reward,
+        so before/after numbers stay comparable."""
+        partial = self.knobs.partial if train else 1.0
         for t in trajs:
-            t.reward = self.reward_fn(t.text, t.task.answer)
+            t.reward = score(self.uc, t.text, t.task.answer, t.ep.log if t.ep else [], partial)
         mean = sum(t.reward for t in trajs) / len(trajs)
         if report:
             self.bus.send(self.name, "Learner", f"mean reward {mean:.2f}", reward=mean)
@@ -108,7 +114,7 @@ class AssessorAgent:
 
     def assess(self, tag: str) -> tuple[dict, list[dict]]:
         trajs = self.actor.act(self.held_out, group=1, temp=0.0, report=False)
-        self.verifier.score(trajs, report=False)
+        self.verifier.score(trajs, report=False, train=False)
         correct = [t.reward >= 1.0 for t in trajs]   # accuracy counts only fully correct answers, never partial credit
         by = {lv: [c for c, t in zip(correct, trajs, strict=True) if t.task.level == lv]
               for lv in sorted({t.task.level for t in trajs})}
@@ -137,7 +143,7 @@ class SelectorAgent:
 
     def _accuracy(self) -> float:
         trajs = self.actor.act(self.validation, group=1, temp=0.0, report=False)
-        self.verifier.score(trajs, report=False)
+        self.verifier.score(trajs, report=False, train=False)
         return sum(t.reward >= 1.0 for t in trajs) / len(trajs)
 
     def consider(self, step: int) -> None:
@@ -160,3 +166,101 @@ class SelectorAgent:
         mx.eval(self.model.parameters())
         self.bus.send(self.name, "Coordinator", f"restored step {self.best_step} (validation {self.best_acc:.1%})")
         return self.best_step
+
+
+class DesignerAgent:
+    """Owns the environment, the way an RL environment designer would. It turns two knobs (env.Knobs) and nothing else:
+    the answer mix of the tasks, and how much partial credit pays.
+
+    review   before training: audits the environment against the agent's baseline (selflearn/audit.py). If a
+             shortcut pays about as much as doing the task, it searches the environment variants, auditing each one,
+             and switches to the one where doing the task beats the best shortcut by the most. If no variant makes
+             the task pay more than a shortcut, it refuses to train (no GPU time spent) unless forced.
+    shape    each step: rebalances the batch the Curriculum proposed to the chosen answer mix.
+    observe  each step: watches the attempts for reward hacking (one answer for everything, skipped evidence,
+             tool results typed by the agent). On collapse it re-runs the same audited variant search, with the
+             agent's latest attempts in place of the stale baseline, and switches only if a variant still beats every
+             shortcut. (An un-audited reflex, e.g. "balance all answers", can make a shortcut pay more.)
+    """
+    name = "Designer"
+
+    def __init__(self, usecase: UseCase, held_out: list[Task], knobs: Knobs, rng: random.Random, exclude: set[str],
+                 bus: Bus, force: bool = False, collapse: float = 0.8, cooldown: int = 5):
+        self.uc, self.held_out, self.knobs, self.rng, self.exclude, self.bus = usecase, held_out, knobs, rng, exclude, bus
+        self.force, self.collapse, self.cooldown = force, collapse, cooldown
+        self.keys = env_audit.level_answers(usecase)
+        self.audit: env_audit.EnvAudit | None = None
+        self.verdict, self.variants, self.baseline = ("PASS", ""), [], []
+        self.since_redesign, self.redesigns = cooldown, 0
+
+    def review(self, baseline: list[dict]) -> bool:
+        self.baseline = baseline
+        policy = env_audit.mean_reward(baseline)
+        self.audit = env_audit.audit(self.uc, self.held_out)   # the very tasks the baseline was measured on
+        self.verdict = v, why = self.audit.verdict(policy)
+        self.bus.send(self.name, "Coordinator", f"env audit {v}: {why}", verdict=v,
+                      shortcuts={k: round(p["reward"], 3) for k, p in self.audit.probes.items()})
+        if v == "PASS":
+            return True
+        self.variants = env_audit.search(self.uc, baseline, self.held_out, self.exclude)
+        best = env_audit.choose(self.variants)
+        self.bus.send(self.name, "Coordinator", "variants (balance, partial credit -> agent vs best shortcut): " + "; ".join(
+            f"{r['balance']:.0%}/{r['partial']:.1f} -> {r['agent']:.2f} vs {r['shortcut']:.2f}" for r in self.variants[:4]),
+            variants=self.variants)
+        if best["margin"] <= 0 and not self.force:
+            self.verdict = ("BLOCK", f"{why}; no environment variant makes doing the task pay more than a shortcut "
+                                     "for this agent")
+            self.bus.send(self.name, "Coordinator", "no variant makes doing the task pay more than a shortcut for this "
+                          "agent: refusing to train (pass --force 1 to override)")
+            return False
+        self.knobs.balance, self.knobs.partial = best["balance"], best["partial"]
+        self.bus.send(self.name, "Verifier", f"environment changed: answer balance {best['balance']:.0%}, partial credit "
+                      f"x{best['partial']:.1f}; the agent now beats the best shortcut ('{best['by']}') by "
+                      f"{best['margin']:+.2f}", **best)
+        return True
+
+    def _redesign(self, trajs: list[Trajectory]) -> str:
+        """Re-run the variant search against the agent as it is now: its latest attempts (scored with the use case's
+        own reward), plus its baseline for any level this batch did not practise."""
+        self.since_redesign, self.redesigns = 0, self.redesigns + 1
+        recent = [{"level": t.task.level, "answer": t.task.answer,
+                   "reward": score(self.uc, t.text, t.task.answer, t.ep.log if t.ep else [])} for t in trajs]
+        seen = {r["level"] for r in recent}
+        rows = env_audit.search(self.uc, recent + [r for r in self.baseline if r["level"] not in seen],
+                                self.held_out, self.exclude)
+        best = env_audit.choose(rows)
+        now = next(r for r in rows if (r["balance"], r["partial"]) == (self.knobs.balance, self.knobs.partial))
+        if best["margin"] > now["margin"] and best["margin"] > 0:
+            self.knobs.balance, self.knobs.partial = best["balance"], best["partial"]
+            return (f"re-audited: switched to balance {best['balance']:.0%}, partial x{best['partial']:.1f} "
+                    f"(margin {now['margin']:+.2f} -> {best['margin']:+.2f})")
+        return f"re-audited: keeping balance {self.knobs.balance:.0%}, partial x{self.knobs.partial:.1f} " \
+               f"(margin {now['margin']:+.2f}; no variant does better)"
+
+    def shape(self, tasks: list[Task]) -> list[Task]:
+        if not self.knobs.balance:
+            return tasks
+        return env_audit.balance(self.uc, tasks, self.knobs.balance, self.rng, self.exclude, self.keys)
+
+    def observe(self, trajs: list[Trajectory]) -> None:
+        said = Counter(answer_key(a) if (a := final_answer(t.text)) is not None else "(none)" for t in trajs)
+        truth = Counter(answer_key(t.task.answer) for t in trajs)
+        top, n = said.most_common(1)[0]
+        share, true_share = n / len(trajs), truth[top] / len(trajs)
+        notes = []
+        self.since_redesign += 1
+        if top != "(none)" and share >= self.collapse and share - true_share >= 0.25:
+            notes.append(f"collapse: '{top}' on {share:.0%} of attempts, right on {true_share:.0%}")
+            if self.since_redesign >= self.cooldown:
+                notes.append(self._redesign(trajs))
+        for need in self.uc.requires:
+            skipped = sum(not t.ep.used(need) for t in trajs if t.ep) / len(trajs)
+            if skipped > 0.5:
+                notes.append(f"{skipped:.0%} of attempts skipped <{need}> (they score 0)")
+        forged = sum(t.text.count("<result>") > t.calls for t in trajs)
+        if forged:
+            notes.append(f"{forged} attempts typed their own <result> (no credit: evidence comes from the env log)")
+        mix = " ".join(f"{k} {v / len(trajs):.0%}" for k, v in said.most_common(3))
+        self.bus.send(self.name, "Coordinator", f"answers: {mix}" + ("; " + "; ".join(notes) if notes else ""),
+                      answers={k: round(v / len(trajs), 3) for k, v in said.items()}, alarms=notes,
+                      balance=self.knobs.balance, partial=self.knobs.partial)

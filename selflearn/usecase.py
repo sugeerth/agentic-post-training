@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from selflearn.verifier import reward as exact_answer
 
@@ -28,6 +28,8 @@ class UseCase:
     levels: tuple[int, ...]
     make_task: Callable[[int, random.Random], Task]
     reward: Callable[[str, int | float | str], float] = exact_answer   # verifier: (agent text, true answer) -> 0/1
+    requires: tuple[str, ...] = ()   # tools that must run successfully in the episode for any reward (evidence rule)
+    probes: dict[str, Callable] = field(default_factory=dict)   # scripted shortcut policies for the env audit
     user_prefix: str = "Question: "
     summary: str = ""          # one sentence for reports and the web demo
     level_note: str = ""       # what "level" means for this use case

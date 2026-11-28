@@ -10,8 +10,8 @@ import json
 import random
 from pathlib import Path
 
+from selflearn.env import score
 from selflearn.rollout import rollout
-from selflearn.tools import run_call
 from selflearn.usecase import Task
 from selflearn.usecases import USE_CASES
 
@@ -37,8 +37,8 @@ def main(argv=None):
     for label, path in (("BASE MODEL", None), ("AFTER SELF-LEARNING", args.adapter)):
         model, tok = load(cfg["model"], adapter_path=path)
         t = rollout(model, tok, [task], group=1, temp=0.0, system_prompt=uc.system_prompt, tools=uc.tools,
-                    call_tool=run_call, user_prefix=uc.user_prefix, max_new=uc.max_new)[0]
-        verdict = "" if answer is None else ("  -> correct" if uc.reward(t.text, answer) else "  -> wrong")
+                    user_prefix=uc.user_prefix, max_new=uc.max_new)[0]
+        verdict = "" if answer is None else ("  -> correct" if score(uc, t.text, answer, t.ep.log) >= 1.0 else "  -> wrong")
         print(f"=== {label}{verdict}\n{t.text.strip()}\n")
 
 

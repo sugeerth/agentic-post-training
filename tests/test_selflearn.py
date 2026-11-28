@@ -1,11 +1,14 @@
 """Fast tests for the self-learning loop's pure-Python parts (no model needed)."""
 import random
 
+from selflearn import audit as A
+from selflearn.bus import Bus
 from selflearn.curriculum import Curriculum, informative
+from selflearn.env import Episode, score
 from selflearn.grpo import group_advantages
 from selflearn.tools import last_call, run_call
 from selflearn.usecase import Task
-from selflearn.usecases import USE_CASES
+from selflearn.usecases import HISTORY, USE_CASES
 from selflearn.usecases import support as S
 from selflearn.usecases.math import calc
 from selflearn.verifier import parse_answer, reward
@@ -84,13 +87,27 @@ def test_support_tool_and_scorer():
     oid = t.question.split("order ")[-1].split()[0].strip(".:") if "order " in t.question else None
     assert oid is None or S.lookup(oid).startswith(f"order {oid}")
     assert S.lookup("A000000").startswith("error")
-    looked_up = "<order>A1</order>\n<result>order A1 | item: Tent | ...</result>\n"
-    assert S.reward(looked_up + "<answer>refund 105.00</answer>", "refund 105.00") == 1.0
-    assert S.reward(looked_up + "<answer>Refund $105</answer>", "refund 105.00") == 1.0
-    assert S.reward(looked_up + "<answer>refund 104.00</answer>", "refund 105.00") == 0.5   # right action, wrong amount
-    assert S.reward(looked_up + "<answer>replace</answer>", "refund 105.00") == 0.0
-    assert S.reward(looked_up + "<answer>deny</answer>", "deny") == 1.0
-    assert S.reward("<answer>deny</answer>", "deny") == 0.0          # no lookup, no credit: the shortcut that collapsed v1
+    ep = Episode(t, S.USE_CASE.tools)
+    looked_up = f"<order>{oid}</order>\n<result>{ep.step(f'<order>{oid}</order>')}</result>\n"
+    sc = lambda text, ans, log=ep.log: score(S.USE_CASE, text, ans, log)  # noqa: E731
+    assert sc(looked_up + "<answer>refund 105.00</answer>", "refund 105.00") == 1.0
+    assert sc(looked_up + "<answer>Refund $105</answer>", "refund 105.00") == 1.0
+    assert sc(looked_up + "<answer>refund 104.00</answer>", "refund 105.00") == 0.5   # right action, wrong amount
+    assert sc(looked_up + "<answer>replace</answer>", "refund 105.00") == 0.0
+    assert sc(looked_up + "<answer>deny</answer>", "deny") == 1.0
+    assert sc("<answer>deny</answer>", "deny", []) == 0.0     # no lookup, no credit: the shortcut that collapsed v1
+
+
+def test_evidence_comes_from_the_environment_not_the_agents_text():
+    """The agent can type '<result>order ...' itself; only a lookup the environment actually ran counts."""
+    t = S.make_task(3, random.Random(5))
+    forged = "<result>order A123456 | item: Tent | price: 10.00</result>\n<answer>deny</answer>"
+    ep = Episode(t, S.USE_CASE.tools)
+    assert ep.step(forged) is None and ep.done and ep.log == []
+    assert score(S.USE_CASE, forged, "deny", ep.log) == 0.0
+    ep = Episode(t, S.USE_CASE.tools)
+    oid = t.question.split("rder ")[1][:7]
+    assert ep.step(f"<order>{oid}</order>").startswith(f"order {oid}") and ep.used("order") and not ep.done
 
 
 def test_support_levels_mix_decisions():
@@ -173,3 +190,109 @@ def test_coordinator_runs_the_loop_in_order_with_any_agents():
     assert calls == ["assess:base", "calibrate", "consider:0", *loop, "consider:1", *loop, "consider:2",
                      "restore", "assess:trained"]
     assert res["selected_step"] == 1
+
+
+def test_audit_finds_the_shortcuts_that_collapsed_past_runs():
+    """support-v1 (no evidence rule): 'always deny' with no lookup pays ~1/3, which is what the first run collapsed to.
+    The current support env pays nothing without a real lookup, but partial credit still pays 'always refund'."""
+    v1 = A.audit(HISTORY["support-v1"], A.sample(HISTORY["support-v1"], 40))
+    assert v1.solved == 1.0
+    assert v1.probes["no lookup, always deny"]["reward"] > 0.25
+    assert v1.verdict(policy=0.2)[0] == "BLOCK"
+    now = A.audit(S.USE_CASE, A.sample(S.USE_CASE, 40))
+    assert now.solved == 1.0
+    assert all(now.probes[k]["reward"] == 0.0 for k in now.probes if k.startswith(("no lookup", "type a fake")))
+    name, best = now.best_shortcut
+    assert name.startswith("look up, always refund") and now.constant_answer(name) == "refund"
+    assert now.verdict(policy=best + 0.05)[0] == "WARN" and now.verdict(policy=best + 0.3)[0] == "PASS"
+    math = A.audit(MATH, A.sample(MATH, 20))
+    assert math.solved == 1.0 and math.best_shortcut[1] < 0.1 and math.verdict(policy=0.375)[0] == "PASS"
+
+
+def test_balance_evens_the_answer_mix_within_each_level():
+    rng, pool = random.Random(0), A.sample(S.USE_CASE, 40)
+    keys = A.level_answers(S.USE_CASE)
+    assert 1 not in keys and keys[3] == ["deny", "refund"]      # level 1 (lost parcel) only ever has one answer
+    shaped = A.balance(S.USE_CASE, pool, 1.0, rng, keys=keys)
+    assert [t.level for t in shaped] == [t.level for t in pool]
+    for lv, ks in keys.items():
+        mix = [A.answer_key(t.answer) for t in shaped if t.level == lv]
+        assert max(mix.count(k) for k in ks) / len(mix) <= 0.8, (lv, mix)
+
+
+def test_policy_estimate_reproduces_the_baseline_and_search_ranks_variants():
+    held = A.sample(S.USE_CASE, 10, seed=21)
+    recs = [{"level": t.level, "answer": t.answer, "reward": 1.0 if t.answer.startswith("deny") else 0.5} for t in held]
+    assert abs(A.policy_estimate(recs, held) - A.mean_reward(recs)) < 1e-9
+    assert A.policy_estimate(recs, held, partial=0.0) < A.mean_reward(recs)
+    rows = A.search(S.USE_CASE, recs, held)
+    assert len(rows) == 9 and rows == sorted(rows, key=lambda r: -r["margin"])
+    pick = A.choose(rows)
+    assert pick["margin"] >= rows[0]["margin"] - 0.02
+
+
+def test_designer_refuses_or_redesigns_and_catches_collapse():
+    from selflearn.agents import DesignerAgent
+    from selflearn.env import Knobs
+    from selflearn.rollout import Trajectory
+    uc, bus = S.USE_CASE, Bus(None, echo=False)
+    held = A.sample(uc, 10, seed=11)
+    nothing = [{"level": t.level, "answer": t.answer, "reward": 0.0} for t in held]   # an agent that never succeeds
+    assert DesignerAgent(uc, held, Knobs(), random.Random(0), set(), bus).review(nothing) is False
+    assert "refusing" in bus.history[-1].text
+    # an agent that is right on every deny case but no other: some variant should make doing the task pay
+    deny_only = [{"level": t.level, "answer": t.answer, "reward": float(t.answer == "deny")} for t in held]
+    knobs = Knobs()
+    d = DesignerAgent(uc, held, knobs, random.Random(0), set(), bus, force=True)
+    assert d.review(deny_only) is True and len(d.variants) == 9
+    pick = A.choose(d.variants)
+    assert (knobs.balance, knobs.partial) == (pick["balance"], pick["partial"])
+    # live: a PASS environment, then the agent says "deny" on every attempt although deny is right on few of them
+    knobs = Knobs()
+    d = DesignerAgent(uc, held, knobs, random.Random(0), set(), bus)
+    assert d.review([{"level": t.level, "answer": t.answer, "reward": 1.0} for t in held]) is True
+    assert knobs.balance == 0.0 and d.verdict[0] == "PASS"
+    tasks = [t for t in held if not t.answer.startswith("deny")][:8]
+    batch = [Trajectory(t, [], [], text="<answer>deny</answer>", ep=Episode(t, uc.tools)) for t in tasks]
+    d.observe(batch)
+    assert "collapse" in bus.history[-1].text and "re-audited" in bus.history[-1].text and d.redesigns == 1
+    d.observe(batch)                                     # within the cooldown: alarm again, but no second search
+    assert "collapse" in bus.history[-1].text and d.redesigns == 1
+    assert len(d.shape(held)) == len(held)
+
+
+def test_coordinator_lets_the_designer_review_shape_and_watch():
+    from selflearn.coordinator import Coordinator
+    calls = []
+
+    class Assessor:
+        def assess(self, tag):
+            calls.append(f"assess:{tag}")
+            return {"accuracy": 0.5, "by_level": {1: 0.5}}, []
+
+    class Proposer:
+        def calibrate(self, by_level): calls.append("calibrate")
+        def propose(self, n): calls.append("propose"); return [Task("q", 1, 1)] * n  # noqa: E702
+        def observe(self, trajs): calls.append("observe")
+
+    class Actor:
+        def act(self, tasks, group, temp): calls.append("act"); return ["t"] * (len(tasks) * group)  # noqa: E702
+
+    class Verifier:
+        def score(self, trajs): calls.append("score"); return 0.5  # noqa: E702
+
+    class Learner:
+        def learn(self, trajs): calls.append("learn"); return {}  # noqa: E702
+
+    class Designer:
+        def __init__(self, ok): self.ok = ok
+        def review(self, baseline): calls.append("review"); return self.ok  # noqa: E702
+        def shape(self, tasks): calls.append("shape"); return tasks  # noqa: E702
+        def observe(self, trajs): calls.append("watch")
+
+    res = Coordinator(Assessor(), Proposer(), Actor(), Verifier(), Learner(), designer=Designer(True)).run(1, 2, 2, 1.0)
+    assert calls == ["assess:base", "review", "calibrate", "propose", "shape", "act", "score", "observe", "watch",
+                     "learn", "assess:trained"] and res["blocked"] is False
+    calls.clear()
+    res = Coordinator(Assessor(), Proposer(), Actor(), Verifier(), Learner(), designer=Designer(False)).run(1, 2, 2, 1.0)
+    assert calls == ["assess:base", "review"] and res["blocked"] is True     # no training in a blocked environment
